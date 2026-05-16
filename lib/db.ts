@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDoc, updateDoc, query, where, getDocs, Timestamp, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, updateDoc, query, where, getDocs, Timestamp, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
 import { Report, User } from '@/types';
 
@@ -80,4 +80,36 @@ export const flagReport = async (reportId: string, userId: string) => {
       });
     }
   }
+};
+
+/**
+ * Subscribes to reports in real-time based on status and vibe.
+ */
+export const subscribeToReports = (
+  status: Report['status'],
+  vibe: Report['vibe'] | null,
+  onUpdate: (reports: Report[]) => void
+) => {
+  let q;
+  if (vibe) {
+    q = query(
+      REPORTS_COL,
+      where('status', '==', status),
+      where('vibe', '==', vibe),
+      limit(50)
+    );
+  } else {
+    q = query(
+      REPORTS_COL,
+      where('status', '==', status),
+      limit(50)
+    );
+  }
+
+  // TODO: Restore orderBy('createdAt', 'desc') once Firebase index propagates.
+  return onSnapshot(q, (snapshot) => {
+    const reports = snapshot.docs.map(doc => doc.data() as Report);
+    reports.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    onUpdate(reports);
+  });
 };
