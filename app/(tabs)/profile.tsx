@@ -1,8 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  View, Text, Pressable, StyleSheet, ScrollView,
-  ActivityIndicator, useColorScheme, Alert,
-} from 'react-native';
+import { View, ScrollView, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +9,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { signOut } from '@/lib/auth';
 import { getUserReports, getTodayTrivia, submitTriviaAnswer, TIER_THRESHOLDS, getTierForPoints } from '@/lib/db';
 import { Report, TriviaQuestion, Tier } from '@/types';
+
+import { Typography } from '@/components/ui/Typography';
+import { Card } from '@/components/ui/Card';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { Badge } from '@/components/ui/Badge';
+import { useTheme } from '@/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const TIER_ICONS: Record<Tier, string> = {
   Tourist: '🗺️',
@@ -33,8 +37,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, userDoc, refreshUserDoc } = useAuth();
-  const scheme = useColorScheme();
-  const dark = scheme === 'dark';
+  const { colors, spacing, radii } = useTheme();
 
   const [myReports, setMyReports] = useState<Report[]>([]);
   const [trivia, setTrivia] = useState<TriviaQuestion | null>(null);
@@ -42,12 +45,6 @@ export default function ProfileScreen() {
   const [triviaSelected, setTriviaSelected] = useState<number | null>(null);
   const [loadingReports, setLoadingReports] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
-
-  const bg = dark ? '#0f172a' : '#f8fafc';
-  const cardBg = dark ? '#1e293b' : '#ffffff';
-  const textPrimary = dark ? '#f1f5f9' : '#0f172a';
-  const textMuted = dark ? '#94a3b8' : '#64748b';
-  const border = dark ? '#334155' : '#e2e8f0';
 
   const loadData = useCallback(async () => {
     if (!user || user.isAnonymous) return;
@@ -94,23 +91,37 @@ export default function ProfileScreen() {
   // ── Anonymous State ──────────────────────────────────────────────────────
   if (!user || user.isAnonymous) {
     return (
-      <View style={[styles.container, { backgroundColor: bg, paddingTop: insets.top }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <View style={styles.anonContainer}>
-          <Text style={styles.anonEmoji}>🏙️</Text>
-          <Text style={[styles.anonTitle, { color: textPrimary }]}>Join the Movement</Text>
-          <Text style={[styles.anonSubtitle, { color: textMuted }]}>
+          <Typography variant="h1" style={{ fontSize: 72, marginBottom: spacing.md }}>🏙️</Typography>
+          <Typography variant="h1" align="center" style={{ marginBottom: spacing.sm }}>
+            Join the Movement
+          </Typography>
+          <Typography variant="body" color={colors.textMuted} align="center" style={{ marginBottom: spacing.xl, paddingHorizontal: spacing.xl, lineHeight: 24 }}>
             Create an account to submit reports, earn Civic Points, and climb the leaderboard.
-          </Text>
-          <Pressable style={styles.primaryBtn} onPress={() => router.push('/auth/login')}>
-            <Ionicons name="person-add-outline" size={18} color="white" />
-            <Text style={styles.primaryBtnText}>Create Account</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.secondaryBtn, { borderColor: border }]}
+          </Typography>
+          
+          <AnimatedButton style={{ width: '100%', marginBottom: spacing.sm }} onPress={() => router.push('/auth/login')} hapticFeedback="light">
+            <LinearGradient
+              colors={['#34D399', '#059669']}
+              style={styles.primaryBtn}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="person-add-outline" size={20} color="white" />
+              <Typography variant="body" weight="bold" color="white" style={{ marginLeft: spacing.sm }}>
+                Create Account
+              </Typography>
+            </LinearGradient>
+          </AnimatedButton>
+          
+          <AnimatedButton
+            style={[styles.secondaryBtn, { borderColor: colors.border }]}
             onPress={() => router.push('/auth/login')}
+            hapticFeedback="light"
           >
-            <Text style={[styles.secondaryBtnText, { color: textPrimary }]}>Sign In</Text>
-          </Pressable>
+            <Typography variant="body" weight="bold">Sign In</Typography>
+          </AnimatedButton>
         </View>
       </View>
     );
@@ -128,140 +139,142 @@ export default function ProfileScreen() {
   // ── Authenticated State ──────────────────────────────────────────────────
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: bg }]}
-      contentContainerStyle={{ paddingBottom: 100 }}
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={{ paddingBottom: 160 }}
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
-      <View style={[styles.headerSection, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.headerSection, { paddingTop: insets.top + spacing.md, paddingHorizontal: spacing.md }]}>
         <View style={styles.avatarRow}>
           {user.photoURL ? (
             <Image source={{ uri: user.photoURL }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: '#10b981' }]}>
-              <Text style={styles.avatarInitial}>
+            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
+              <Typography variant="h2" weight="bold" color="white">
                 {(userDoc?.displayName ?? user.displayName ?? 'C').charAt(0).toUpperCase()}
-              </Text>
+              </Typography>
             </View>
           )}
-          <View style={{ marginLeft: 14, flex: 1 }}>
-            <Text style={[styles.displayName, { color: textPrimary }]}>
+          <View style={{ marginLeft: spacing.md, flex: 1 }}>
+            <Typography variant="h3" weight="bold">
               {userDoc?.displayName ?? user.displayName ?? 'Citizen'}
-            </Text>
-            <Text style={[styles.emailText, { color: textMuted }]}>{user.email}</Text>
+            </Typography>
+            <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 2 }}>
+              {user.email}
+            </Typography>
           </View>
-          <Pressable onPress={handleSignOut} disabled={signingOut} style={styles.signOutBtn}>
+          <AnimatedButton onPress={handleSignOut} disabled={signingOut} style={styles.signOutBtn} hapticFeedback="medium">
             {signingOut
-              ? <ActivityIndicator size="small" color={textMuted} />
-              : <Ionicons name="log-out-outline" size={22} color={textMuted} />
+              ? <ActivityIndicator size="small" color={colors.textMuted} />
+              : <Ionicons name="log-out-outline" size={24} color={colors.textMuted} />
             }
-          </Pressable>
+          </AnimatedButton>
         </View>
       </View>
 
       {/* Tier + Points Card */}
-      <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+      <Card style={styles.card}>
         <View style={styles.tierRow}>
-          <Text style={styles.tierEmoji}>{TIER_ICONS[tier]}</Text>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={[styles.tierName, { color: TIER_COLORS[tier] }]}>{tier}</Text>
-            <Text style={[styles.pointsText, { color: textMuted }]}>{points} Civic Points</Text>
+          <Typography variant="h1" style={{ fontSize: 40 }}>{TIER_ICONS[tier]}</Typography>
+          <View style={{ flex: 1, marginLeft: spacing.md }}>
+            <Typography variant="h2" weight="bold" color={TIER_COLORS[tier]}>{tier}</Typography>
+            <Typography variant="body" color={colors.textMuted} style={{ marginTop: 2 }}>
+              {points} Civic Points
+            </Typography>
           </View>
         </View>
 
         {/* Progress Bar */}
-        {nextTier && (
+        {nextTier ? (
           <View style={styles.progressSection}>
-            <View style={[styles.progressTrack, { backgroundColor: border }]}>
-              <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: TIER_COLORS[tier] }]} />
+            <View style={[styles.progressTrack, { backgroundColor: colors.border, borderRadius: radii.full }]}>
+              <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: TIER_COLORS[tier], borderRadius: radii.full }]} />
             </View>
-            <Text style={[styles.progressLabel, { color: textMuted }]}>
+            <Typography variant="caption" color={colors.textMuted} style={{ marginTop: spacing.sm }}>
               {nextMin! - points} pts to {nextTier} {TIER_ICONS[nextTier]}
-            </Text>
+            </Typography>
           </View>
-        )}
-        {!nextTier && (
-          <Text style={[styles.maxTierText, { color: TIER_COLORS.Guardian }]}>
+        ) : (
+          <Typography variant="body" weight="bold" color={TIER_COLORS.Guardian} style={{ marginTop: spacing.md }}>
             ✨ You&apos;ve reached the highest tier!
-          </Text>
+          </Typography>
         )}
-      </View>
+      </Card>
 
       {/* Daily Trivia */}
-      <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
-        <Text style={[styles.sectionLabel, { color: textMuted }]}>🧠 DAILY CIVIC TRIVIA</Text>
+      <Card style={styles.card}>
+        <Typography variant="caption" weight="bold" color={colors.textMuted} style={{ letterSpacing: 1, marginBottom: spacing.md }}>
+          🧠 DAILY CIVIC TRIVIA
+        </Typography>
         {!trivia ? (
-          <Text style={[styles.noTriviaText, { color: textMuted }]}>No trivia available today. Check back tomorrow!</Text>
+          <Typography variant="body" color={colors.textMuted}>No trivia available today. Check back tomorrow!</Typography>
         ) : triviaAnswered && triviaSelected === null ? (
-          <Text style={[styles.noTriviaText, { color: textMuted }]}>✅ You&apos;ve already answered today&apos;s question!</Text>
+          <Typography variant="body" color={colors.textMuted}>✅ You&apos;ve already answered today&apos;s question!</Typography>
         ) : (
           <>
-            <Text style={[styles.triviaQuestion, { color: textPrimary }]}>{trivia.question}</Text>
+            <Typography variant="body" weight="semiBold" style={{ marginBottom: spacing.md, lineHeight: 22 }}>
+              {trivia.question}
+            </Typography>
             {trivia.options.map((opt, idx) => {
               let optBg = 'transparent';
-              let optBorder = border;
-              let optTextColor = textPrimary;
+              let optBorder = colors.border;
+              let optTextColor = colors.text;
 
               if (triviaAnswered) {
-                if (idx === trivia.correctIndex) { optBg = '#ecfdf5'; optBorder = '#10b981'; optTextColor = '#10b981'; }
-                else if (idx === triviaSelected) { optBg = '#fff1f2'; optBorder = '#f43f5e'; optTextColor = '#f43f5e'; }
+                if (idx === trivia.correctIndex) { optBg = colors.primaryMuted; optBorder = colors.primary; optTextColor = colors.primary; }
+                else if (idx === triviaSelected) { optBg = colors.dangerMuted; optBorder = colors.danger; optTextColor = colors.danger; }
               }
 
               return (
-                <Pressable
+                <AnimatedButton
                   key={idx}
                   onPress={() => handleTriviaAnswer(idx)}
                   disabled={triviaAnswered}
-                  style={[styles.triviaOption, { backgroundColor: optBg, borderColor: optBorder }]}
+                  hapticFeedback={triviaAnswered ? 'none' : 'light'}
+                  style={[styles.triviaOption, { backgroundColor: optBg, borderColor: optBorder, borderRadius: radii.md }]}
                 >
-                  <Text style={[styles.triviaOptionText, { color: optTextColor }]}>{opt}</Text>
-                </Pressable>
+                  <Typography variant="body" weight="medium" color={optTextColor}>{opt}</Typography>
+                </AnimatedButton>
               );
             })}
             {!triviaAnswered && (
-              <Text style={[styles.triviaHint, { color: textMuted }]}>+5 Civic Points for the correct answer!</Text>
+              <Typography variant="caption" color={colors.textMuted} align="center" style={{ marginTop: spacing.xs }}>
+                +5 Civic Points for the correct answer!
+              </Typography>
             )}
           </>
         )}
-      </View>
+      </Card>
 
       {/* My Reports */}
-      <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
-        <Text style={[styles.sectionLabel, { color: textMuted }]}>📋 MY REPORTS ({myReports.length})</Text>
+      <Card style={styles.card}>
+        <Typography variant="caption" weight="bold" color={colors.textMuted} style={{ letterSpacing: 1, marginBottom: spacing.md }}>
+          📋 MY REPORTS ({myReports.length})
+        </Typography>
         {loadingReports ? (
-          <ActivityIndicator color="#10b981" />
+          <ActivityIndicator color={colors.primary} />
         ) : myReports.length === 0 ? (
-          <Text style={[styles.noTriviaText, { color: textMuted }]}>You haven&apos;t submitted any reports yet.</Text>
+          <Typography variant="body" color={colors.textMuted}>You haven&apos;t submitted any reports yet.</Typography>
         ) : (
           myReports.map((report) => (
-            <View key={report.reportId} style={[styles.reportRow, { borderColor: border }]}>
-              <View style={[styles.reportVibeDot, { backgroundColor: report.vibe === 'win' ? '#10b981' : '#f43f5e' }]} />
+            <View key={report.reportId} style={[styles.reportRow, { borderBottomColor: colors.border }]}>
+              <View style={[styles.reportVibeDot, { backgroundColor: report.vibe === 'win' ? colors.primary : colors.danger }]} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.reportCategory, { color: textPrimary }]}>
+                <Typography variant="body" weight="semiBold">
                   {report.category.charAt(0).toUpperCase() + report.category.slice(1)} {report.vibe === 'win' ? 'Win' : 'Issue'}
-                </Text>
-                <Text style={[styles.reportDate, { color: textMuted }]}>
+                </Typography>
+                <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 2 }}>
                   {report.createdAt.toDate().toLocaleDateString()}
-                </Text>
+                </Typography>
               </View>
-              <View style={[styles.statusBadge, {
-                backgroundColor:
-                  report.status === 'verified' ? '#ecfdf5' :
-                  report.status === 'archived' ? '#fff1f2' : '#fef9c3'
-              }]}>
-                <Text style={{
-                  fontSize: 11, fontWeight: '700',
-                  color:
-                    report.status === 'verified' ? '#10b981' :
-                    report.status === 'archived' ? '#f43f5e' : '#ca8a04'
-                }}>
-                  {report.status.toUpperCase()}
-                </Text>
-              </View>
+              <Badge
+                label={report.status.toUpperCase()}
+                variant={report.status === 'verified' ? 'primary' : report.status === 'archived' ? 'danger' : 'warning'}
+              />
             </View>
           ))
         )}
-      </View>
+      </Card>
     </ScrollView>
   );
 }
@@ -269,60 +282,38 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   // Anonymous
-  anonContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
-  anonEmoji: { fontSize: 64, marginBottom: 16 },
-  anonTitle: { fontSize: 26, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
-  anonSubtitle: { fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+  anonContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   primaryBtn: {
-    backgroundColor: '#10b981', borderRadius: 14, paddingVertical: 14,
-    paddingHorizontal: 32, flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', gap: 8, marginBottom: 12, width: '100%',
+    borderRadius: 16, paddingVertical: 18,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
   },
-  primaryBtnText: { color: 'white', fontWeight: '700', fontSize: 16 },
   secondaryBtn: {
-    borderWidth: 1.5, borderRadius: 14, paddingVertical: 14,
+    borderWidth: 1.5, borderRadius: 16, paddingVertical: 16,
     width: '100%', alignItems: 'center',
   },
-  secondaryBtnText: { fontWeight: '700', fontSize: 16 },
   // Header
-  headerSection: { paddingHorizontal: 16, paddingBottom: 12 },
+  headerSection: { paddingBottom: 16 },
   avatarRow: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 56, height: 56, borderRadius: 28 },
+  avatar: { width: 64, height: 64, borderRadius: 32 },
   avatarPlaceholder: {
-    width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
+    width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitial: { color: 'white', fontSize: 22, fontWeight: '800' },
-  displayName: { fontSize: 18, fontWeight: '700' },
-  emailText: { fontSize: 13, marginTop: 2 },
   signOutBtn: { padding: 8 },
   // Card
-  card: { marginHorizontal: 16, marginBottom: 12, borderRadius: 16, padding: 16, borderWidth: 1 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
+  card: { marginHorizontal: 16, marginBottom: 16 },
   // Tier
   tierRow: { flexDirection: 'row', alignItems: 'center' },
-  tierEmoji: { fontSize: 36 },
-  tierName: { fontSize: 20, fontWeight: '800' },
-  pointsText: { fontSize: 13, marginTop: 2 },
-  progressSection: { marginTop: 14 },
-  progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 4 },
-  progressLabel: { fontSize: 12, marginTop: 6 },
-  maxTierText: { marginTop: 10, fontWeight: '700', fontSize: 14 },
+  progressSection: { marginTop: 16 },
+  progressTrack: { height: 8, overflow: 'hidden' },
+  progressFill: { height: '100%' },
   // Trivia
-  triviaQuestion: { fontSize: 15, fontWeight: '600', lineHeight: 22, marginBottom: 14 },
   triviaOption: {
-    borderWidth: 1.5, borderRadius: 10, padding: 12, marginBottom: 8,
+    borderWidth: 1.5, padding: 16, marginBottom: 10,
   },
-  triviaOptionText: { fontSize: 14, fontWeight: '500' },
-  triviaHint: { fontSize: 12, textAlign: 'center', marginTop: 4 },
-  noTriviaText: { fontSize: 14 },
   // My Reports
   reportRow: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
-    borderBottomWidth: 1, gap: 10,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+    borderBottomWidth: 1, gap: 12,
   },
-  reportVibeDot: { width: 10, height: 10, borderRadius: 5 },
-  reportCategory: { fontSize: 14, fontWeight: '600' },
-  reportDate: { fontSize: 12, marginTop: 2 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
+  reportVibeDot: { width: 12, height: 12, borderRadius: 6 },
 });

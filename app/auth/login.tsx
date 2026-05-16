@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet,
-  ActivityIndicator, Alert, useColorScheme, KeyboardAvoidingView,
+  View, TextInput, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView,
   Platform, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { signUpWithEmail, signInWithEmail, signInWithGoogle } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
+import { Typography } from '@/components/ui/Typography';
+import { Card } from '@/components/ui/Card';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { useTheme } from '@/theme';
 
 type AuthTab = 'signin' | 'signup';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { refreshUserDoc } = useAuth();
-  const scheme = useColorScheme();
-  const dark = scheme === 'dark';
+  const { colors, spacing, radii } = useTheme();
 
   const [tab, setTab] = useState<AuthTab>('signin');
   const [email, setEmail] = useState('');
@@ -25,13 +27,6 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  const bg = dark ? '#0f172a' : '#f8fafc';
-  const cardBg = dark ? '#1e293b' : '#ffffff';
-  const textPrimary = dark ? '#f1f5f9' : '#0f172a';
-  const textMuted = dark ? '#94a3b8' : '#64748b';
-  const border = dark ? '#334155' : '#e2e8f0';
-  const inputBg = dark ? '#0f172a' : '#f8fafc';
 
   const handleEmailAuth = async () => {
     if (!email.trim() || !password.trim()) {
@@ -82,46 +77,52 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.container, { backgroundColor: bg }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={textPrimary} />
-        </Pressable>
+        <AnimatedButton onPress={() => router.back()} style={styles.backBtn} hapticFeedback="light">
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </AnimatedButton>
 
         <View style={styles.heroSection}>
-          <Text style={styles.heroEmoji}>🏙️</Text>
-          <Text style={[styles.heroTitle, { color: textPrimary }]}>Join ReCiti</Text>
-          <Text style={[styles.heroSubtitle, { color: textMuted }]}>
+          <Typography variant="h1" style={{ fontSize: 60, marginBottom: spacing.sm }}>🏙️</Typography>
+          <Typography variant="h1" style={{ marginBottom: spacing.xs }}>Join ReCiti</Typography>
+          <Typography variant="body" color={colors.textMuted} align="center">
             Make your city better, one report at a time.
-          </Text>
+          </Typography>
         </View>
 
         {/* Tab Toggle */}
-        <View style={[styles.tabBar, { backgroundColor: dark ? '#1e293b' : '#f1f5f9' }]}>
+        <View style={[styles.tabBar, { backgroundColor: colors.border, borderRadius: radii.md }]}>
           {(['signin', 'signup'] as AuthTab[]).map((t) => (
-            <Pressable
+            <AnimatedButton
               key={t}
               onPress={() => setTab(t)}
-              style={[styles.tabBtn, tab === t && { backgroundColor: '#10b981' }]}
+              hapticFeedback="light"
+              style={[
+                styles.tabBtn,
+                tab === t && { backgroundColor: colors.primary, borderRadius: radii.sm }
+              ]}
             >
-              <Text style={[styles.tabText, { color: tab === t ? 'white' : textMuted }]}>
+              <Typography variant="body" weight="semiBold" color={tab === t ? colors.white : colors.textMuted}>
                 {t === 'signin' ? 'Sign In' : 'Create Account'}
-              </Text>
-            </Pressable>
+              </Typography>
+            </AnimatedButton>
           ))}
         </View>
 
         {/* Form Card */}
-        <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+        <Card style={styles.card}>
           {tab === 'signup' && (
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: textMuted }]}>DISPLAY NAME</Text>
+              <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.label}>
+                DISPLAY NAME
+              </Typography>
               <TextInput
-                style={[styles.input, { backgroundColor: inputBg, color: textPrimary, borderColor: border }]}
+                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border, borderRadius: radii.md }]}
                 placeholder="e.g. Arjun Sharma"
-                placeholderTextColor={textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={displayName}
                 onChangeText={setDisplayName}
                 autoCapitalize="words"
@@ -130,11 +131,13 @@ export default function LoginScreen() {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: textMuted }]}>EMAIL</Text>
+            <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.label}>
+              EMAIL
+            </Typography>
             <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: textPrimary, borderColor: border }]}
+              style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border, borderRadius: radii.md }]}
               placeholder="you@example.com"
-              placeholderTextColor={textMuted}
+              placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -143,29 +146,33 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: textMuted }]}>PASSWORD</Text>
-            <View style={[styles.passwordWrapper, { backgroundColor: inputBg, borderColor: border }]}>
+            <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.label}>
+              PASSWORD
+            </Typography>
+            <View style={[styles.passwordWrapper, { backgroundColor: colors.background, borderColor: colors.border, borderRadius: radii.md }]}>
               <TextInput
-                style={[styles.passwordInput, { color: textPrimary }]}
+                style={[styles.passwordInput, { color: colors.text }]}
                 placeholder="Min. 6 characters"
-                placeholderTextColor={textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
-              <Pressable onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={textMuted} />
-              </Pressable>
+              <AnimatedButton onPress={() => setShowPassword(!showPassword)} hapticFeedback="light">
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textMuted} />
+              </AnimatedButton>
             </View>
           </View>
 
           {tab === 'signup' && (
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: textMuted }]}>CONFIRM PASSWORD</Text>
+              <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.label}>
+                CONFIRM PASSWORD
+              </Typography>
               <TextInput
-                style={[styles.input, { backgroundColor: inputBg, color: textPrimary, borderColor: border }]}
+                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border, borderRadius: radii.md }]}
                 placeholder="Repeat password"
-                placeholderTextColor={textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
@@ -173,40 +180,48 @@ export default function LoginScreen() {
             </View>
           )}
 
-          <Pressable
-            style={[styles.primaryBtn, loading && { opacity: 0.7 }]}
+          <AnimatedButton
+            style={[styles.primaryBtn, { backgroundColor: colors.primary, borderRadius: radii.md }, loading && { opacity: 0.7 }]}
             onPress={handleEmailAuth}
             disabled={loading}
+            hapticFeedback={loading ? 'none' : 'medium'}
           >
             {loading
-              ? <ActivityIndicator color="white" />
-              : <Text style={styles.primaryBtnText}>{tab === 'signin' ? 'Sign In' : 'Create Account'}</Text>
+              ? <ActivityIndicator color={colors.white} />
+              : <Typography variant="body" weight="bold" color={colors.white}>
+                  {tab === 'signin' ? 'Sign In' : 'Create Account'}
+                </Typography>
             }
-          </Pressable>
+          </AnimatedButton>
 
           {/* Divider */}
           <View style={styles.divider}>
-            <View style={[styles.dividerLine, { backgroundColor: border }]} />
-            <Text style={[styles.dividerText, { color: textMuted }]}>OR</Text>
-            <View style={[styles.dividerLine, { backgroundColor: border }]} />
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Typography variant="caption" weight="semiBold" color={colors.textMuted} style={styles.dividerText}>
+              OR
+            </Typography>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           </View>
 
           {/* Google Button */}
-          <Pressable
-            style={[styles.googleBtn, { borderColor: border, backgroundColor: cardBg }]}
+          <AnimatedButton
+            style={[styles.googleBtn, { borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radii.md }]}
             onPress={handleGoogleSignIn}
             disabled={googleLoading}
+            hapticFeedback={googleLoading ? 'none' : 'light'}
           >
             {googleLoading ? (
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color={colors.primary} />
             ) : (
               <>
-                <Text style={styles.googleG}>G</Text>
-                <Text style={[styles.googleBtnText, { color: textPrimary }]}>Continue with Google</Text>
+                <Typography variant="h3" weight="bold" color="#4285F4">G</Typography>
+                <Typography variant="body" weight="semiBold" color={colors.text}>
+                  Continue with Google
+                </Typography>
               </>
             )}
-          </Pressable>
-        </View>
+          </AnimatedButton>
+        </Card>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -214,39 +229,31 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { padding: 20, paddingBottom: 60 },
-  backBtn: { marginBottom: 16 },
-  heroSection: { alignItems: 'center', marginBottom: 28 },
-  heroEmoji: { fontSize: 52, marginBottom: 8 },
-  heroTitle: { fontSize: 28, fontWeight: '800', marginBottom: 4 },
-  heroSubtitle: { fontSize: 14, textAlign: 'center' },
-  tabBar: { flexDirection: 'row', borderRadius: 12, padding: 4, marginBottom: 20 },
-  tabBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  tabText: { fontWeight: '700', fontSize: 14 },
-  card: { borderRadius: 20, padding: 20, borderWidth: 1 },
+  scroll: { padding: 20, paddingBottom: 60, paddingTop: 40 },
+  backBtn: { marginBottom: 16, alignSelf: 'flex-start' },
+  heroSection: { alignItems: 'center', marginBottom: 32 },
+  tabBar: { flexDirection: 'row', padding: 4, marginBottom: 24 },
+  tabBtn: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  card: { padding: 24 },
   inputGroup: { marginBottom: 16 },
-  label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
+  label: { letterSpacing: 1, marginBottom: 6 },
   input: {
-    borderWidth: 1, borderRadius: 12, paddingHorizontal: 14,
-    paddingVertical: 12, fontSize: 15,
+    borderWidth: 1, paddingHorizontal: 16,
+    paddingVertical: 14, fontSize: 16,
   },
   passwordWrapper: {
-    borderWidth: 1, borderRadius: 12, paddingHorizontal: 14,
-    paddingVertical: 12, flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, paddingHorizontal: 16,
+    paddingVertical: 14, flexDirection: 'row', alignItems: 'center',
   },
-  passwordInput: { flex: 1, fontSize: 15 },
+  passwordInput: { flex: 1, fontSize: 16 },
   primaryBtn: {
-    backgroundColor: '#10b981', borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center', marginTop: 4,
+    paddingVertical: 16, alignItems: 'center', marginTop: 8,
   },
-  primaryBtnText: { color: 'white', fontWeight: '700', fontSize: 16 },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
   dividerLine: { flex: 1, height: 1 },
-  dividerText: { marginHorizontal: 12, fontSize: 12, fontWeight: '600' },
+  dividerText: { marginHorizontal: 12 },
   googleBtn: {
-    borderWidth: 1.5, borderRadius: 12, paddingVertical: 13,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    borderWidth: 1.5, paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
   },
-  googleG: { fontSize: 18, fontWeight: '900', color: '#4285F4' },
-  googleBtnText: { fontWeight: '600', fontSize: 15 },
 });

@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View, Text, Pressable, ScrollView, Alert,
-  ActivityIndicator, StyleSheet, useColorScheme, Modal,
-} from 'react-native';
+import { View, ScrollView, Alert, ActivityIndicator, StyleSheet, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,10 +8,16 @@ import * as Location from 'expo-location';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { geohashForLocation } from 'geofire-common';
 import { useRouter } from 'expo-router';
+import { BlurView } from 'expo-blur';
 
 import { useAuth } from '@/hooks/useAuth';
 import { createReport } from '@/lib/db';
 import { uploadImage } from '@/lib/storage';
+import { Typography } from '@/components/ui/Typography';
+import { Card } from '@/components/ui/Card';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { useTheme } from '@/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type Vibe = 'win' | 'fail';
 type Category = 'waste' | 'traffic' | 'infrastructure';
@@ -35,8 +38,7 @@ export default function CaptureScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const router = useRouter();
-  const scheme = useColorScheme();
-  const dark = scheme === 'dark';
+  const { colors, spacing, radii } = useTheme();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [vibe, setVibe] = useState<Vibe>('fail');
@@ -44,12 +46,6 @@ export default function CaptureScreen() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [completedCategory, setCompletedCategory] = useState<Category>('waste');
-
-  const bg = dark ? '#0f172a' : '#f8fafc';
-  const cardBg = dark ? '#1e293b' : '#ffffff';
-  const textPrimary = dark ? '#f1f5f9' : '#0f172a';
-  const textMuted = dark ? '#94a3b8' : '#64748b';
-  const border = dark ? '#334155' : '#e2e8f0';
 
   const handlePickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -94,7 +90,6 @@ export default function CaptureScreen() {
       return;
     }
 
-    // Block anonymous users from submitting
     if (user.isAnonymous) {
       Alert.alert(
         '🔐 Account Required',
@@ -109,7 +104,6 @@ export default function CaptureScreen() {
 
     setLoading(true);
     try {
-      // 1. Get location
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Location Required', 'Location permission is needed to tag your report.');
@@ -120,19 +114,14 @@ export default function CaptureScreen() {
       const { latitude, longitude } = location.coords;
       const geohash = geohashForLocation([latitude, longitude]);
 
-      // 2. Compress image using the new contextual API (expo-image-manipulator v14)
       const context = ImageManipulator.manipulate(imageUri);
       context.resize({ width: 1024 });
       const imageRef = await context.renderAsync();
       const compressed = await imageRef.saveAsync({ format: SaveFormat.JPEG, compress: 0.7 });
 
-      // 3. Create a placeholder report doc to get an ID
       const reportId = `${user.uid}_${Date.now()}`;
-
-      // 4. Upload compressed image to Firebase Storage
       const imageUrl = await uploadImage(compressed.uri, reportId);
 
-      // 5. Save report to Firestore
       await createReport({
         reporterId: user.uid,
         imageUrl,
@@ -155,139 +144,179 @@ export default function CaptureScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: bg, paddingTop: insets.top }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: textPrimary }]}>New Report</Text>
-          <Text style={[styles.subtitle, { color: textMuted }]}>Document a civic issue or win</Text>
+        <View style={[styles.header, { paddingHorizontal: spacing.md }]}>
+          <Typography variant="h1">New Report</Typography>
+          <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.xs }}>
+            Document a civic issue or win
+          </Typography>
         </View>
 
         {/* Image Picker */}
-        <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
-          <Text style={[styles.sectionLabel, { color: textMuted }]}>PHOTO</Text>
+        <Card style={styles.card}>
+          <Typography variant="caption" weight="bold" color={colors.textMuted} style={{ letterSpacing: 1, marginBottom: spacing.md }}>
+            PHOTO
+          </Typography>
           {imageUri ? (
-            <Pressable onPress={handlePickImage}>
+            <AnimatedButton onPress={handlePickImage} hapticFeedback="light">
               <Image source={{ uri: imageUri }} style={styles.previewImage} contentFit="cover" />
-              <Pressable onPress={() => setImageUri(null)} style={styles.clearBtn}>
-                <Ionicons name="close-circle" size={28} color="#f43f5e" />
-              </Pressable>
-            </Pressable>
+              <AnimatedButton
+                onPress={() => setImageUri(null)}
+                style={styles.clearBtn}
+                hapticFeedback="medium"
+              >
+                <Ionicons name="close-circle" size={32} color={colors.danger} />
+              </AnimatedButton>
+            </AnimatedButton>
           ) : (
             <View style={styles.imagePickerRow}>
-              <Pressable
-                style={[styles.imageBtn, { borderColor: border }]}
+              <AnimatedButton
+                style={[styles.imageBtn, { borderColor: colors.border }]}
                 onPress={handleTakePhoto}
+                hapticFeedback="medium"
               >
-                <Ionicons name="camera-outline" size={28} color="#10b981" />
-                <Text style={[styles.imageBtnText, { color: textPrimary }]}>Camera</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.imageBtn, { borderColor: border }]}
+                <Ionicons name="camera-outline" size={28} color={colors.primary} />
+                <Typography variant="body" weight="semiBold">Camera</Typography>
+              </AnimatedButton>
+              <AnimatedButton
+                style={[styles.imageBtn, { borderColor: colors.border }]}
                 onPress={handlePickImage}
+                hapticFeedback="light"
               >
-                <Ionicons name="image-outline" size={28} color="#10b981" />
-                <Text style={[styles.imageBtnText, { color: textPrimary }]}>Gallery</Text>
-              </Pressable>
+                <Ionicons name="image-outline" size={28} color={colors.primary} />
+                <Typography variant="body" weight="semiBold">Gallery</Typography>
+              </AnimatedButton>
             </View>
           )}
-        </View>
+        </Card>
 
         {/* Vibe Toggle */}
-        <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
-          <Text style={[styles.sectionLabel, { color: textMuted }]}>VIBE</Text>
+        <Card style={styles.card}>
+          <Typography variant="caption" weight="bold" color={colors.textMuted} style={{ letterSpacing: 1, marginBottom: spacing.md }}>
+            VIBE
+          </Typography>
           <View style={styles.vibeRow}>
-            <Pressable
+            <AnimatedButton
               onPress={() => setVibe('win')}
+              hapticFeedback="light"
               style={[
                 styles.vibeBtn,
-                { borderColor: vibe === 'win' ? '#10b981' : border },
-                vibe === 'win' && styles.vibeBtnActiveWin,
+                { borderColor: vibe === 'win' ? colors.primary : colors.border },
+                vibe === 'win' && { backgroundColor: colors.primaryMuted },
               ]}
             >
-              <Text style={styles.vibeEmoji}>🟢</Text>
-              <Text style={[styles.vibeBtnText, { color: vibe === 'win' ? '#10b981' : textMuted }]}>
+              <Typography variant="h2">🟢</Typography>
+              <Typography variant="body" weight="bold" color={vibe === 'win' ? colors.primary : colors.textMuted}>
                 Civic Win
-              </Text>
-            </Pressable>
-            <Pressable
+              </Typography>
+            </AnimatedButton>
+            <AnimatedButton
               onPress={() => setVibe('fail')}
+              hapticFeedback="light"
               style={[
                 styles.vibeBtn,
-                { borderColor: vibe === 'fail' ? '#f43f5e' : border },
-                vibe === 'fail' && styles.vibeBtnActiveFail,
+                { borderColor: vibe === 'fail' ? colors.danger : colors.border },
+                vibe === 'fail' && { backgroundColor: colors.dangerMuted },
               ]}
             >
-              <Text style={styles.vibeEmoji}>🔴</Text>
-              <Text style={[styles.vibeBtnText, { color: vibe === 'fail' ? '#f43f5e' : textMuted }]}>
+              <Typography variant="h2">🔴</Typography>
+              <Typography variant="body" weight="bold" color={vibe === 'fail' ? colors.danger : colors.textMuted}>
                 Civic Fail
-              </Text>
-            </Pressable>
+              </Typography>
+            </AnimatedButton>
           </View>
-        </View>
+        </Card>
 
         {/* Category */}
-        <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
-          <Text style={[styles.sectionLabel, { color: textMuted }]}>CATEGORY</Text>
+        <Card style={styles.card}>
+          <Typography variant="caption" weight="bold" color={colors.textMuted} style={{ letterSpacing: 1, marginBottom: spacing.md }}>
+            CATEGORY
+          </Typography>
           <View style={styles.categoryRow}>
             {CATEGORIES.map((cat) => {
               const active = category === cat.value;
               return (
-                <Pressable
+                <AnimatedButton
                   key={cat.value}
                   onPress={() => setCategory(cat.value)}
+                  hapticFeedback="light"
                   style={[
                     styles.categoryBtn,
-                    { borderColor: active ? '#10b981' : border, backgroundColor: active ? '#ecfdf5' : 'transparent' },
+                    { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primaryMuted : 'transparent' },
                   ]}
                 >
-                  <Ionicons name={cat.icon as any} size={22} color={active ? '#10b981' : textMuted} />
-                  <Text style={[styles.categoryLabel, { color: active ? '#10b981' : textMuted }]}>
+                  <Ionicons name={cat.icon as any} size={24} color={active ? colors.primary : colors.textMuted} />
+                  <Typography variant="caption" weight="semiBold" color={active ? colors.primary : colors.textMuted}>
                     {cat.label}
-                  </Text>
-                </Pressable>
+                  </Typography>
+                </AnimatedButton>
               );
             })}
           </View>
-        </View>
+        </Card>
       </ScrollView>
 
       {/* Submit Button */}
-      <View style={[styles.submitWrapper, { backgroundColor: bg }]}>
-        <Pressable
+      <View style={[styles.submitWrapper, { backgroundColor: colors.background }]}>
+        <AnimatedButton
           onPress={handleSubmit}
           disabled={loading || !imageUri}
-          style={[styles.submitBtn, (!imageUri || loading) && styles.submitBtnDisabled]}
+          hapticFeedback={(!imageUri || loading) ? 'none' : 'success'}
         >
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <Ionicons name="cloud-upload-outline" size={20} color="white" />
-              <Text style={styles.submitBtnText}>Submit Report</Text>
-            </>
-          )}
-        </Pressable>
+          <LinearGradient
+            colors={(!imageUri || loading) ? [colors.border, colors.border] : ['#34D399', '#059669']}
+            style={styles.submitBtn}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            {loading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <>
+                <Ionicons name="cloud-upload-outline" size={24} color={colors.white} />
+                <Typography variant="body" weight="bold" color={colors.white} style={{ marginLeft: spacing.sm }}>
+                  Submit Report
+                </Typography>
+              </>
+            )}
+          </LinearGradient>
+        </AnimatedButton>
       </View>
 
       {/* Micro-Education Modal */}
       <Modal transparent visible={showModal} animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: cardBg }]}>
-            <Text style={styles.modalEmoji}>🎉</Text>
-            <Text style={[styles.modalTitle, { color: textPrimary }]}>Report Submitted!</Text>
-            <Text style={[styles.modalEduTitle, { color: '#10b981' }]}>📖 Civic Fact</Text>
-            <Text style={[styles.modalEduText, { color: textMuted }]}>
+        <BlurView intensity={20} style={styles.modalOverlay} tint="dark">
+          <Card style={styles.modalCard} padding="lg">
+            <Typography variant="h1" style={{ marginBottom: spacing.sm }}>🎉</Typography>
+            <Typography variant="h2" weight="bold" style={{ marginBottom: spacing.lg }}>Report Submitted!</Typography>
+            
+            <Typography variant="body" weight="bold" color={colors.primary} style={{ marginBottom: spacing.sm }}>
+              📖 Civic Fact
+            </Typography>
+            <Typography variant="body" color={colors.textMuted} align="center" style={{ marginBottom: spacing.lg, lineHeight: 24 }}>
               {MICRO_EDUCATION[completedCategory]}
-            </Text>
-            <View style={styles.pointsBadge}>
-              <Text style={styles.pointsText}>+10 Civic Points Awarded!</Text>
+            </Typography>
+            
+            <View style={[styles.pointsBadge, { backgroundColor: colors.primaryMuted }]}>
+              <Typography variant="body" weight="bold" color={colors.primary}>
+                +10 Civic Points Awarded!
+              </Typography>
             </View>
-            <Pressable style={styles.modalCloseBtn} onPress={() => setShowModal(false)}>
-              <Text style={styles.modalCloseBtnText}>Awesome!</Text>
-            </Pressable>
-          </View>
-        </View>
+            
+            <AnimatedButton style={{ width: '100%' }} onPress={() => setShowModal(false)} hapticFeedback="light">
+              <LinearGradient
+                colors={['#34D399', '#059669']}
+                style={styles.modalCloseBtn}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Typography variant="body" weight="bold" color={colors.white}>Awesome!</Typography>
+              </LinearGradient>
+            </AnimatedButton>
+          </Card>
+        </BlurView>
       </Modal>
     </View>
   );
@@ -295,64 +324,40 @@ export default function CaptureScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingVertical: 16 },
-  title: { fontSize: 28, fontWeight: '800' },
-  subtitle: { fontSize: 14, marginTop: 4 },
-  card: {
-    marginHorizontal: 16, marginBottom: 12, borderRadius: 16,
-    padding: 16, borderWidth: 1,
-  },
-  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
+  header: { paddingVertical: 16 },
+  card: { marginHorizontal: 16, marginBottom: 16 },
   previewImage: { width: '100%', height: 220, borderRadius: 12 },
-  clearBtn: { position: 'absolute', top: 8, right: 8 },
+  clearBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: 'white', borderRadius: 16 },
   imagePickerRow: { flexDirection: 'row', gap: 12 },
   imageBtn: {
     flex: 1, borderWidth: 1.5, borderRadius: 12, borderStyle: 'dashed',
-    paddingVertical: 24, alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 32, alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  imageBtnText: { fontWeight: '600', fontSize: 14 },
   vibeRow: { flexDirection: 'row', gap: 12 },
   vibeBtn: {
-    flex: 1, borderWidth: 2, borderRadius: 12, paddingVertical: 16,
-    alignItems: 'center', justifyContent: 'center', gap: 6,
+    flex: 1, borderWidth: 2, borderRadius: 12, paddingVertical: 20,
+    alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  vibeBtnActiveWin: { backgroundColor: '#ecfdf5' },
-  vibeBtnActiveFail: { backgroundColor: '#fff1f2' },
-  vibeEmoji: { fontSize: 24 },
-  vibeBtnText: { fontWeight: '700', fontSize: 14 },
   categoryRow: { flexDirection: 'row', gap: 8 },
   categoryBtn: {
-    flex: 1, borderWidth: 1.5, borderRadius: 12, paddingVertical: 14,
-    alignItems: 'center', justifyContent: 'center', gap: 6,
+    flex: 1, borderWidth: 1.5, borderRadius: 12, paddingVertical: 16,
+    alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  categoryLabel: { fontSize: 12, fontWeight: '600' },
-  submitWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16 },
+  submitWrapper: { position: 'absolute', bottom: 90, left: 0, right: 0, padding: 16 },
   submitBtn: {
-    backgroundColor: '#10b981', borderRadius: 16, paddingVertical: 16,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: 16, paddingVertical: 18,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
   },
-  submitBtnDisabled: { backgroundColor: '#94a3b8' },
-  submitBtnText: { color: 'white', fontWeight: '700', fontSize: 16 },
   // Modal
   modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center', alignItems: 'center', padding: 24,
+    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  modalCard: {
-    borderRadius: 24, padding: 24, width: '100%', alignItems: 'center',
-  },
-  modalEmoji: { fontSize: 48, marginBottom: 8 },
-  modalTitle: { fontSize: 22, fontWeight: '800', marginBottom: 20 },
-  modalEduTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
-  modalEduText: { fontSize: 14, lineHeight: 22, textAlign: 'center', marginBottom: 20 },
+  modalCard: { width: '100%', alignItems: 'center' },
   pointsBadge: {
-    backgroundColor: '#ecfdf5', borderRadius: 20, paddingHorizontal: 16,
-    paddingVertical: 8, marginBottom: 20,
+    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 24,
   },
-  pointsText: { color: '#10b981', fontWeight: '700', fontSize: 14 },
   modalCloseBtn: {
-    backgroundColor: '#10b981', borderRadius: 12, paddingVertical: 14,
-    paddingHorizontal: 48,
+    borderRadius: 12, paddingVertical: 16, width: '100%', alignItems: 'center',
   },
-  modalCloseBtnText: { color: 'white', fontWeight: '700', fontSize: 16 },
 });
