@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, Pressable, ScrollView, Alert,
   ActivityIndicator, StyleSheet, useColorScheme, Modal,
@@ -10,11 +10,11 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { geohashForLocation } from 'geofire-common';
+import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/hooks/useAuth';
 import { createReport } from '@/lib/db';
 import { uploadImage } from '@/lib/storage';
-import { Report } from '@/types';
 
 type Vibe = 'win' | 'fail';
 type Category = 'waste' | 'traffic' | 'infrastructure';
@@ -34,6 +34,7 @@ const MICRO_EDUCATION: Record<Category, string> = {
 export default function CaptureScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const router = useRouter();
   const scheme = useColorScheme();
   const dark = scheme === 'dark';
 
@@ -90,6 +91,19 @@ export default function CaptureScreen() {
     }
     if (!user) {
       Alert.alert('Error', 'You must be logged in to submit a report.');
+      return;
+    }
+
+    // Block anonymous users from submitting
+    if (user.isAnonymous) {
+      Alert.alert(
+        '🔐 Account Required',
+        'You need to create an account to submit civic reports. Sign up to earn Civic Points and track your impact!',
+        [
+          { text: 'Maybe Later', style: 'cancel' },
+          { text: 'Create Account', onPress: () => router.push('/auth/login') },
+        ]
+      );
       return;
     }
 

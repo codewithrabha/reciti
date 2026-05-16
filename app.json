@@ -28,6 +28,7 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-google-signin/google-signin",
       [
         "expo-splash-screen",
         {
@@ -59,7 +60,8 @@
         {
           "locationWhenInUsePermission": "Allow ReCiti to use your location to tag civic reports on the map."
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,10 +1,14 @@
 import { Timestamp } from 'firebase/firestore';
 
+export type Tier = 'Tourist' | 'Resident' | 'Advocate' | 'Guardian';
+
 export interface User {
   uid: string;
   displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
   civicPoints: number;
-  tier: 'Tourist' | 'Local Guide' | 'City Guardian';
+  tier: Tier;
   completedDailyTrivia: string[];
 }
 
@@ -21,4 +25,13 @@ export interface Report {
   verifiedBy: string[];
   flaggedBy: string[];
   createdAt: Timestamp;
+}
+
+export interface TriviaQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  category: string;
+  activeDate: string; // 'YYYY-MM-DD'
 }
