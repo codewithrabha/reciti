@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.abhijitrabhadev.ReCiti"
+      "package": "com.reciti.android"
     },
     "web": {
       "output": "static",
