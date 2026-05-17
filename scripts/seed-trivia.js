@@ -1,15 +1,21 @@
 const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, doc, setDoc } = require('firebase/firestore');
 
-// Use your Firebase config directly here for seeding
+// Firebase config is read from .env — run this script with:
+//   npm run seed       (or)   node --env-file=.env ./scripts/seed-trivia.js
 const firebaseConfig = {
-  apiKey: "AIzaSyCMTHDdT8fZM04C_Il4YS0BIKfU0CrmQxA",
-  authDomain: "reciti-dev.firebaseapp.com",
-  projectId: "reciti-dev",
-  storageBucket: "reciti-dev.firebasestorage.app",
-  messagingSenderId: "519684473820",
-  appId: "1:519684473820:web:1fb3da8e71858856658519"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
+
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.error('❌ Missing Firebase env vars. Run with: npm run seed');
+  process.exit(1);
+}
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
