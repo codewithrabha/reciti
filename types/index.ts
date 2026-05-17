@@ -12,19 +12,36 @@ export interface User {
   completedDailyTrivia: string[];
 }
 
+export type ReportStatus =
+  | 'pending'
+  | 'verified'
+  | 'in_progress'
+  | 'resolved'
+  | 'archived';
+
 export interface Report {
   reportId: string;
   reporterId: string;
   imageUrl: string;
   vibe: 'win' | 'fail';
   category: 'waste' | 'traffic' | 'infrastructure';
-  status: 'pending' | 'verified' | 'archived';
+  status: ReportStatus;
   latitude: number;
   longitude: number;
   geohash: string;
   verifiedBy: string[];
   flaggedBy: string[];
   createdAt: Timestamp;
+
+  // Lifecycle timestamps — set as the report progresses (absent on older reports).
+  verifiedAt?: Timestamp | null;
+  resolutionSubmittedAt?: Timestamp | null;
+  resolvedAt?: Timestamp | null;
+
+  // Community-observed resolution (UX vision §8).
+  resolvedImageUrl?: string | null;
+  resolvedBy?: string | null;
+  resolutionConfirmedBy?: string[];
 }
 
 export interface TriviaQuestion {

@@ -14,17 +14,18 @@ interface ReportCardProps {
   report: Report;
   onVerify?: () => void;
   onFlag?: () => void;
+  onPress?: () => void;
   isRadarView?: boolean;
 }
 
 export function ReportCard({
-  report, onVerify, onFlag, isRadarView = false,
+  report, onVerify, onFlag, onPress, isRadarView = false,
 }: ReportCardProps) {
   const { colors, spacing, radii } = useTheme();
   const isWin = report.vibe === 'win';
 
-  return (
-    <Card padding="none" style={styles.card}>
+  const main = (
+    <>
       {/* Header */}
       <View style={[styles.cardHeader, { padding: spacing.md }]}>
         <View style={styles.cardHeaderLeft}>
@@ -57,6 +58,18 @@ export function ReportCard({
         <View style={[styles.cardImagePlaceholder, { backgroundColor: colors.background }]}>
           <Ionicons name="image-outline" size={32} color={colors.border} />
         </View>
+      )}
+    </>
+  );
+
+  return (
+    <Card padding="none" style={styles.card}>
+      {onPress ? (
+        <AnimatedButton onPress={onPress} hapticFeedback="light" scaleTo={0.98}>
+          {main}
+        </AnimatedButton>
+      ) : (
+        main
       )}
 
       {/* Radar Actions */}

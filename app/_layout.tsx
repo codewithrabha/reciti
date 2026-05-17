@@ -16,6 +16,7 @@ import {
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/hooks/useAuth';
+import { OnboardingProvider, useOnboarding } from '@/hooks/useOnboarding';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -25,8 +26,17 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+  return (
+    <OnboardingProvider>
+      <RootNavigator />
+    </OnboardingProvider>
+  );
+}
+
+function RootNavigator() {
   const colorScheme = useColorScheme();
-  
+  const { needsOnboarding } = useOnboarding();
+
   const [fontsLoaded, error] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
@@ -34,13 +44,16 @@ export default function RootLayout() {
     PlusJakartaSans_700Bold,
   });
 
+  // Wait for fonts and the persisted onboarding flag before revealing the app.
+  const ready = (fontsLoaded || !!error) && needsOnboarding !== null;
+
   useEffect(() => {
-    if (fontsLoaded || error) {
+    if (ready) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, error]);
+  }, [ready]);
 
-  if (!fontsLoaded && !error) {
+  if (!ready) {
     return null;
   }
 
@@ -49,9 +62,23 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <AuthProvider>
           <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            {/*
+              First launch is gated to onboarding. Both groups are guarded so the
+              router lands on the right screen and reacts automatically when
+              `completeOnboarding()` flips the flag — no imperative redirect.
+            */}
+            <Stack.Protected guard={needsOnboarding === false}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack.Protected>
+            <Stack.Protected guard={needsOnboarding === true}>
+              <Stack.Screen
+                name="onboarding"
+                options={{ headerShown: false, gestureEnabled: false }}
+              />
+            </Stack.Protected>
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
             <Stack.Screen name="auth" options={{ headerShown: false }} />
+            <Stack.Screen name="report/[id]" options={{ headerShown: false }} />
           </Stack>
         </AuthProvider>
         <StatusBar style="auto" />

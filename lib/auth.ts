@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
+  sendPasswordResetEmail,
   updateProfile,
   GoogleAuthProvider,
   signInWithCredential,
@@ -44,6 +45,11 @@ export const signUpWithEmail = async (
 export const signInWithEmail = async (email: string, password: string) => {
   const { user } = await signInWithEmailAndPassword(auth, email, password);
   return user;
+};
+
+/** Send a password-reset email */
+export const sendPasswordReset = async (email: string) => {
+  await sendPasswordResetEmail(auth, email);
 };
 
 /** Sign in with Google */

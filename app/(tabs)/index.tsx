@@ -1,53 +1,124 @@
-import React, { useState, useEffect } from 'react';
-import { View, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 
 import { Report } from '@/types';
-import { subscribeToReports, verifyReport, flagReport } from '@/lib/db';
+import {
+  PulseStats,
+  flagReport,
+  subscribeToPulseStats,
+  subscribeToVerificationQueue,
+  verifyReport,
+} from '@/lib/db';
 import { useAuth } from '@/hooks/useAuth';
 import { ReportCard } from '@/components/ReportCard';
-import { Typography } from '@/components/ui/Typography';
+import { PulseHero } from '@/components/pulse/PulseHero';
+import { StatCard } from '@/components/pulse/StatCard';
+import { TierProgress } from '@/components/pulse/TierProgress';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { StateView } from '@/components/ui/StateView';
+import { Typography } from '@/components/ui/Typography';
 import { useTheme } from '@/theme';
 
-type TabType = 'wins' | 'fails' | 'radar';
-const TABS: TabType[] = ['wins', 'fails', 'radar'];
+const RADIUS_KM = 5;
 
-export default function HubScreen() {
+type Coords = { latitude: number; longitude: number };
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+export default function PulseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
-  const { colors, spacing, radii } = useTheme();
+  const { user, userDoc } = useAuth();
+  const { colors, spacing } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<TabType>('wins');
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const [locationGranted, setLocationGranted] = useState(false);
+  const [stats, setStats] = useState<PulseStats | null>(null);
+  const [pending, setPending] = useState<Report[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+
+  const fetchLocation = useCallback(async () => {
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      setLocationGranted(status === 'granted');
+      if (status !== 'granted') {
+        setCoords(null);
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setCoords({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
+    } catch {
+      setCoords(null);
+    }
+  }, []);
 
   useEffect(() => {
-    setLoading(true);
-    let unsubscribe: () => void;
+    fetchLocation();
+  }, [fetchLocation]);
 
-    if (activeTab === 'wins') {
-      unsubscribe = subscribeToReports('verified', 'win', (data) => {
-        setReports(data);
-        setLoading(false);
-      });
-    } else if (activeTab === 'fails') {
-      unsubscribe = subscribeToReports('verified', 'fail', (data) => {
-        setReports(data);
-        setLoading(false);
-      });
-    } else {
-      unsubscribe = subscribeToReports('pending', null, (data) => {
-        setReports(data.filter(r => r.reporterId !== user?.uid));
-        setLoading(false);
-      });
+  // Real-time pulse stats — re-subscribes when the area changes or on retry.
+  useEffect(() => {
+    setStats(null);
+    setError(false);
+    const opts = coords ? { center: coords, radiusKm: RADIUS_KM } : {};
+    return subscribeToPulseStats(setStats, opts, () => setError(true));
+  }, [coords, retryKey]);
+
+  // Real-time verification queue — top 3 pending reports, excluding the user's own.
+  useEffect(() => {
+    return subscribeToVerificationQueue(
+      setPending,
+      {
+        excludeUid: user?.uid,
+        max: 3,
+        ...(coords ? { center: coords, radiusKm: RADIUS_KM } : {}),
+      },
+      () => setError(true),
+    );
+  }, [coords, user?.uid, retryKey]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchLocation();
+    setRefreshing(false);
+  }, [fetchLocation]);
+
+  const retry = () => setRetryKey((k) => k + 1);
+
+  const enableLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        await fetchLocation();
+      } else {
+        setLocationGranted(false);
+      }
+    } catch {
+      // Permission flow failed — leave the area unscoped.
     }
-
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, [activeTab, user?.uid]);
+  };
 
   const handleVerify = async (reportId: string) => {
     if (!user) return;
@@ -59,89 +130,168 @@ export default function HubScreen() {
     await flagReport(reportId, user.uid);
   };
 
+  const name = userDoc?.displayName?.split(' ')[0] ?? 'there';
+  const activeCount = stats ? stats.openIssues + stats.wins : 0;
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={[styles.header, { paddingHorizontal: spacing.md, paddingBottom: spacing.sm }]}>
-        <Typography variant="h1" style={{ marginBottom: spacing.sm }}>The Hub</Typography>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: colors.background, paddingTop: insets.top },
+      ]}
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
+        {/* Header */}
+        <Typography variant="body" color={colors.textMuted}>
+          {getGreeting()},
+        </Typography>
+        <Typography variant="h1" style={{ marginBottom: spacing.sm }}>
+          {name}
+        </Typography>
 
-        {/* Segmented Control */}
-        <View style={[styles.segControl, { backgroundColor: colors.surface, borderRadius: radii.md }]}>
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab;
-            return (
-              <AnimatedButton
-                key={tab}
-                onPress={() => setActiveTab(tab)}
-                hapticFeedback="light"
-                style={[
-                  styles.segBtn,
-                  isActive && [styles.segBtnActive, { backgroundColor: colors.background, borderRadius: radii.sm }],
-                ]}
-              >
-                <Typography variant="body" weight="semiBold" color={isActive ? colors.text : colors.textMuted}>
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </Typography>
-              </AnimatedButton>
-            );
-          })}
-        </View>
-      </View>
+        <AnimatedButton
+          onPress={locationGranted ? undefined : enableLocation}
+          disabled={locationGranted}
+          hapticFeedback={locationGranted ? 'none' : 'light'}
+          style={styles.locationChip}
+        >
+          <Ionicons
+            name={coords ? 'location' : 'location-outline'}
+            size={14}
+            color={coords ? colors.primary : colors.textMuted}
+          />
+          <Typography
+            variant="caption"
+            weight="semiBold"
+            color={coords ? colors.primary : colors.textMuted}
+          >
+            {coords
+              ? `Within ${RADIUS_KM} km of you`
+              : 'Enable location for your area'}
+          </Typography>
+        </AnimatedButton>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : reports.length === 0 ? (
-        <View style={styles.center}>
-          <Ionicons name="leaf-outline" size={80} color={colors.border} />
-          <Typography variant="h3" color={colors.textMuted} style={{ marginTop: spacing.md, textAlign: 'center' }}>
-            No reports found.
-          </Typography>
-          <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.xs, textAlign: 'center' }}>
-            {activeTab === 'radar'
-              ? 'No pending reports near you to verify.'
-              : 'Be the first to log something in your city!'}
-          </Typography>
-        </View>
-      ) : (
-        <FlatList
-          data={reports}
-          keyExtractor={(item) => item.reportId}
-          renderItem={({ item }) => (
-            <ReportCard
-              report={item}
-              isRadarView={activeTab === 'radar'}
-              onVerify={() => handleVerify(item.reportId)}
-              onFlag={() => handleFlag(item.reportId)}
-            />
-          )}
-          contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: 120, paddingTop: spacing.sm }}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+        {error ? (
+          <StateView
+            icon="cloud-offline"
+            tone="error"
+            title="Couldn’t load your pulse"
+            message="Something went wrong reading reports nearby. Check your connection and try again."
+            actionLabel="Retry"
+            onAction={retry}
+          />
+        ) : stats === null ? (
+          <View style={styles.loading}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
+          <>
+            <View style={{ marginTop: spacing.md }}>
+              <PulseHero
+                activeCount={activeCount}
+                thisWeek={stats.thisWeek}
+                lastWeek={stats.lastWeek}
+              />
+            </View>
+
+            {/* Honest raw stats */}
+            <View style={[styles.statRow, { marginTop: spacing.md }]}>
+              <StatCard icon="leaf" value={stats.wins} label="Civic wins" tint="primary" />
+              <StatCard
+                icon="warning"
+                value={stats.openIssues}
+                label="Open issues"
+                tint="danger"
+              />
+            </View>
+            <View style={styles.statRow}>
+              <StatCard
+                icon="trending-up"
+                value={stats.thisWeek}
+                label="New this week"
+                tint="primary"
+              />
+              <StatCard
+                icon="eye"
+                value={stats.pendingVerification}
+                label="Need verifying"
+                tint="warning"
+              />
+            </View>
+
+            {/* Tier ladder */}
+            <Typography
+              variant="caption"
+              weight="bold"
+              color={colors.textMuted}
+              style={styles.sectionLabel}
+            >
+              YOUR CLIMB
+            </Typography>
+            <TierProgress userDoc={userDoc} />
+
+            {/* Verification bridge */}
+            <Typography
+              variant="caption"
+              weight="bold"
+              color={colors.textMuted}
+              style={styles.sectionLabel}
+            >
+              REPORTS THAT NEED YOU
+            </Typography>
+            {pending.length === 0 ? (
+              <StateView
+                compact
+                icon="checkmark-done-circle"
+                title="All clear nearby"
+                message="No reports are waiting for verification in your area."
+              />
+            ) : (
+              pending.map((report) => (
+                <ReportCard
+                  key={report.reportId}
+                  report={report}
+                  isRadarView
+                  onPress={() =>
+                    router.push({
+                      pathname: '/report/[id]',
+                      params: { id: report.reportId },
+                    })
+                  }
+                  onVerify={() => handleVerify(report.reportId)}
+                  onFlag={() => handleFlag(report.reportId)}
+                />
+              ))
+            )}
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {},
-  segControl: {
+  scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 },
+  locationChip: {
     flexDirection: 'row',
-    padding: 4,
-  },
-  segBtn: {
-    flex: 1,
-    paddingVertical: 10,
     alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
   },
-  segBtnActive: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  loading: { paddingVertical: 80, alignItems: 'center' },
+  statRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  sectionLabel: { letterSpacing: 1, marginTop: 20, marginBottom: 10 },
 });

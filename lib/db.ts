@@ -1,8 +1,9 @@
 import {
   collection, doc, setDoc, getDoc, updateDoc,
   query, where, getDocs, Timestamp,
-  limit, onSnapshot, increment,
+  limit, onSnapshot, increment, orderBy,
 } from 'firebase/firestore';
+import { distanceBetween } from 'geofire-common';
 import { db } from './firebase';
 import { Report, User, TriviaQuestion, Tier } from '@/types';
 
@@ -53,6 +54,13 @@ export const getUserDoc = async (uid: string): Promise<User | null> => {
   return snap.exists() ? (snap.data() as User) : null;
 };
 
+/** Fetches the top users by civic points — the leaderboard. */
+export const getLeaderboard = async (max = 20): Promise<User[]> => {
+  const q = query(USERS_COL, orderBy('civicPoints', 'desc'), limit(max));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as User);
+};
+
 /** Awards civic points and recalculates tier */
 export const awardPoints = async (uid: string, points: number) => {
   const userRef = doc(USERS_COL, uid);
@@ -78,6 +86,12 @@ export const createReport = async (
     verifiedBy: [],
     flaggedBy: [],
     createdAt: Timestamp.now(),
+    verifiedAt: null,
+    resolutionSubmittedAt: null,
+    resolvedAt: null,
+    resolvedImageUrl: null,
+    resolvedBy: null,
+    resolutionConfirmedBy: [],
   };
   await setDoc(newReportRef, report);
   // Award points for submitting
@@ -102,12 +116,82 @@ export const verifyReport = async (reportId: string, userId: string) => {
     const report = reportSnap.data() as Report;
     if (!report.verifiedBy.includes(userId)) {
       const updatedVerifiedBy = [...report.verifiedBy, userId];
-      const newStatus = updatedVerifiedBy.length >= 3 ? 'verified' : report.status;
-      await updateDoc(reportRef, { verifiedBy: updatedVerifiedBy, status: newStatus });
+      const justVerified =
+        updatedVerifiedBy.length >= 3 && report.status === 'pending';
+      const updates: Record<string, unknown> = {
+        verifiedBy: updatedVerifiedBy,
+        status: justVerified ? 'verified' : report.status,
+      };
+      if (justVerified) updates.verifiedAt = Timestamp.now();
+      await updateDoc(reportRef, updates);
       // Award +5 points to verifier
       await awardPoints(userId, 5);
     }
   }
+};
+
+/** Subscribes to a single report in real-time. */
+export const subscribeToReport = (
+  reportId: string,
+  onUpdate: (report: Report | null) => void,
+  onError?: (error: Error) => void,
+) => {
+  return onSnapshot(
+    doc(db, 'reports', reportId),
+    (snap) => onUpdate(snap.exists() ? (snap.data() as Report) : null),
+    onError,
+  );
+};
+
+// ─── Resolution (community-observed) ─────────────────────────────────────────
+
+/**
+ * Submits an "after" photo for a verified issue → status becomes 'in_progress'.
+ * Awards +10 points to the submitter.
+ */
+export const submitResolution = async (
+  reportId: string,
+  userId: string,
+  resolvedImageUrl: string,
+) => {
+  const reportRef = doc(db, 'reports', reportId);
+  const snap = await getDoc(reportRef);
+  if (!snap.exists()) return;
+  const report = snap.data() as Report;
+  if (report.status !== 'verified') return; // only verified issues can be resolved
+  await updateDoc(reportRef, {
+    status: 'in_progress',
+    resolvedImageUrl,
+    resolvedBy: userId,
+    resolutionSubmittedAt: Timestamp.now(),
+    resolutionConfirmedBy: [],
+  });
+  await awardPoints(userId, 10);
+};
+
+/**
+ * Confirms a submitted fix. At 3 confirmations → status becomes 'resolved'.
+ * Awards +5 points. The user who submitted the fix cannot confirm it.
+ */
+export const confirmResolution = async (reportId: string, userId: string) => {
+  const reportRef = doc(db, 'reports', reportId);
+  const snap = await getDoc(reportRef);
+  if (!snap.exists()) return;
+  const report = snap.data() as Report;
+  if (report.status !== 'in_progress') return;
+  if (report.resolvedBy === userId) return; // can't confirm your own fix
+  const confirmedBy = report.resolutionConfirmedBy ?? [];
+  if (confirmedBy.includes(userId)) return;
+  const updatedConfirmedBy = [...confirmedBy, userId];
+  const updates: Record<string, unknown> = {
+    resolutionConfirmedBy: updatedConfirmedBy,
+  };
+  if (updatedConfirmedBy.length >= 3) {
+    updates.status = 'resolved';
+    updates.resolvedAt = Timestamp.now();
+  }
+  await updateDoc(reportRef, updates);
+  await awardPoints(userId, 5);
 };
 
 /** Flags a report. At 2 flags → status becomes 'archived'. */
@@ -144,6 +228,120 @@ export const subscribeToReports = (
   });
 };
 
+// ─── Pulse / Dashboard ───────────────────────────────────────────────────────
+
+export interface PulseStats {
+  /** Non-archived 'fail' reports — issues still standing. */
+  openIssues: number;
+  /** Non-archived 'win' reports — civic wins logged. */
+  wins: number;
+  /** Reports awaiting community verification (status 'pending'). */
+  pendingVerification: number;
+  /** Non-archived reports created in the last 7 days. */
+  thisWeek: number;
+  /** Non-archived reports created 7–14 days ago — for the trend comparison. */
+  lastWeek: number;
+}
+
+/** Optional "your area" filter — a radius around a center point. */
+interface AreaOptions {
+  center?: { latitude: number; longitude: number };
+  radiusKm?: number;
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** True when a report falls inside the area filter (or when no filter is set). */
+const inArea = (report: Report, opts: AreaOptions): boolean => {
+  if (!opts.center || opts.radiusKm == null) return true;
+  const km = distanceBetween(
+    [report.latitude, report.longitude],
+    [opts.center.latitude, opts.center.longitude],
+  );
+  return km <= opts.radiusKm;
+};
+
+/** Real-time aggregate stats for the Pulse dashboard, scoped to an optional area. */
+export const subscribeToPulseStats = (
+  onUpdate: (stats: PulseStats) => void,
+  opts: AreaOptions = {},
+  onError?: (error: Error) => void,
+) => {
+  const q = query(REPORTS_COL, limit(200));
+  return onSnapshot(q, (snapshot) => {
+    const now = Date.now();
+    const stats: PulseStats = {
+      openIssues: 0,
+      wins: 0,
+      pendingVerification: 0,
+      thisWeek: 0,
+      lastWeek: 0,
+    };
+    for (const docSnap of snapshot.docs) {
+      const r = docSnap.data() as Report;
+      if (!inArea(r, opts)) continue;
+      if (r.status === 'pending') stats.pendingVerification += 1;
+      if (r.status === 'archived') continue;
+      if (r.vibe === 'fail') {
+        // A resolved issue is no longer "open".
+        if (r.status !== 'resolved') stats.openIssues += 1;
+      } else {
+        stats.wins += 1;
+      }
+      const age = now - r.createdAt.toMillis();
+      if (age < WEEK_MS) stats.thisWeek += 1;
+      else if (age < 2 * WEEK_MS) stats.lastWeek += 1;
+    }
+    onUpdate(stats);
+  }, onError);
+};
+
+/** Real-time queue of pending reports needing verification, newest first. */
+export const subscribeToVerificationQueue = (
+  onUpdate: (reports: Report[]) => void,
+  opts: AreaOptions & { excludeUid?: string; max?: number } = {},
+  onError?: (error: Error) => void,
+) => {
+  const q = query(REPORTS_COL, where('status', '==', 'pending'), limit(50));
+  return onSnapshot(q, (snapshot) => {
+    let reports = snapshot.docs
+      .map((d) => d.data() as Report)
+      .filter((r) => r.reporterId !== opts.excludeUid && inArea(r, opts));
+    reports.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    if (opts.max != null) reports = reports.slice(0, opts.max);
+    onUpdate(reports);
+  }, onError);
+};
+
+// ─── Explore ─────────────────────────────────────────────────────────────────
+
+/** Explore feed filters. */
+export type ExploreFilter = 'all' | 'wins' | 'issues' | 'verify';
+
+/** Real-time Explore feed — reports filtered by area and category, newest first. */
+export const subscribeToExploreReports = (
+  onUpdate: (reports: Report[]) => void,
+  opts: AreaOptions & { filter?: ExploreFilter } = {},
+  onError?: (error: Error) => void,
+) => {
+  const filter = opts.filter ?? 'all';
+  const q = query(REPORTS_COL, limit(100));
+  return onSnapshot(q, (snapshot) => {
+    const reports = snapshot.docs
+      .map((d) => d.data() as Report)
+      .filter((r) => {
+        if (!inArea(r, opts)) return false;
+        if (filter === 'verify') return r.status === 'pending';
+        if (r.status === 'archived') return false;
+        if (filter === 'wins') return r.vibe === 'win';
+        if (filter === 'issues') return r.vibe === 'fail';
+        return true; // 'all'
+      });
+    reports.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    onUpdate(reports);
+  }, onError);
+};
+
 // ─── Trivia ──────────────────────────────────────────────────────────────────
 
 /** Fetches today's trivia question from Firestore */
@@ -153,6 +351,19 @@ export const getTodayTrivia = async (): Promise<TriviaQuestion | null> => {
   const snap = await getDocs(q);
   if (snap.empty) return null;
   return snap.docs[0].data() as TriviaQuestion;
+};
+
+/** Fetches past trivia questions (before today), newest first — the knowledge archive. */
+export const getTriviaArchive = async (): Promise<TriviaQuestion[]> => {
+  const today = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+  const q = query(
+    TRIVIA_COL,
+    where('activeDate', '<', today),
+    orderBy('activeDate', 'desc'),
+    limit(30),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as TriviaQuestion);
 };
 
 /** Submit a trivia answer. Awards +5 points if correct, marks as completed. */

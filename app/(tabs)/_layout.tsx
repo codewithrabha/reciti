@@ -39,11 +39,24 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Hub",
+          title: "Pulse",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               size={32}
               name={focused ? "planet" : "planet-outline"}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: "Explore",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              size={32}
+              name={focused ? "map" : "map-outline"}
               color={color}
             />
           ),
@@ -62,6 +75,19 @@ export default function TabLayout() {
             >
               <Ionicons size={32} name="camera" color={colors.white} />
             </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="learn"
+        options={{
+          title: "Learn",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              size={32}
+              name={focused ? "school" : "school-outline"}
+              color={color}
+            />
           ),
         }}
       />
