@@ -59,14 +59,21 @@ export const signInWithGoogle = async () => {
 
   const currentUser = auth.currentUser;
   if (currentUser?.isAnonymous) {
-    // Upgrade anonymous account → Google account
-    const linked = await linkWithCredential(currentUser, googleCredential);
-    await createOrUpdateUserDoc(linked.user.uid, {
-      displayName: linked.user.displayName,
-      email: linked.user.email,
-      photoURL: linked.user.photoURL,
-    });
-    return linked.user;
+    try {
+      // Try to upgrade anonymous account → Google account
+      const linked = await linkWithCredential(currentUser, googleCredential);
+      await createOrUpdateUserDoc(linked.user.uid, {
+        displayName: linked.user.displayName,
+        email: linked.user.email,
+        photoURL: linked.user.photoURL,
+      });
+      return linked.user;
+    } catch (err: any) {
+      // The Google account already has its own Firebase user — the anonymous
+      // account can't be upgraded into it, so sign into the existing one.
+      // (The anonymous user is abandoned; it will be auto-cleaned by Firebase.)
+      if (err?.code !== 'auth/credential-already-in-use') throw err;
+    }
   }
 
   const { user } = await signInWithCredential(auth, googleCredential);
