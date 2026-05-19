@@ -1,6 +1,5 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
 // @ts-ignore: getReactNativePersistence is missing in the TypeScript definitions for firebase/auth in v11+, but it works at runtime.
 import { initializeAuth, getReactNativePersistence } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -22,4 +21,3 @@ export const auth = initializeAuth(app, {
 });
 
 export const db = getFirestore(app);
-export const storage = getStorage(app);
