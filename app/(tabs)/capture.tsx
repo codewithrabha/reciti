@@ -533,7 +533,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   // Submit
-  submitWrapper: { position: 'absolute', bottom: 90, left: 0, right: 0, padding: 16 },
+  submitWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16
+  },
   submitBtn: {
     borderRadius: 16,
     paddingVertical: 18,
