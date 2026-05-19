@@ -204,11 +204,7 @@ export default function PulseScreen() {
         ) : (
           <>
             <View style={{ marginTop: spacing.md }}>
-              <PulseHero
-                activeCount={activeCount}
-                thisWeek={stats.thisWeek}
-                lastWeek={stats.lastWeek}
-              />
+              <PulseHero activeCount={activeCount} />
             </View>
 
             {/* Honest raw stats */}

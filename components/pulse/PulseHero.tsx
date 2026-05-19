@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -49,19 +48,9 @@ function PulseRing({ delay }: { delay: number }) {
 interface PulseHeroProps {
   /** Active (non-archived) reports tracked nearby. */
   activeCount: number;
-  thisWeek: number;
-  lastWeek: number;
 }
 
-export function PulseHero({ activeCount, thisWeek, lastWeek }: PulseHeroProps) {
-  const delta = thisWeek - lastWeek;
-  const trend =
-    delta > 0
-      ? { icon: 'trending-up' as const, text: `${delta} more than last week` }
-      : delta < 0
-        ? { icon: 'trending-down' as const, text: `${Math.abs(delta)} fewer than last week` }
-        : { icon: 'remove' as const, text: 'same as last week' };
-
+export function PulseHero({ activeCount }: PulseHeroProps) {
   return (
     <LinearGradient
       colors={GRADIENT}
@@ -86,16 +75,9 @@ export function PulseHero({ activeCount, thisWeek, lastWeek }: PulseHeroProps) {
       <Typography weight="bold" color="#FFFFFF" style={styles.bigNumber}>
         {activeCount}
       </Typography>
-      <Typography variant="body" color="rgba(255,255,255,0.92)" align="center">
+      <Typography variant="body" color="rgba(255,255,255,0.92)" align="center" style={{ fontSize: 12 }} >
         active reports tracked near you
       </Typography>
-
-      <View style={styles.trendPill}>
-        <Ionicons name={trend.icon} size={14} color="#FFFFFF" />
-        <Typography variant="caption" weight="semiBold" color="#FFFFFF">
-          {thisWeek} new this week · {trend.text}
-        </Typography>
-      </View>
     </LinearGradient>
   );
 }
@@ -128,14 +110,4 @@ const styles = StyleSheet.create({
   },
   kicker: { letterSpacing: 2, marginBottom: 4 },
   bigNumber: { fontSize: 64, lineHeight: 70 },
-  trendPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 16,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 9999,
-  },
 });
