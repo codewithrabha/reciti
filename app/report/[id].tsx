@@ -24,7 +24,7 @@ import {
   verifyReport,
 } from '@/lib/db';
 import { uploadImage } from '@/lib/storage';
-import { useAuth } from '@/hooks/useAuth';
+import { useUser } from '@/hooks/useAuth';
 import { ResolutionTimeline } from '@/components/report/ResolutionTimeline';
 import { BeforeAfter } from '@/components/report/BeforeAfter';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
@@ -152,7 +152,7 @@ export default function ReportDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const user = useUser();
   const { colors } = useTheme();
 
   const [report, setReport] = useState<Report | null | undefined>(undefined);

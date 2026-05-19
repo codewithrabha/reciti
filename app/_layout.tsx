@@ -15,7 +15,7 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { AuthProvider } from '@/hooks/useAuth';
+import { initAuthListener } from '@/store/authStore';
 import { OnboardingProvider, useOnboarding } from '@/hooks/useOnboarding';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -47,6 +47,11 @@ function RootNavigator() {
   // Wait for fonts and the persisted onboarding flag before revealing the app.
   const ready = (fontsLoaded || !!error) && needsOnboarding !== null;
 
+  // Start the single app-lifetime auth listener (idempotent).
+  useEffect(() => {
+    initAuthListener();
+  }, []);
+
   useEffect(() => {
     if (ready) {
       SplashScreen.hideAsync();
@@ -60,27 +65,25 @@ function RootNavigator() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AuthProvider>
-          <Stack>
-            {/*
-              First launch is gated to onboarding. Both groups are guarded so the
-              router lands on the right screen and reacts automatically when
-              `completeOnboarding()` flips the flag — no imperative redirect.
-            */}
-            <Stack.Protected guard={needsOnboarding === false}>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack.Protected>
-            <Stack.Protected guard={needsOnboarding === true}>
-              <Stack.Screen
-                name="onboarding"
-                options={{ headerShown: false, gestureEnabled: false }}
-              />
-            </Stack.Protected>
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-            <Stack.Screen name="auth" options={{ headerShown: false }} />
-            <Stack.Screen name="report/[id]" options={{ headerShown: false }} />
-          </Stack>
-        </AuthProvider>
+        <Stack>
+          {/*
+            First launch is gated to onboarding. Both groups are guarded so the
+            router lands on the right screen and reacts automatically when
+            `completeOnboarding()` flips the flag — no imperative redirect.
+          */}
+          <Stack.Protected guard={needsOnboarding === false}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack.Protected>
+          <Stack.Protected guard={needsOnboarding === true}>
+            <Stack.Screen
+              name="onboarding"
+              options={{ headerShown: false, gestureEnabled: false }}
+            />
+          </Stack.Protected>
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen name="auth" options={{ headerShown: false }} />
+          <Stack.Screen name="report/[id]" options={{ headerShown: false }} />
+        </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
     </GestureHandlerRootView>

@@ -19,7 +19,7 @@ import {
   subscribeToVerificationQueue,
   verifyReport,
 } from '@/lib/db';
-import { useAuth } from '@/hooks/useAuth';
+import { useUser, useUserDoc } from '@/hooks/useAuth';
 import { ReportCard } from '@/components/ReportCard';
 import { PulseHero } from '@/components/pulse/PulseHero';
 import { StatCard } from '@/components/pulse/StatCard';
@@ -43,7 +43,8 @@ function getGreeting(): string {
 export default function PulseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, userDoc } = useAuth();
+  const user = useUser();
+  const userDoc = useUserDoc();
   const { colors, spacing } = useTheme();
 
   const [coords, setCoords] = useState<Coords | null>(null);
@@ -140,19 +141,9 @@ export default function PulseScreen() {
         { backgroundColor: colors.background, paddingTop: insets.top },
       ]}
     >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-      >
-        {/* Header */}
+
+      {/* Header */}
+      <View style={{ paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <Typography variant="body" color={colors.textMuted}>
           {getGreeting()},
         </Typography>
@@ -181,6 +172,21 @@ export default function PulseScreen() {
               : 'Enable location for your area'}
           </Typography>
         </AnimatedButton>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        overScrollMode='never'
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
 
         {error ? (
           <StateView
@@ -283,7 +289,7 @@ export default function PulseScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 },
+  scroll: { paddingHorizontal: 16, paddingBottom: 120 },
   locationChip: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -20,7 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/auth';
-import { useAuth } from '@/hooks/useAuth';
+import { useRefreshUserDoc } from '@/hooks/useAuth';
 import { AuthField } from '@/components/auth/AuthField';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Card } from '@/components/ui/Card';
@@ -59,7 +59,7 @@ function authErrorMessage(err: any): string {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { refreshUserDoc } = useAuth();
+  const refreshUserDoc = useRefreshUserDoc();
   const { colors, spacing, radii } = useTheme();
 
   const [tab, setTab] = useState<AuthTab>('signin');

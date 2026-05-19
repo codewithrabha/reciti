@@ -18,7 +18,11 @@ interface LeaderboardRowProps {
   isCurrentUser: boolean;
 }
 
-export function LeaderboardRow({ rank, user, isCurrentUser }: LeaderboardRowProps) {
+export const LeaderboardRow = React.memo(function LeaderboardRow({
+  rank,
+  user,
+  isCurrentUser,
+}: LeaderboardRowProps) {
   const { colors, radii } = useTheme();
   const medal = MEDAL[rank];
   const name = user.displayName ?? 'Citizen';
@@ -73,7 +77,7 @@ export function LeaderboardRow({ rank, user, isCurrentUser }: LeaderboardRowProp
       </Typography>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   row: {

@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   Easing,
@@ -19,16 +20,23 @@ const RING_SIZE = 150;
 function PulseRing({ delay }: { delay: number }) {
   const progress = useSharedValue(0);
 
-  useEffect(() => {
-    progress.value = withDelay(
-      delay,
-      withRepeat(
-        withTiming(1, { duration: 2600, easing: Easing.out(Easing.cubic) }),
-        -1,
-        false,
-      ),
-    );
-  }, [delay, progress]);
+  // Loop only while the Pulse tab is focused — bottom-tab screens stay mounted,
+  // so an unconditional infinite animation would keep running off-screen.
+  useFocusEffect(
+    useCallback(() => {
+      progress.value = withDelay(
+        delay,
+        withRepeat(
+          withTiming(1, { duration: 2600, easing: Easing.out(Easing.cubic) }),
+          -1,
+          false,
+        ),
+      );
+      return () => {
+        progress.value = 0;
+      };
+    }, [delay, progress]),
+  );
 
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: 0.55 + progress.value * 0.95 }],

@@ -42,7 +42,7 @@ export default function TabLayout() {
           title: "Pulse",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={32}
+              size={30}
               name={focused ? "planet" : "planet-outline"}
               color={color}
             />
@@ -55,7 +55,7 @@ export default function TabLayout() {
           title: "Explore",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={32}
+              size={30}
               name={focused ? "map" : "map-outline"}
               color={color}
             />
@@ -73,7 +73,7 @@ export default function TabLayout() {
                 { backgroundColor: colors.primary },
               ]}
             >
-              <Ionicons size={32} name="camera" color={colors.white} />
+              <Ionicons size={30} name="camera" color={colors.white} />
             </View>
           ),
         }}
@@ -84,7 +84,7 @@ export default function TabLayout() {
           title: "Learn",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={32}
+              size={30}
               name={focused ? "school" : "school-outline"}
               color={color}
             />
@@ -97,7 +97,7 @@ export default function TabLayout() {
           title: "Profile",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={32}
+              size={30}
               name={focused ? "person" : "person-outline"}
               color={color}
             />
@@ -113,8 +113,8 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   captureButton: {
-    width: 65,
-    height: 65,
+    width: 60,
+    height: 60,
     borderRadius: 100,
     justifyContent: "center",
     alignItems: "center",

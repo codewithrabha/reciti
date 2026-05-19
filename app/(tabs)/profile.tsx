@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -12,8 +11,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LegendList } from '@legendapp/list';
 
-import { useAuth } from '@/hooks/useAuth';
+import { useUser, useUserDoc, useRefreshUserDoc } from '@/hooks/useAuth';
 import { signOut } from '@/lib/auth';
 import { getLeaderboard, getUserReports } from '@/lib/db';
 import { Report, ReportStatus, User } from '@/types';
@@ -28,6 +28,9 @@ import { Typography } from '@/components/ui/Typography';
 import { useTheme } from '@/theme';
 
 const GRADIENT = ['#34D399', '#10B981', '#059669'] as const;
+
+/** Stable empty reference so the list doesn't see a new array each render. */
+const NO_REPORTS: Report[] = [];
 
 const STATUS_LABEL: Record<ReportStatus, string> = {
   pending: 'Pending',
@@ -47,10 +50,63 @@ const STATUS_VARIANT: Record<ReportStatus, 'primary' | 'warning' | 'danger' | 'd
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/**
+ * A single "your reports" row. Memoized so the virtualized list can recycle
+ * rows without re-rendering unchanged items. `isFirst`/`isLast` round the ends
+ * so the list still reads as one joined card.
+ */
+const ReportRow = React.memo(function ReportRow({
+  report,
+  isFirst,
+  isLast,
+}: {
+  report: Report;
+  isFirst: boolean;
+  isLast: boolean;
+}) {
+  const router = useRouter();
+  const { colors, radii } = useTheme();
+  return (
+    <AnimatedButton
+      onPress={() =>
+        router.push({ pathname: '/report/[id]', params: { id: report.reportId } })
+      }
+      hapticFeedback="light"
+      scaleTo={0.99}
+      style={[
+        styles.reportRow,
+        { backgroundColor: colors.surface },
+        isFirst && { borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg },
+        isLast && { borderBottomLeftRadius: radii.lg, borderBottomRightRadius: radii.lg },
+        !isFirst && { borderTopColor: colors.border, borderTopWidth: 1 },
+      ]}
+    >
+      <View
+        style={[
+          styles.vibeDot,
+          { backgroundColor: report.vibe === 'win' ? colors.primary : colors.danger },
+        ]}
+      />
+      <View style={styles.reportInfo}>
+        <Typography variant="body" weight="semiBold">
+          {cap(report.category)} {report.vibe === 'win' ? 'win' : 'issue'}
+        </Typography>
+        <Typography variant="caption" color={colors.textMuted}>
+          {report.createdAt.toDate().toLocaleDateString()}
+        </Typography>
+      </View>
+      <Badge label={STATUS_LABEL[report.status]} variant={STATUS_VARIANT[report.status]} />
+      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+    </AnimatedButton>
+  );
+});
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, userDoc, refreshUserDoc } = useAuth();
+  const user = useUser();
+  const userDoc = useUserDoc();
+  const refreshUserDoc = useRefreshUserDoc();
   const { colors, spacing, radii } = useTheme();
 
   const [myReports, setMyReports] = useState<Report[]>([]);
@@ -174,11 +230,148 @@ export default function ProfileScreen() {
   ).length;
   const resolvedCount = myReports.filter((r) => r.status === 'resolved').length;
 
+  // Only feed real rows to the list — error/loading/empty render elsewhere.
+  const reportsData = error ? NO_REPORTS : myReports;
+
+  // Everything above "your reports" scrolls with the list as its header.
+  const listHeader = (
+    <>
+      {/* Header */}
+      <View style={styles.header}>
+        {user.photoURL ? (
+          <Image source={{ uri: user.photoURL }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: colors.primary }]}>
+            <Typography variant="h2" weight="bold" color="#FFFFFF">
+              {name.charAt(0).toUpperCase()}
+            </Typography>
+          </View>
+        )}
+        <View style={styles.headerText}>
+          <Typography variant="h3" weight="bold" numberOfLines={1}>
+            {name}
+          </Typography>
+          {!!user.email && (
+            <Typography variant="caption" color={colors.textMuted} numberOfLines={1}>
+              {user.email}
+            </Typography>
+          )}
+        </View>
+        <AnimatedButton
+          onPress={confirmSignOut}
+          disabled={signingOut}
+          hapticFeedback="medium"
+          style={styles.signOutBtn}
+        >
+          {signingOut ? (
+            <ActivityIndicator size="small" color={colors.textMuted} />
+          ) : (
+            <Ionicons name="log-out-outline" size={24} color={colors.textMuted} />
+          )}
+        </AnimatedButton>
+      </View>
+
+      {/* Tier */}
+      <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
+        YOUR CLIMB
+      </Typography>
+      <TierProgress userDoc={userDoc} />
+
+      {error ? (
+        <View style={styles.errorWrap}>
+          <StateView
+            icon="cloud-offline"
+            tone="error"
+            title="Couldn’t load your profile"
+            message="Something went wrong. Check your connection and try again."
+            actionLabel="Retry"
+            onAction={loadData}
+          />
+        </View>
+      ) : (
+        <>
+          {/* Impact */}
+          <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
+            YOUR IMPACT
+          </Typography>
+          <View style={styles.statRow}>
+            <StatCard icon="document-text" value={reportsFiled} label="Reports filed" tint="primary" />
+            <StatCard icon="leaf" value={winsLogged} label="Wins logged" tint="primary" />
+          </View>
+          <View style={styles.statRow}>
+            <StatCard icon="checkmark-circle" value={verifiedCount} label="Verified" tint="primary" />
+            <StatCard icon="sparkles" value={resolvedCount} label="Resolved" tint="primary" />
+          </View>
+
+          {/* Leaderboard */}
+          <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
+            LEADERBOARD
+          </Typography>
+          {loading && leaderboard.length === 0 ? (
+            <View style={styles.loading}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : leaderboard.length === 0 ? (
+            <Card padding="none">
+              <StateView
+                compact
+                icon="podium-outline"
+                title="No rankings yet"
+                message="The leaderboard is just getting started — keep earning points."
+              />
+            </Card>
+          ) : (
+            leaderboard.map((u, i) => (
+              <LeaderboardRow
+                key={u.uid}
+                rank={i + 1}
+                user={u}
+                isCurrentUser={u.uid === user.uid}
+              />
+            ))
+          )}
+
+          {/* My reports */}
+          <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
+            YOUR REPORTS ({reportsFiled})
+          </Typography>
+        </>
+      )}
+    </>
+  );
+
+  // Reports states shown in place of the rows when there are none.
+  const listEmpty = error ? null : loading ? (
+    <View style={styles.loading}>
+      <ActivityIndicator color={colors.primary} />
+    </View>
+  ) : (
+    <Card padding="none">
+      <StateView
+        compact
+        icon="camera-outline"
+        title="No reports yet"
+        message="You haven’t submitted any reports yet. Capture your first one."
+      />
+    </Card>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+      <LegendList
+        data={reportsData}
+        renderItem={({ item, index }) => (
+          <ReportRow
+            report={item}
+            isFirst={index === 0}
+            isLast={index === reportsData.length - 1}
+          />
+        )}
+        keyExtractor={(item) => item.reportId}
+        estimatedItemSize={64}
+        recycleItems
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -187,170 +380,17 @@ export default function ProfileScreen() {
             colors={[colors.primary]}
           />
         }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          {user.photoURL ? (
-            <Image source={{ uri: user.photoURL }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: colors.primary }]}>
-              <Typography variant="h2" weight="bold" color="#FFFFFF">
-                {name.charAt(0).toUpperCase()}
-              </Typography>
-            </View>
-          )}
-          <View style={styles.headerText}>
-            <Typography variant="h3" weight="bold" numberOfLines={1}>
-              {name}
-            </Typography>
-            {!!user.email && (
-              <Typography variant="caption" color={colors.textMuted} numberOfLines={1}>
-                {user.email}
-              </Typography>
-            )}
-          </View>
-          <AnimatedButton
-            onPress={confirmSignOut}
-            disabled={signingOut}
-            hapticFeedback="medium"
-            style={styles.signOutBtn}
-          >
-            {signingOut ? (
-              <ActivityIndicator size="small" color={colors.textMuted} />
-            ) : (
-              <Ionicons name="log-out-outline" size={24} color={colors.textMuted} />
-            )}
-          </AnimatedButton>
-        </View>
-
-        {/* Tier */}
-        <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
-          YOUR CLIMB
-        </Typography>
-        <TierProgress userDoc={userDoc} />
-
-        {error ? (
-          <View style={styles.errorWrap}>
-            <StateView
-              icon="cloud-offline"
-              tone="error"
-              title="Couldn’t load your profile"
-              message="Something went wrong. Check your connection and try again."
-              actionLabel="Retry"
-              onAction={loadData}
-            />
-          </View>
-        ) : (
-          <>
-
-        {/* Impact */}
-        <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
-          YOUR IMPACT
-        </Typography>
-        <View style={styles.statRow}>
-          <StatCard icon="document-text" value={reportsFiled} label="Reports filed" tint="primary" />
-          <StatCard icon="leaf" value={winsLogged} label="Wins logged" tint="primary" />
-        </View>
-        <View style={styles.statRow}>
-          <StatCard icon="checkmark-circle" value={verifiedCount} label="Verified" tint="primary" />
-          <StatCard icon="sparkles" value={resolvedCount} label="Resolved" tint="primary" />
-        </View>
-
-        {/* Leaderboard */}
-        <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
-          LEADERBOARD
-        </Typography>
-        {loading && leaderboard.length === 0 ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : leaderboard.length === 0 ? (
-          <Card padding="none">
-            <StateView
-              compact
-              icon="podium-outline"
-              title="No rankings yet"
-              message="The leaderboard is just getting started — keep earning points."
-            />
-          </Card>
-        ) : (
-          leaderboard.map((u, i) => (
-            <LeaderboardRow
-              key={u.uid}
-              rank={i + 1}
-              user={u}
-              isCurrentUser={u.uid === user.uid}
-            />
-          ))
-        )}
-
-        {/* My reports */}
-        <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
-          YOUR REPORTS ({reportsFiled})
-        </Typography>
-        {loading && myReports.length === 0 ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : myReports.length === 0 ? (
-          <Card padding="none">
-            <StateView
-              compact
-              icon="camera-outline"
-              title="No reports yet"
-              message="You haven’t submitted any reports yet. Capture your first one."
-            />
-          </Card>
-        ) : (
-          <Card padding="none">
-            {myReports.map((report, i) => (
-              <AnimatedButton
-                key={report.reportId}
-                onPress={() =>
-                  router.push({
-                    pathname: '/report/[id]',
-                    params: { id: report.reportId },
-                  })
-                }
-                hapticFeedback="light"
-                scaleTo={0.99}
-                style={[
-                  styles.reportRow,
-                  i > 0 && { borderTopColor: colors.border, borderTopWidth: 1 },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.vibeDot,
-                    { backgroundColor: report.vibe === 'win' ? colors.primary : colors.danger },
-                  ]}
-                />
-                <View style={styles.reportInfo}>
-                  <Typography variant="body" weight="semiBold">
-                    {cap(report.category)} {report.vibe === 'win' ? 'win' : 'issue'}
-                  </Typography>
-                  <Typography variant="caption" color={colors.textMuted}>
-                    {report.createdAt.toDate().toLocaleDateString()}
-                  </Typography>
-                </View>
-                <Badge
-                  label={STATUS_LABEL[report.status]}
-                  variant={STATUS_VARIANT[report.status]}
-                />
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-              </AnimatedButton>
-            ))}
-          </Card>
-        )}
-          </>
-        )}
-      </ScrollView>
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        style={styles.list}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  list: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 120 },
 
   // Guest

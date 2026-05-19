@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { useAuth } from '@/hooks/useAuth';
+import { useUser } from '@/hooks/useAuth';
 import { createReport } from '@/lib/db';
 import { uploadImage } from '@/lib/storage';
 import { Typography } from '@/components/ui/Typography';
@@ -54,7 +54,7 @@ interface Submitted {
 
 export default function CaptureScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const user = useUser();
   const router = useRouter();
   const { colors, spacing, radii } = useTheme();
 

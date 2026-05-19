@@ -12,7 +12,7 @@ import {
   subscribeToExploreReports,
   verifyReport,
 } from '@/lib/db';
-import { useAuth } from '@/hooks/useAuth';
+import { useUser } from '@/hooks/useAuth';
 import { ReportCard } from '@/components/ReportCard';
 import { FilterChips } from '@/components/explore/FilterChips';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
@@ -96,7 +96,7 @@ function MapPlaceholder({
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const user = useUser();
   const { colors, radii } = useTheme();
 
   const [mode, setMode] = useState<Mode>('feed');
