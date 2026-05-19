@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Report } from '@/types';
+import { VERIFICATION_THRESHOLD } from '@/lib/db';
 import { formatDistanceToNow } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './ui/Card';
@@ -82,7 +83,7 @@ export function ReportCard({
           >
             <Ionicons name="checkmark-circle-outline" size={20} color={colors.primary} />
             <Typography variant="body" weight="semiBold" color={colors.primary} style={{ marginLeft: spacing.xs }}>
-              Verify ({report.verifiedBy.length}/3)
+              Verify ({report.verifiedBy.length}/{VERIFICATION_THRESHOLD})
             </Typography>
           </AnimatedButton>
           

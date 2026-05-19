@@ -22,6 +22,7 @@ import {
   submitResolution,
   subscribeToReport,
   verifyReport,
+  VERIFICATION_THRESHOLD,
 } from '@/lib/db';
 import { uploadImage } from '@/lib/storage';
 import { useUser } from '@/hooks/useAuth';
@@ -236,7 +237,7 @@ export default function ReportDetailScreen() {
         format: SaveFormat.JPEG,
         compress: 0.7,
       });
-      const url = await uploadImage(compressed.uri, `reports/${id}_resolved.jpg`);
+      const { url } = await uploadImage(compressed.uri, `reports/${id}_resolved.jpg`);
       await submitResolution(id, user.uid, url);
     } catch {
       Alert.alert('Upload failed', 'Could not submit the fix. Please try again.');
@@ -357,7 +358,7 @@ export default function ReportDetailScreen() {
                 label={
                   alreadyVerified
                     ? 'Verified'
-                    : `Verify (${report.verifiedBy.length}/3)`
+                    : `Verify (${report.verifiedBy.length}/${VERIFICATION_THRESHOLD})`
                 }
                 tone="primary"
                 disabled={alreadyVerified || actionLoading}

@@ -1,16 +1,29 @@
 import {
-  collection, doc, setDoc, getDoc, updateDoc,
+  collection, doc, setDoc, getDoc, updateDoc, deleteDoc,
   query, where, getDocs, Timestamp,
   limit, onSnapshot, increment, orderBy,
 } from 'firebase/firestore';
 import { distanceBetween } from 'geofire-common';
 import { db } from './firebase';
+import { deleteImageByToken } from './storage';
 import { Report, User, TriviaQuestion, Tier } from '@/types';
 
 // Collections
 const REPORTS_COL = collection(db, 'reports');
 const USERS_COL = collection(db, 'users');
 const TRIVIA_COL = collection(db, 'trivia');
+
+// ─── Report lifecycle constants ──────────────────────────────────────────────
+
+/** A report becomes `verified` once this many neighbours verify it. */
+export const VERIFICATION_THRESHOLD = 10;
+
+/**
+ * A `pending` report with zero verifications is auto-deleted this long after
+ * creation. Cleanup is lazy/client-side (see `pruneExpired`) — there is no
+ * server cron on Firebase's free plan.
+ */
+export const REPORT_GRACE_PERIOD_MS = 5 * 60 * 1000;
 
 // ─── Tier Calculation ────────────────────────────────────────────────────────
 export const getTierForPoints = (points: number): Tier => {
@@ -86,6 +99,7 @@ export const createReport = async (
     verifiedBy: [],
     flaggedBy: [],
     createdAt: Timestamp.now(),
+    imageDeleteToken: reportData.imageDeleteToken ?? null,
     verifiedAt: null,
     resolutionSubmittedAt: null,
     resolvedAt: null,
@@ -99,16 +113,70 @@ export const createReport = async (
   return report.reportId;
 };
 
+// ─── Lazy cleanup of unverified reports ──────────────────────────────────────
+
+/** True once a pending report has sat with zero verifications past the grace period. */
+const isExpiredUnverified = (r: Report): boolean =>
+  r.status === 'pending' &&
+  r.verifiedBy.length === 0 &&
+  Date.now() - r.createdAt.toMillis() > REPORT_GRACE_PERIOD_MS;
+
+/** Permanently deletes a report — its Cloudinary image first, then the doc. */
+export const deleteReport = async (report: Report): Promise<void> => {
+  if (report.imageDeleteToken) {
+    try {
+      await deleteImageByToken(report.imageDeleteToken);
+    } catch (e) {
+      // The token may have expired (~10-min TTL), leaving the image orphaned.
+      // Still remove the doc so the report leaves every feed.
+      console.warn('[db] Cloudinary image delete failed:', e);
+    }
+  }
+  await deleteDoc(doc(REPORTS_COL, report.reportId));
+};
+
+// Reports whose deletion is already in flight — prevents firing duplicate
+// network deletes while the same expired doc keeps arriving in snapshots.
+const deletionsInFlight = new Set<string>();
+
+/**
+ * Drops unverified reports that have outlived the grace period and fires off
+ * their deletion (fire-and-forget — the UI never blocks on it). This is the
+ * client-side "lazy cleanup": expired reports are pruned whenever any feed
+ * that would surface them is loaded.
+ */
+const pruneExpired = (reports: Report[]): Report[] => {
+  const live: Report[] = [];
+  for (const r of reports) {
+    if (!isExpiredUnverified(r)) {
+      live.push(r);
+      continue;
+    }
+    if (!deletionsInFlight.has(r.reportId)) {
+      deletionsInFlight.add(r.reportId);
+      void deleteReport(r)
+        // A denied/failed delete (e.g. clock skew vs. the rules' time check)
+        // is fine — the next snapshot that still contains it will retry.
+        .catch((e) => console.warn('[db] report cleanup failed:', e))
+        .finally(() => deletionsInFlight.delete(r.reportId));
+    }
+  }
+  return live;
+};
+
 /** Fetches all reports by a specific user */
 export const getUserReports = async (uid: string): Promise<Report[]> => {
   const q = query(REPORTS_COL, where('reporterId', '==', uid), limit(50));
   const snap = await getDocs(q);
-  const reports = snap.docs.map(d => d.data() as Report);
+  const reports = pruneExpired(snap.docs.map(d => d.data() as Report));
   reports.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
   return reports;
 };
 
-/** Verifies a report. At 3 verifications → status becomes 'verified'. */
+/**
+ * Verifies a report. At `VERIFICATION_THRESHOLD` verifications → status
+ * becomes 'verified'.
+ */
 export const verifyReport = async (reportId: string, userId: string) => {
   const reportRef = doc(db, 'reports', reportId);
   const reportSnap = await getDoc(reportRef);
@@ -117,7 +185,7 @@ export const verifyReport = async (reportId: string, userId: string) => {
     if (!report.verifiedBy.includes(userId)) {
       const updatedVerifiedBy = [...report.verifiedBy, userId];
       const justVerified =
-        updatedVerifiedBy.length >= 3 && report.status === 'pending';
+        updatedVerifiedBy.length >= VERIFICATION_THRESHOLD && report.status === 'pending';
       const updates: Record<string, unknown> = {
         verifiedBy: updatedVerifiedBy,
         status: justVerified ? 'verified' : report.status,
@@ -138,7 +206,20 @@ export const subscribeToReport = (
 ) => {
   return onSnapshot(
     doc(db, 'reports', reportId),
-    (snap) => onUpdate(snap.exists() ? (snap.data() as Report) : null),
+    (snap) => {
+      if (!snap.exists()) {
+        onUpdate(null);
+        return;
+      }
+      const report = snap.data() as Report;
+      // An expired, unverified report is treated as already gone — prune it.
+      if (isExpiredUnverified(report)) {
+        pruneExpired([report]);
+        onUpdate(null);
+        return;
+      }
+      onUpdate(report);
+    },
     onError,
   );
 };
@@ -222,7 +303,7 @@ export const subscribeToReports = (
   }
   // TODO: Restore orderBy('createdAt', 'desc') once Firebase index propagates.
   return onSnapshot(q, (snapshot) => {
-    const reports = snapshot.docs.map(d => d.data() as Report);
+    const reports = pruneExpired(snapshot.docs.map(d => d.data() as Report));
     reports.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
     onUpdate(reports);
   });
@@ -270,6 +351,7 @@ export const subscribeToPulseStats = (
   const q = query(REPORTS_COL, limit(200));
   return onSnapshot(q, (snapshot) => {
     const now = Date.now();
+    const reports = pruneExpired(snapshot.docs.map((d) => d.data() as Report));
     const stats: PulseStats = {
       openIssues: 0,
       wins: 0,
@@ -277,8 +359,7 @@ export const subscribeToPulseStats = (
       thisWeek: 0,
       lastWeek: 0,
     };
-    for (const docSnap of snapshot.docs) {
-      const r = docSnap.data() as Report;
+    for (const r of reports) {
       if (!inArea(r, opts)) continue;
       if (r.status === 'pending') stats.pendingVerification += 1;
       if (r.status === 'archived') continue;
@@ -304,8 +385,7 @@ export const subscribeToVerificationQueue = (
 ) => {
   const q = query(REPORTS_COL, where('status', '==', 'pending'), limit(50));
   return onSnapshot(q, (snapshot) => {
-    let reports = snapshot.docs
-      .map((d) => d.data() as Report)
+    let reports = pruneExpired(snapshot.docs.map((d) => d.data() as Report))
       .filter((r) => r.reporterId !== opts.excludeUid && inArea(r, opts));
     reports.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
     if (opts.max != null) reports = reports.slice(0, opts.max);
@@ -327,8 +407,7 @@ export const subscribeToExploreReports = (
   const filter = opts.filter ?? 'all';
   const q = query(REPORTS_COL, limit(100));
   return onSnapshot(q, (snapshot) => {
-    const reports = snapshot.docs
-      .map((d) => d.data() as Report)
+    const reports = pruneExpired(snapshot.docs.map((d) => d.data() as Report))
       .filter((r) => {
         if (!inArea(r, opts)) return false;
         if (filter === 'verify') return r.status === 'pending';

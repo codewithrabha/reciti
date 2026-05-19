@@ -1,0 +1,60 @@
+rules_version = '2';
+
+// ReCiti Firestore security rules.
+//
+// Source of truth — version-controlled here. Apply by pasting into the
+// Firebase console (Firestore Database → Rules → Publish), or deploy with the
+// Firebase CLI: `firebase deploy --only firestore:rules`.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Signed in by any provider, including anonymous browsing sessions.
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Signed in with a real account (not an anonymous session).
+    function isRealUser() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // ─── users ───────────────────────────────────────────────────────────
+    // Profiles power the leaderboard and report attribution. They contain an
+    // email, so reads require a session. A user may only write their OWN
+    // profile; clients never delete profiles.
+    match /users/{userId} {
+      allow read:           if signedIn();
+      allow create, update: if isRealUser() && request.auth.uid == userId;
+      allow delete:         if false;
+    }
+
+    // ─── reports ─────────────────────────────────────────────────────────
+    // Public to read. Only real accounts create reports, and a report must be
+    // attributed to its creator. Any signed-in user can verify/flag/resolve a
+    // report (community moderation). A report may only be DELETED while it is
+    // an expired, unverified pending report — this mirrors the client-side
+    // cleanup in lib/db.ts, so nobody can delete arbitrary reports.
+    match /reports/{reportId} {
+      allow read:   if true;
+      allow create: if isRealUser()
+                       && request.resource.data.reporterId == request.auth.uid;
+      allow update: if signedIn();
+      allow delete: if signedIn()
+                       && resource.data.status == 'pending'
+                       && resource.data.verifiedBy.size() == 0
+                       && request.time >
+                            resource.data.createdAt + duration.value(5, 'm');
+    }
+
+    // ─── trivia ──────────────────────────────────────────────────────────
+    // Read-only from the app. Seeded out-of-band (see scripts/seed-trivia.js).
+    match /trivia/{triviaId} {
+      allow read:  if true;
+      allow write: if false;
+    }
+
+    // Everything else is denied by default.
+  }
+}

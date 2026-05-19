@@ -33,6 +33,10 @@ export interface Report {
   flaggedBy: string[];
   createdAt: Timestamp;
 
+  /** Cloudinary delete token for `imageUrl`, captured at upload (~10-min TTL).
+   *  Used to remove the media when an unverified report is auto-deleted. */
+  imageDeleteToken?: string | null;
+
   // Lifecycle timestamps — set as the report progresses (absent on older reports).
   verifiedAt?: Timestamp | null;
   resolutionSubmittedAt?: Timestamp | null;

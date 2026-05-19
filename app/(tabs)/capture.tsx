@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -65,6 +65,33 @@ export default function CaptureScreen() {
   const [showModal, setShowModal] = useState(false);
   const [submitted, setSubmitted] = useState<Submitted | null>(null);
 
+  /**
+   * On Android the OS can destroy this Activity while the camera is open. When
+   * that happens `launchCameraAsync` resolves as canceled even though a photo
+   * was taken — the real result has to be recovered with getPendingResultAsync.
+   */
+  const recoverPendingPhoto = useCallback(async () => {
+    try {
+      const pending = await ImagePicker.getPendingResultAsync();
+      if (
+        pending &&
+        !Array.isArray(pending) &&
+        'canceled' in pending &&
+        !pending.canceled &&
+        pending.assets?.[0]?.uri
+      ) {
+        setImageUri(pending.assets[0].uri);
+      }
+    } catch (e) {
+      console.warn('[capture] Failed to recover pending camera photo:', e);
+    }
+  }, []);
+
+  // Recover a photo if the app was relaunched cold after the camera closed.
+  useEffect(() => {
+    recoverPendingPhoto();
+  }, [recoverPendingPhoto]);
+
   const handleTakePhoto = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
@@ -76,7 +103,12 @@ export default function CaptureScreen() {
       aspect: [4, 3],
       quality: 1,
     });
-    if (!result.canceled) setImageUri(result.assets[0].uri);
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      return;
+    }
+    // Canceled may mean the Activity was killed mid-capture — try to recover.
+    await recoverPendingPhoto();
   };
 
   const handlePickImage = async () => {
@@ -138,11 +170,15 @@ export default function CaptureScreen() {
       });
 
       const storageId = `${user.uid}_${Date.now()}`;
-      const imageUrl = await uploadImage(compressed.uri, `reports/${storageId}.jpg`);
+      const { url: imageUrl, deleteToken } = await uploadImage(
+        compressed.uri,
+        `reports/${storageId}.jpg`,
+      );
 
       const reportId = await createReport({
         reporterId: user.uid,
         imageUrl,
+        imageDeleteToken: deleteToken,
         vibe,
         category,
         latitude,
@@ -198,8 +234,17 @@ export default function CaptureScreen() {
 
         {/* Photo hero */}
         {imageUri ? (
-          <View style={[styles.photoFilled, { borderRadius: radii.lg }]}>
-            <Image source={{ uri: imageUri }} style={styles.photoImage} contentFit="cover" />
+          <View
+            style={[
+              styles.photoFilled,
+              { borderRadius: radii.lg, backgroundColor: colors.surface },
+            ]}
+          >
+            <Image
+              source={{ uri: imageUri }}
+              style={[styles.photoImage, { borderRadius: radii.lg }]}
+              contentFit="cover"
+            />
             <AnimatedButton
               onPress={() => setImageUri(null)}
               hapticFeedback="medium"
@@ -363,7 +408,7 @@ export default function CaptureScreen() {
       </ScrollView>
 
       {/* Submit */}
-      <View style={[styles.submitWrapper, { backgroundColor: colors.background }]}>
+      <View style={[styles.submitWrapper, { backgroundColor: colors.background, paddingBottom: 25 }]}>
         <AnimatedButton
           onPress={handleSubmit}
           disabled={submitDisabled}
@@ -462,7 +507,7 @@ export default function CaptureScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 170 },
+  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 115 },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -494,7 +539,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 22,
   },
-  photoFilled: { marginTop: 20, overflow: 'hidden' },
+  photoFilled: { marginTop: 20 },
   photoImage: { width: '100%', height: 250 },
   removeBtn: {
     position: 'absolute',
