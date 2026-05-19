@@ -85,6 +85,9 @@ export default function LoginScreen() {
     indicatorX.value = withSpring(isSignup ? segW : 0, {
       damping: 18,
       stiffness: 220,
+      // Stop exactly at the target — without this the underdamped spring
+      // overshoots and the indicator briefly slides past the tab bar edge.
+      overshootClamping: true,
     });
   }, [isSignup, segW, indicatorX]);
   const indicatorStyle = useAnimatedStyle(() => ({
