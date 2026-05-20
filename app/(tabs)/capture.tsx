@@ -58,7 +58,7 @@ export default function CaptureScreen() {
   const insets = useSafeAreaInsets();
   const user = useUser();
   const router = useRouter();
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, isDark } = useTheme();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [vibe, setVibe] = useState<Vibe>('fail');
@@ -212,13 +212,15 @@ export default function CaptureScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+      {/* Header */}
+      <View style={{ paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <Typography variant="h1">New report</Typography>
         <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.xs }}>
           Spot a civic win or flag an issue near you.
         </Typography>
+      </View>
 
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Anonymous notice */}
         {user?.isAnonymous && (
           <AnimatedButton
@@ -446,7 +448,15 @@ export default function CaptureScreen() {
       </ScrollView>
 
       {/* Submit */}
-      <View style={[styles.submitWrapper, { backgroundColor: colors.background, paddingBottom: 25 }]}>
+      <View style={[styles.submitWrapper, { paddingBottom: insets.bottom }]}>
+        <LinearGradient
+          colors={isDark
+            ? ['transparent', 'rgba(18, 18, 18, 0.8)', 'rgba(18, 18, 18, 1)']
+            : ['transparent', 'rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 1)']
+          }
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
         <AnimatedButton
           onPress={handleSubmit}
           disabled={submitDisabled}
@@ -462,10 +472,10 @@ export default function CaptureScreen() {
               <ActivityIndicator color={colors.white} />
             ) : (
               <>
-                <Ionicons name="cloud-upload-outline" size={22} color={colors.white} />
                 <Typography variant="body" weight="bold" color={colors.white}>
                   Submit Report
                 </Typography>
+                <Ionicons name="send-sharp" size={24} color={colors.white} />
               </>
             )}
           </LinearGradient>
@@ -545,7 +555,7 @@ export default function CaptureScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 115 },
+  scroll: { paddingHorizontal: 16, paddingBottom: 115 },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -637,15 +647,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16
+    paddingHorizontal: 40,
   },
   submitBtn: {
-    borderRadius: 16,
-    paddingVertical: 18,
+    borderRadius: 50,
+    paddingVertical: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    boxShadow: '0px 1px 1px rgba(0, 0, 0, 0.1)',
   },
   // Modal
   modalOverlay: {

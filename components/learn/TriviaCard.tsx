@@ -93,7 +93,7 @@ export function TriviaCard({
   })();
 
   return (
-    <Card padding="lg">
+    <Card padding="md">
       <View style={styles.header}>
         <View style={[styles.iconCircle, { backgroundColor: colors.primaryMuted }]}>
           <Ionicons name="bulb" size={18} color={colors.primary} />
@@ -111,7 +111,7 @@ export function TriviaCard({
 
       <Typography
         variant="h3"
-        weight="bold"
+        weight="medium"
         style={{ marginTop: spacing.md, marginBottom: spacing.md }}
       >
         {trivia.question}
@@ -131,7 +131,7 @@ export function TriviaCard({
               { backgroundColor: s.bg, borderColor: s.border, borderRadius: radii.md },
             ]}
           >
-            <Typography variant="body" weight="semiBold" color={s.fg} style={styles.optionText}>
+            <Typography variant="body" weight="medium" color={s.fg} style={styles.optionText}>
               {option}
             </Typography>
             {s.icon && <Ionicons name={s.icon} size={20} color={s.fg} />}

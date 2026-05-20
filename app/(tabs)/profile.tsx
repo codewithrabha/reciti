@@ -236,41 +236,6 @@ export default function ProfileScreen() {
   // Everything above "your reports" scrolls with the list as its header.
   const listHeader = (
     <>
-      {/* Header */}
-      <View style={styles.header}>
-        {user.photoURL ? (
-          <Image source={{ uri: user.photoURL }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: colors.primary }]}>
-            <Typography variant="h2" weight="bold" color="#FFFFFF">
-              {name.charAt(0).toUpperCase()}
-            </Typography>
-          </View>
-        )}
-        <View style={styles.headerText}>
-          <Typography variant="h3" weight="bold" numberOfLines={1}>
-            {name}
-          </Typography>
-          {!!user.email && (
-            <Typography variant="caption" color={colors.textMuted} numberOfLines={1}>
-              {user.email}
-            </Typography>
-          )}
-        </View>
-        <AnimatedButton
-          onPress={confirmSignOut}
-          disabled={signingOut}
-          hapticFeedback="medium"
-          style={styles.signOutBtn}
-        >
-          {signingOut ? (
-            <ActivityIndicator size="small" color={colors.textMuted} />
-          ) : (
-            <Ionicons name="log-out-outline" size={24} color={colors.textMuted} />
-          )}
-        </AnimatedButton>
-      </View>
-
       {/* Tier */}
       <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
         YOUR CLIMB
@@ -358,6 +323,43 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={{ paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <View style={styles.header}>
+          {user.photoURL ? (
+            <Image source={{ uri: user.photoURL }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: colors.primary }]}>
+              <Typography variant="h2" weight="bold" color="#FFFFFF">
+                {name.charAt(0).toUpperCase()}
+              </Typography>
+            </View>
+          )}
+          <View style={styles.headerText}>
+            <Typography variant="h3" weight="bold" numberOfLines={1}>
+              {name}
+            </Typography>
+            {!!user.email && (
+              <Typography variant="caption" color={colors.textMuted} numberOfLines={1}>
+                {user.email}
+              </Typography>
+            )}
+          </View>
+          <AnimatedButton
+            onPress={confirmSignOut}
+            disabled={signingOut}
+            hapticFeedback="medium"
+            style={styles.signOutBtn}
+          >
+            {signingOut ? (
+              <ActivityIndicator size="small" color={colors.textMuted} />
+            ) : (
+              <Ionicons name="log-out-outline" size={24} color={colors.textMuted} />
+            )}
+          </AnimatedButton>
+        </View>
+      </View>
+
       <LegendList
         data={reportsData}
         renderItem={({ item, index }) => (
@@ -391,7 +393,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   list: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 120 },
+  scroll: { paddingHorizontal: 16, paddingBottom: 120 },
 
   // Guest
   anon: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },

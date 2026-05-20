@@ -105,21 +105,6 @@ export default function LearnScreen() {
   // Everything above the archive list scrolls with it as the list header.
   const listHeader = (
     <>
-      {/* Header */}
-      <Typography variant="h1">Learn</Typography>
-      <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.xs }}>
-        Sharpen your civic knowledge, one question a day.
-      </Typography>
-
-      {userDoc && (
-        <View style={[styles.statPill, { backgroundColor: colors.primaryMuted, borderRadius: radii.full }]}>
-          <Ionicons name="school" size={14} color={colors.primary} />
-          <Typography variant="caption" weight="bold" color={colors.primary}>
-            {answeredCount} question{answeredCount === 1 ? '' : 's'} answered
-          </Typography>
-        </View>
-      )}
-
       {/* Today's trivia */}
       <Typography
         variant="caption"
@@ -127,7 +112,7 @@ export default function LearnScreen() {
         color={colors.textMuted}
         style={styles.sectionLabel}
       >
-        TODAY&apos;S TRIVIA
+        TODAY'S TRIVIA
       </Typography>
 
       {todayError ? (
@@ -206,6 +191,23 @@ export default function LearnScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      
+      {/* Header */}
+      <View style={{ paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Typography variant="h1">Learn</Typography>
+        <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.xs }}>
+          Sharpen your civic knowledge, one question a day.
+        </Typography>
+        {userDoc && (
+          <View style={[styles.statPill, { backgroundColor: colors.primaryMuted, borderRadius: radii.full }]}>
+            <Ionicons name="school" size={14} color={colors.primary} />
+            <Typography variant="caption" weight="bold" color={colors.primary}>
+              {answeredCount} question{answeredCount === 1 ? '' : 's'} answered
+            </Typography>
+          </View>
+        )}
+      </View>
+
       <LegendList
         data={archiveData}
         renderItem={({ item }) => <ArchiveCard item={item} />}
@@ -225,7 +227,7 @@ export default function LearnScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   list: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 120 },
+  scroll: { paddingHorizontal: 16, paddingBottom: 120 },
   statPill: {
     flexDirection: 'row',
     alignItems: 'center',
