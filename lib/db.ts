@@ -5,7 +5,6 @@ import {
 } from 'firebase/firestore';
 import { distanceBetween } from 'geofire-common';
 import { db } from './firebase';
-import { deleteImageByToken } from './storage';
 import { Report, User, TriviaQuestion, Tier } from '@/types';
 
 // Collections
@@ -99,7 +98,6 @@ export const createReport = async (
     verifiedBy: [],
     flaggedBy: [],
     createdAt: Timestamp.now(),
-    imageDeleteToken: reportData.imageDeleteToken ?? null,
     verifiedAt: null,
     resolutionSubmittedAt: null,
     resolvedAt: null,
@@ -121,17 +119,14 @@ const isExpiredUnverified = (r: Report): boolean =>
   r.verifiedBy.length === 0 &&
   Date.now() - r.createdAt.toMillis() > REPORT_GRACE_PERIOD_MS;
 
-/** Permanently deletes a report — its Cloudinary image first, then the doc. */
+/**
+ * Permanently deletes a report document.
+ *
+ * Note: the Cloudinary image is left in place — unsigned uploads give the
+ * client no way to delete an asset. Orphaned images need a server-side
+ * cleanup using the Cloudinary API secret (see before-production.md).
+ */
 export const deleteReport = async (report: Report): Promise<void> => {
-  if (report.imageDeleteToken) {
-    try {
-      await deleteImageByToken(report.imageDeleteToken);
-    } catch (e) {
-      // The token may have expired (~10-min TTL), leaving the image orphaned.
-      // Still remove the doc so the report leaves every feed.
-      console.warn('[db] Cloudinary image delete failed:', e);
-    }
-  }
   await deleteDoc(doc(REPORTS_COL, report.reportId));
 };
 

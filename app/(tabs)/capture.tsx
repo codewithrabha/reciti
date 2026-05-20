@@ -170,15 +170,11 @@ export default function CaptureScreen() {
       });
 
       const storageId = `${user.uid}_${Date.now()}`;
-      const { url: imageUrl, deleteToken } = await uploadImage(
-        compressed.uri,
-        `reports/${storageId}.jpg`,
-      );
+      const imageUrl = await uploadImage(compressed.uri, `reports/${storageId}.jpg`);
 
       const reportId = await createReport({
         reporterId: user.uid,
         imageUrl,
-        imageDeleteToken: deleteToken,
         vibe,
         category,
         latitude,
@@ -447,7 +443,7 @@ export default function CaptureScreen() {
               <Ionicons name="checkmark" size={40} color={colors.white} />
             </LinearGradient>
 
-            <Typography variant="h2" weight="bold" style={{ marginTop: spacing.md }}>
+            <Typography variant="h2" weight="bold" style={{ marginTop: spacing.md }} align="center">
               Report submitted!
             </Typography>
             <Typography
@@ -489,12 +485,12 @@ export default function CaptureScreen() {
               style={[styles.modalPrimary, { backgroundColor: colors.primary, borderRadius: radii.md }]}
             >
               <Ionicons name="navigate-outline" size={18} color={colors.white} />
-              <Typography variant="body" weight="bold" color={colors.white}>
+              <Typography variant="body" weight="bold" color={colors.white} align="center">
                 Track this report
               </Typography>
             </AnimatedButton>
             <AnimatedButton onPress={closeModal} hapticFeedback="light" style={styles.modalDone}>
-              <Typography variant="body" weight="semiBold" color={colors.textMuted}>
+              <Typography variant="body" weight="semiBold" color={colors.textMuted} align="center">
                 Done
               </Typography>
             </AnimatedButton>
@@ -601,25 +597,32 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  modalCard: { width: '100%', alignItems: 'center' },
+  modalCard: {
+    display: 'flex',
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalOrb: {
+    display: 'flex',
     width: 72,
     height: 72,
     borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
   },
   factCard: { width: '100%', padding: 14, marginTop: 20 },
   pointsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
     marginTop: 16,
   },
   modalPrimary: {
-    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

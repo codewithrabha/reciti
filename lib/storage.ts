@@ -1,21 +1,17 @@
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-export interface UploadResult {
-  /** Public HTTPS URL of the uploaded image. */
-  url: string;
-  /** Cloudinary delete token — lets the client delete the asset without the
-   *  API secret. Valid for ~10 minutes after upload. `null` if the account
-   *  has not enabled delete tokens. */
-  deleteToken: string | null;
-}
-
 /**
  * Uploads an image from a local URI to Cloudinary via an unsigned upload preset.
  * `path` is a logical path, e.g. `reports/abc.jpg`; it becomes the Cloudinary
  * public_id (the file extension is dropped — Cloudinary tracks format itself).
+ * Returns the public HTTPS URL of the uploaded image.
+ *
+ * Note: unsigned uploads cannot return a delete token, so an uploaded image
+ * cannot be removed from the client. Cleaning up orphaned images needs a
+ * server using the Cloudinary API secret (see before-production.md).
  */
-export const uploadImage = async (localUri: string, path: string): Promise<UploadResult> => {
+export const uploadImage = async (localUri: string, path: string): Promise<string> => {
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     throw new Error(
       'Cloudinary is not configured. Set EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME and ' +
@@ -34,9 +30,6 @@ export const uploadImage = async (localUri: string, path: string): Promise<Uploa
   } as any);
   formData.append('upload_preset', UPLOAD_PRESET);
   formData.append('public_id', publicId);
-  // Ask Cloudinary for a short-lived token so we can delete this asset later
-  // (e.g. when an unverified report is auto-removed) without the API secret.
-  formData.append('return_delete_token', 'true');
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
@@ -53,29 +46,5 @@ export const uploadImage = async (localUri: string, path: string): Promise<Uploa
     throw new Error(data?.error?.message ?? 'Image upload failed.');
   }
 
-  return { url: data.secure_url as string, deleteToken: data.delete_token ?? null };
-};
-
-/**
- * Deletes a Cloudinary asset using a delete token returned at upload time.
- * Tokens expire ~10 minutes after upload; an expired token throws.
- */
-export const deleteImageByToken = async (token: string): Promise<void> => {
-  if (!CLOUD_NAME) return;
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/delete_by_token`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
-    },
-  );
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(
-      data?.error?.message ?? `Cloudinary delete failed (status ${response.status}).`,
-    );
-  }
+  return data.secure_url as string;
 };

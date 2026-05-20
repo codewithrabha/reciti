@@ -237,7 +237,7 @@ export default function ReportDetailScreen() {
         format: SaveFormat.JPEG,
         compress: 0.7,
       });
-      const { url } = await uploadImage(compressed.uri, `reports/${id}_resolved.jpg`);
+      const url = await uploadImage(compressed.uri, `reports/${id}_resolved.jpg`);
       await submitResolution(id, user.uid, url);
     } catch {
       Alert.alert('Upload failed', 'Could not submit the fix. Please try again.');
