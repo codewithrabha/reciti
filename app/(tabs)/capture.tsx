@@ -5,6 +5,7 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -30,6 +31,7 @@ type Vibe = 'win' | 'fail';
 type Category = 'waste' | 'traffic' | 'infrastructure';
 
 const GRADIENT = ['#34D399', '#10B981', '#059669'] as const;
+const DESCRIPTION_MAX = 280;
 
 const CATEGORIES: { label: string; value: Category; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: 'Waste', value: 'waste', icon: 'trash-outline' },
@@ -61,6 +63,7 @@ export default function CaptureScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [vibe, setVibe] = useState<Vibe>('fail');
   const [category, setCategory] = useState<Category>('waste');
+  const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [submitted, setSubmitted] = useState<Submitted | null>(null);
@@ -172,6 +175,7 @@ export default function CaptureScreen() {
       const storageId = `${user.uid}_${Date.now()}`;
       const imageUrl = await uploadImage(compressed.uri, `reports/${storageId}.jpg`);
 
+      const trimmedDescription = description.trim();
       const reportId = await createReport({
         reporterId: user.uid,
         imageUrl,
@@ -180,10 +184,12 @@ export default function CaptureScreen() {
         latitude,
         longitude,
         geohash,
+        description: trimmedDescription ? trimmedDescription : null,
       });
 
       setSubmitted({ category, vibe, reportId });
       setImageUri(null);
+      setDescription('');
       setShowModal(true);
     } catch (error) {
       console.error('Submission error:', error);
@@ -401,6 +407,42 @@ export default function CaptureScreen() {
             );
           })}
         </View>
+
+        {/* Description */}
+        <View style={styles.descriptionLabelRow}>
+          <Typography
+            variant="caption"
+            weight="bold"
+            color={colors.textMuted}
+            style={styles.descriptionLabel}
+          >
+            DESCRIPTION{' '}
+            <Typography variant="caption" color={colors.textMuted}>
+              (optional)
+            </Typography>
+          </Typography>
+          <Typography variant="caption" color={colors.textMuted}>
+            {description.length}/{DESCRIPTION_MAX}
+          </Typography>
+        </View>
+        <TextInput
+          value={description}
+          onChangeText={(t) => setDescription(t.slice(0, DESCRIPTION_MAX))}
+          placeholder="Add context the photo can't show — e.g. 'blocked drain floods when it rains'"
+          placeholderTextColor={colors.textMuted}
+          multiline
+          textAlignVertical="top"
+          maxLength={DESCRIPTION_MAX}
+          style={[
+            styles.descriptionInput,
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+              borderRadius: radii.md,
+              color: colors.text,
+            },
+          ]}
+        />
       </ScrollView>
 
       {/* Submit */}
@@ -572,6 +614,22 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     gap: 8,
+  },
+  descriptionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    marginBottom: 10,
+  },
+  descriptionLabel: { letterSpacing: 1 },
+  descriptionInput: {
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 96,
+    fontSize: 15,
+    lineHeight: 21,
   },
   // Submit
   submitWrapper: {

@@ -22,7 +22,7 @@ interface ReportCardProps {
 export function ReportCard({
   report, onVerify, onFlag, onPress, isRadarView = false,
 }: ReportCardProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing } = useTheme();
   const isWin = report.vibe === 'win';
 
   const main = (
@@ -60,6 +60,18 @@ export function ReportCard({
           <Ionicons name="image-outline" size={32} color={colors.border} />
         </View>
       )}
+
+      {/* Description preview */}
+      {report.description ? (
+        <Typography
+          variant="body"
+          color={colors.text}
+          style={[styles.description, { paddingHorizontal: spacing.md, paddingTop: spacing.sm }]}
+          numberOfLines={2}
+        >
+          {report.description}
+        </Typography>
+      ) : null}
     </>
   );
 
@@ -118,6 +130,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   cardImage: { width: '100%', height: 220 },
+  description: { lineHeight: 21 },
   cardImagePlaceholder: {
     width: '100%', height: 220, alignItems: 'center', justifyContent: 'center',
   },

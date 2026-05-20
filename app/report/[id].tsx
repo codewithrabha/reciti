@@ -519,6 +519,13 @@ export default function ReportDetailScreen() {
             </View>
           </View>
 
+          {/* Description */}
+          {report.description ? (
+            <Typography variant="body" style={styles.description}>
+              {report.description}
+            </Typography>
+          ) : null}
+
           {/* Timeline */}
           {report.status !== 'archived' && (
             <>
@@ -588,6 +595,7 @@ const styles = StyleSheet.create({
   },
   body: { padding: 16 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  description: { marginTop: 16, lineHeight: 22 },
   vibeIcon: {
     width: 40,
     height: 40,

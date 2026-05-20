@@ -98,6 +98,7 @@ export const createReport = async (
     verifiedBy: [],
     flaggedBy: [],
     createdAt: Timestamp.now(),
+    description: reportData.description ?? null,
     verifiedAt: null,
     resolutionSubmittedAt: null,
     resolvedAt: null,

@@ -33,6 +33,9 @@ export interface Report {
   flaggedBy: string[];
   createdAt: Timestamp;
 
+  // Optional free-text context for when the image alone isn't enough.
+  description?: string | null;
+
   // Lifecycle timestamps — set as the report progresses (absent on older reports).
   verifiedAt?: Timestamp | null;
   resolutionSubmittedAt?: Timestamp | null;
