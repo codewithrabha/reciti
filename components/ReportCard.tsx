@@ -66,7 +66,7 @@ export function ReportCard({
         <Typography
           variant="body"
           color={colors.text}
-          style={[styles.description, { paddingHorizontal: spacing.md, paddingTop: spacing.sm }]}
+          style={[styles.description, { padding: spacing.sm}]}
           numberOfLines={2}
         >
           {report.description}

@@ -22,7 +22,7 @@ export function AnimatedButton({
   onPress,
   onPressIn,
   onPressOut,
-  scaleTo = 0.95,
+  scaleTo = 0.99,
   hapticFeedback = 'light',
   ...props
 }: AnimatedButtonProps) {
@@ -35,12 +35,12 @@ export function AnimatedButton({
   });
 
   const handlePressIn = (e: any) => {
-    scale.value = withSpring(scaleTo, { damping: 15, stiffness: 300 });
+    scale.value = withSpring(scaleTo, { damping: 15, stiffness: 80 });
     if (onPressIn) onPressIn(e);
   };
 
   const handlePressOut = (e: any) => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+    scale.value = withSpring(1, { damping: 15, stiffness: 80});
     if (onPressOut) onPressOut(e);
   };
 
