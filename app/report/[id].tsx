@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Share,
   StyleSheet,
   View,
 } from 'react-native';
@@ -12,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
+import * as Linking from 'expo-linking';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 import { Report } from '@/types';
@@ -162,6 +164,7 @@ export default function ReportDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -217,16 +220,16 @@ export default function ReportDetailScreen() {
       }
       const result = fromCamera
         ? await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 1,
-          })
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 1,
+        })
         : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 1,
-          });
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 1,
+        });
       if (result.canceled) return;
 
       setSubmitting(true);
@@ -243,6 +246,21 @@ export default function ReportDetailScreen() {
       Alert.alert('Upload failed', 'Could not submit the fix. Please try again.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!report) return;
+    const url = Linking.createURL(`/report/${report.reportId}`);
+    const noun = `civic ${report.vibe === 'win' ? 'win' : 'issue'}`;
+    const message =
+      report.status === 'pending'
+        ? `Spotted a ${noun} on ReCiti — can you verify it? It needs ${VERIFICATION_THRESHOLD} neighbours to confirm.\n\n${url}`
+        : `Spotted a ${noun} on ReCiti — take a look.\n\n${url}`;
+    try {
+      await Share.share({ message, url });
+    } catch {
+      Alert.alert('Share failed', 'Could not open the share sheet. Please try again.');
     }
   };
 
@@ -272,11 +290,21 @@ export default function ReportDetailScreen() {
     <AnimatedButton
       onPress={() => router.back()}
       hapticFeedback="light"
-      style={[styles.backBtn, { top: insets.top + 8 }]}
+      style={styles.iconBtn}
     >
       <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
     </AnimatedButton>
   );
+
+  const ShareButton = report && report.status !== 'archived' ? (
+    <AnimatedButton
+      onPress={handleShare}
+      hapticFeedback="light"
+      style={styles.iconBtn}
+    >
+      <Ionicons name="share-social-outline" size={22} color="#FFFFFF" />
+    </AnimatedButton>
+  ) : <View style={styles.iconBtn} />;
 
   if (error) {
     return (
@@ -467,9 +495,29 @@ export default function ReportDetailScreen() {
 
   return (
     <View style={[styles.fill, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.stickyHeader,
+          { paddingTop: insets.top + 8 },
+          scrolled && {
+            backgroundColor: colors.background,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
+        {BackButton}
+        {ShareButton}
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
+        overScrollMode='never'
+        scrollEventThrottle={16}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y > 24 !== scrolled) setScrolled(y > 24);
+        }}
       >
         {/* Hero */}
         <View style={styles.hero}>
@@ -485,7 +533,6 @@ export default function ReportDetailScreen() {
               <Ionicons name="image-outline" size={48} color={colors.border} />
             </View>
           )}
-          {BackButton}
           <View style={[styles.statusPill, { backgroundColor: status.color, bottom: 16 }]}>
             <Typography variant="caption" weight="bold" color="#FFFFFF">
               {status.label}
@@ -526,6 +573,10 @@ export default function ReportDetailScreen() {
             </Typography>
           ) : null}
 
+          {/* Contextual actions */}
+          <View style={styles.sectionLabel} />
+          {renderActions()}
+
           {/* Timeline */}
           {report.status !== 'archived' && (
             <>
@@ -561,9 +612,6 @@ export default function ReportDetailScreen() {
             </>
           ) : null}
 
-          {/* Contextual actions */}
-          <View style={styles.sectionLabel} />
-          {renderActions()}
         </View>
       </ScrollView>
     </View>
@@ -576,9 +624,19 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 48 },
   hero: { position: 'relative' },
   heroImage: { width: '100%', height: 290 },
-  backBtn: {
+  stickyHeader: {
     position: 'absolute',
-    left: 16,
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    zIndex: 10,
+  },
+  iconBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
