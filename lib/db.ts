@@ -22,7 +22,7 @@ export const VERIFICATION_THRESHOLD = 10;
  * creation. Cleanup is lazy/client-side (see `pruneExpired`) — there is no
  * server cron on Firebase's free plan.
  */
-export const REPORT_GRACE_PERIOD_MS = 5 * 60 * 1000;
+export const REPORT_GRACE_PERIOD_MS = 60 * 60 * 1000; // 1 hour
 
 // ─── Tier Calculation ────────────────────────────────────────────────────────
 export const getTierForPoints = (points: number): Tier => {

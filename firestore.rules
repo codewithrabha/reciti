@@ -45,7 +45,7 @@ service cloud.firestore {
                        && resource.data.status == 'pending'
                        && resource.data.verifiedBy.size() == 0
                        && request.time >
-                            resource.data.createdAt + duration.value(5, 'm');
+                            resource.data.createdAt + duration.value(1, 'h');
     }
 
     // ─── trivia ──────────────────────────────────────────────────────────
