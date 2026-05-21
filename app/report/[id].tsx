@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   Platform,
   ScrollView,
   Share,
@@ -29,9 +31,11 @@ import {
 } from '@/lib/db';
 import { uploadImage } from '@/lib/storage';
 import { useUser } from '@/hooks/useAuth';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { ResolutionTimeline } from '@/components/report/ResolutionTimeline';
 import { BeforeAfter } from '@/components/report/BeforeAfter';
 import { CommentThread } from '@/components/report/CommentThread';
+import { CommentComposer } from '@/components/report/CommentComposer';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
@@ -159,6 +163,12 @@ export default function ReportDetailScreen() {
   const router = useRouter();
   const user = useUser();
   const { colors } = useTheme();
+  const keyboardHeight = useKeyboardHeight();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const contentHeight = useRef(0);
+  const viewportHeight = useRef(0);
+  const scrollAnim = useRef(new Animated.Value(0)).current;
 
   const [report, setReport] = useState<Report | null | undefined>(undefined);
   const [reporterName, setReporterName] = useState<string | null>(null);
@@ -173,6 +183,40 @@ export default function ReportDetailScreen() {
     setError(false);
     return subscribeToReport(id, setReport, () => setError(true));
   }, [id, retryKey]);
+
+  useEffect(() => {
+    const id = scrollAnim.addListener(({ value }) => {
+      scrollViewRef.current?.scrollTo({ y: value, animated: false });
+    });
+    return () => scrollAnim.removeListener(id);
+  }, [scrollAnim]);
+
+  useEffect(() => {
+    if (keyboardHeight > 0) {
+      let raf2 = 0;
+      const raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => {
+          const target = Math.max(
+            0,
+            contentHeight.current - viewportHeight.current,
+          );
+          scrollAnim.stopAnimation();
+          scrollAnim.setValue(scrollY.current);
+          Animated.timing(scrollAnim, {
+            toValue: target,
+            duration: 450,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: false,
+          }).start();
+        });
+      });
+      return () => {
+        cancelAnimationFrame(raf1);
+        if (raf2) cancelAnimationFrame(raf2);
+        scrollAnim.stopAnimation();
+      };
+    }
+  }, [keyboardHeight, scrollAnim]);
 
   useEffect(() => {
     const reporterId = report?.reporterId;
@@ -530,12 +574,25 @@ export default function ReportDetailScreen() {
         {ShareButton}
       </View>
       <ScrollView
+        ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          keyboardHeight > 0 && { paddingBottom: keyboardHeight + 140 },
+        ]}
         overScrollMode='never'
         scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        onLayout={(e) => {
+          viewportHeight.current = e.nativeEvent.layout.height;
+        }}
+        onContentSizeChange={(_w, h) => {
+          contentHeight.current = h;
+        }}
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset.y;
+          scrollY.current = y;
           if (y > 24 !== scrolled) setScrolled(y > 24);
         }}
       >
@@ -665,18 +722,11 @@ export default function ReportDetailScreen() {
           ) : null}
 
           {/* Discussion */}
-          <Typography
-            variant="caption"
-            weight="bold"
-            color={colors.textMuted}
-            style={styles.sectionLabel}
-          >
-            DISCUSSION
-          </Typography>
           <CommentThread report={report} />
 
         </View>
       </ScrollView>
+      <CommentComposer report={report} />
     </View>
   );
 }
@@ -684,7 +734,7 @@ export default function ReportDetailScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center' },
-  scroll: { paddingBottom: 96 },
+  scroll: { paddingBottom: 140 },
   hero: { position: 'relative' },
   heroImage: { width: '100%', height: 290 },
   stickyHeader: {
@@ -698,6 +748,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
     zIndex: 10,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
   },
   iconBtn: {
     width: 40,

@@ -74,7 +74,7 @@ export const Radii = {
 
 export const Shadows = {
   sm: {
-    shadowColor: '#0F172A',
+    shadowColor: '#0f172a7d',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,

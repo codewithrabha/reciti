@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { formatDistanceToNow } from 'date-fns';
 
 import { Comment, Report } from '@/types';
 import {
@@ -12,7 +11,6 @@ import {
 } from '@/lib/db';
 import { useUser } from '@/hooks/useAuth';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
-import { Badge } from '@/components/ui/Badge';
 import { Typography } from '@/components/ui/Typography';
 import { useTheme } from '@/theme';
 
@@ -20,10 +18,21 @@ interface Props {
   comment: Comment;
   report: Report;
   someoneIsHelpful: boolean;
+  featured?: boolean;
 }
 
-export function CommentItem({ comment, report, someoneIsHelpful }: Props) {
-  const { colors } = useTheme();
+const shortTime = (date: Date): string => {
+  const diff = (Date.now() - date.getTime()) / 1000;
+  if (diff < 60) return 'now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
+  if (diff < 31536000) return `${Math.floor(diff / 604800)}w`;
+  return `${Math.floor(diff / 31536000)}y`;
+};
+
+export function CommentItem({ comment, report, someoneIsHelpful, featured = false }: Props) {
+  const { colors, radii } = useTheme();
   const router = useRouter();
   const user = useUser();
   const [actionLoading, setActionLoading] = useState(false);
@@ -35,6 +44,7 @@ export function CommentItem({ comment, report, someoneIsHelpful }: Props) {
   const isHidden = !!comment.hiddenAt;
   const isDeleted = !!comment.deletedAt;
   const alreadyFlagged = !!user && (comment.flaggedBy ?? []).includes(user.uid);
+  const authorIsReporter = comment.authorId === report.reporterId;
 
   const runLocalAction = async (fn: () => Promise<void>) => {
     setActionLoading(true);
@@ -61,7 +71,7 @@ export function CommentItem({ comment, report, someoneIsHelpful }: Props) {
   };
 
   const handleFlag = () => {
-    if (!user || !comment) return;
+    if (!user) return;
     if (user.isAnonymous) {
       promptSignIn();
       return;
@@ -124,28 +134,54 @@ export function CommentItem({ comment, report, someoneIsHelpful }: Props) {
     !comment.helpful;
   const hasAnyAction = canShowFlag || canShowDelete || canShowHelpful;
 
-  return (
+  const inner = (
     <View style={styles.row}>
-      <View style={[styles.avatar, { backgroundColor: colors.primaryMuted }]}>
+      <View
+        style={[
+          styles.avatar,
+          { backgroundColor: featured ? colors.surface : colors.primaryMuted },
+        ]}
+      >
         <Typography variant="body" weight="bold" color={colors.primary}>
           {initial}
         </Typography>
       </View>
       <View style={{ flex: 1 }}>
         <View style={styles.header}>
-          <Typography variant="body" weight="bold" style={{ flex: 1 }} numberOfLines={1}>
-            {comment.authorName || 'Citizen'}
-          </Typography>
+          <View style={styles.headerLeft}>
+            <Typography
+              variant="body"
+              weight="bold"
+              numberOfLines={1}
+              style={{ flexShrink: 1 }}
+            >
+              {comment.authorName || 'Citizen'}
+            </Typography>
+            {authorIsReporter ? (
+              <View
+                style={[
+                  styles.reporterChip,
+                  { backgroundColor: colors.primaryMuted, borderRadius: radii.full },
+                ]}
+              >
+                <Typography
+                  variant="caption"
+                  weight="bold"
+                  color={colors.primary}
+                  style={{ fontSize: 10, letterSpacing: 0.5 }}
+                >
+                  REPORTER
+                </Typography>
+              </View>
+            ) : null}
+          </View>
           <Typography variant="caption" color={colors.textMuted}>
-            {formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true })}
+            {shortTime(comment.createdAt.toDate())}
           </Typography>
         </View>
         <Typography variant="body" style={styles.body}>
           {comment.text}
         </Typography>
-        {comment.helpful ? (
-          <Badge label="MARKED HELPFUL" variant="primary" size="sm" style={styles.badge} />
-        ) : null}
         {hasAnyAction ? (
           <View style={styles.actions}>
             {canShowFlag ? (
@@ -203,13 +239,39 @@ export function CommentItem({ comment, report, someoneIsHelpful }: Props) {
       </View>
     </View>
   );
+
+  if (featured) {
+    return (
+      <View
+        style={[
+          styles.featuredWrap,
+          { backgroundColor: colors.primaryMuted, borderRadius: radii.lg },
+        ]}
+      >
+        <View style={styles.ribbon}>
+          <Ionicons name="ribbon" size={14} color={colors.primary} />
+          <Typography
+            variant="caption"
+            weight="bold"
+            color={colors.primary}
+            style={{ letterSpacing: 1, fontSize: 11 }}
+          >
+            MARKED HELPFUL
+          </Typography>
+        </View>
+        {inner}
+      </View>
+    );
+  }
+
+  return inner;
 }
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 12,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   avatar: {
     width: 40,
@@ -221,14 +283,22 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+  },
+  reporterChip: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
   },
   body: {
     marginTop: 4,
     lineHeight: 20,
-  },
-  badge: {
-    marginTop: 8,
   },
   actions: {
     flexDirection: 'row',
@@ -244,6 +314,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 12,
+    paddingVertical: 14,
+  },
+  featuredWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  ribbon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 });

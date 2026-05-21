@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Comment, Report } from '@/types';
 import { subscribeToComments } from '@/lib/db';
-import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
+import { Typography } from '@/components/ui/Typography';
 import { useTheme } from '@/theme';
 
-import { CommentComposer } from './CommentComposer';
 import { CommentItem } from './CommentItem';
 
 interface Props {
@@ -30,66 +30,105 @@ export function CommentThread({ report }: Props) {
     return unsub;
   }, [report.reportId, retryKey]);
 
-  const someoneIsHelpful = (comments ?? []).some((c) => c.helpful === true);
+  const helpfulComment = (comments ?? []).find((c) => c.helpful === true);
+  const listComments = (comments ?? []).filter((c) => c.helpful !== true);
+  const someoneIsHelpful = !!helpfulComment;
 
   return (
-    <View>
-      <Card padding="lg">
-        {error ? (
-          <StateView
-            icon="cloud-offline"
-            tone="error"
-            title="Couldn’t load the discussion"
-            message="Check your connection and try again."
-            actionLabel="Retry"
-            onAction={() => setRetryKey((k) => k + 1)}
-            compact
-          />
-        ) : comments === undefined ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.primary} />
+    <View style={styles.wrap}>
+      <Typography
+        variant="caption"
+        weight="bold"
+        color={colors.textMuted}
+        style={styles.header}
+      >
+        DISCUSSION
+      </Typography>
+
+      {error ? (
+        <StateView
+          icon="cloud-offline"
+          tone="error"
+          title="Couldn’t load the discussion"
+          message="Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => setRetryKey((k) => k + 1)}
+          compact
+        />
+      ) : comments === undefined ? (
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : comments.length === 0 ? (
+        <View style={styles.empty}>
+          <View style={[styles.emptyIcon, { backgroundColor: colors.primaryMuted }]}>
+            <Ionicons name="chatbubbles" size={26} color={colors.primary} />
           </View>
-        ) : comments.length === 0 ? (
-          <StateView
-            icon="chatbubbles-outline"
-            title="Start the conversation"
-            message="Share what you’ve seen on the ground, or rally neighbours to act."
-            compact
-          />
-        ) : (
-          <View>
-            {comments.map((c, i) => (
-              <View
-                key={c.commentId}
-                style={
-                  i > 0
-                    ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }
-                    : undefined
-                }
-              >
-                <CommentItem
-                  comment={c}
-                  report={report}
-                  someoneIsHelpful={someoneIsHelpful}
-                />
-              </View>
-            ))}
-          </View>
-        )}
-      </Card>
-      <View style={styles.composerSpacer}>
-        <CommentComposer report={report} />
-      </View>
+          <Typography
+            variant="subtitle"
+            weight="bold"
+            align="center"
+            style={{ marginTop: 12 }}
+          >
+            Be the first to comment
+          </Typography>
+          <Typography
+            variant="caption"
+            color={colors.textMuted}
+            align="center"
+            style={{ marginTop: 4 }}
+          >
+            Share what you’ve seen on the ground, or rally neighbours to act.
+          </Typography>
+        </View>
+      ) : (
+        <View>
+          {helpfulComment ? (
+            <View style={{ marginBottom: 4 }}>
+              <CommentItem
+                comment={helpfulComment}
+                report={report}
+                someoneIsHelpful={someoneIsHelpful}
+                featured
+              />
+            </View>
+          ) : null}
+          {listComments.map((c, i) => (
+            <View key={c.commentId}>
+              {i > 0 ? (
+                <View style={[styles.separator, { borderTopColor: colors.border }]} />
+              ) : null}
+              <CommentItem
+                comment={c}
+                report={report}
+                someoneIsHelpful={someoneIsHelpful}
+              />
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  loading: {
-    paddingVertical: 24,
+  wrap: { marginTop: 24 },
+  header: { letterSpacing: 1, marginBottom: 12 },
+  loading: { paddingVertical: 24, alignItems: 'center' },
+  empty: {
     alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
   },
-  composerSpacer: {
-    marginTop: 12,
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  separator: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginLeft: 52,
   },
 });
