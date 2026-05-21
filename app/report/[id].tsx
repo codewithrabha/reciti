@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
   Share,
   StyleSheet,
@@ -30,6 +31,7 @@ import { uploadImage } from '@/lib/storage';
 import { useUser } from '@/hooks/useAuth';
 import { ResolutionTimeline } from '@/components/report/ResolutionTimeline';
 import { BeforeAfter } from '@/components/report/BeforeAfter';
+import { CommentThread } from '@/components/report/CommentThread';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
@@ -246,6 +248,24 @@ export default function ReportDetailScreen() {
       Alert.alert('Upload failed', 'Could not submit the fix. Please try again.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDirections = async () => {
+    if (!report) return;
+    const { latitude, longitude, category, vibe } = report;
+    const label = encodeURIComponent(`${cap(category)} ${vibe === 'win' ? 'win' : 'issue'}`);
+    const primary = Platform.select({
+      ios: `maps://?daddr=${latitude},${longitude}&q=${label}`,
+      android: `geo:0,0?q=${latitude},${longitude}(${label})`,
+      default: `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`,
+    })!;
+    const webFallback = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+    try {
+      const supported = await Linking.canOpenURL(primary);
+      await Linking.openURL(supported ? primary : webFallback);
+    } catch {
+      Alert.alert('Could not open maps', 'Please try again.');
     }
   };
 
@@ -573,6 +593,38 @@ export default function ReportDetailScreen() {
             </Typography>
           ) : null}
 
+          {/* Directions */}
+          <Typography
+            variant="caption"
+            weight="bold"
+            color={colors.textMuted}
+            style={styles.sectionLabel}
+          >
+            LOCATION
+          </Typography>
+          <Card padding="none">
+            <AnimatedButton
+              onPress={handleDirections}
+              hapticFeedback="light"
+              style={styles.directionsRow}
+            >
+              <View
+                style={[styles.directionsIcon, { backgroundColor: colors.primaryMuted }]}
+              >
+                <Ionicons name="navigate" size={20} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Typography variant="body" weight="bold">
+                  Get directions
+                </Typography>
+                <Typography variant="caption" color={colors.textMuted}>
+                  Open this spot in your maps app
+                </Typography>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+            </AnimatedButton>
+          </Card>
+
           {/* Contextual actions */}
           <View style={styles.sectionLabel} />
           {renderActions()}
@@ -612,6 +664,17 @@ export default function ReportDetailScreen() {
             </>
           ) : null}
 
+          {/* Discussion */}
+          <Typography
+            variant="caption"
+            weight="bold"
+            color={colors.textMuted}
+            style={styles.sectionLabel}
+          >
+            DISCUSSION
+          </Typography>
+          <CommentThread report={report} />
+
         </View>
       </ScrollView>
     </View>
@@ -621,7 +684,7 @@ export default function ReportDetailScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center' },
-  scroll: { paddingBottom: 48 },
+  scroll: { paddingBottom: 96 },
   hero: { position: 'relative' },
   heroImage: { width: '100%', height: 290 },
   stickyHeader: {
@@ -678,6 +741,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 16,
+  },
+  directionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+  },
+  directionsIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dim: { opacity: 0.5 },
   celebrate: { alignItems: 'center' },

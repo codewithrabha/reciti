@@ -47,6 +47,19 @@ export interface Report {
   resolutionConfirmedBy?: string[];
 }
 
+export interface Comment {
+  commentId: string;
+  reportId: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: Timestamp;
+  flaggedBy: string[];
+  hiddenAt?: Timestamp | null;
+  deletedAt?: Timestamp | null;
+  helpful?: boolean;
+}
+
 export interface TriviaQuestion {
   id: string;
   question: string;

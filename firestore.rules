@@ -22,12 +22,30 @@ service cloud.firestore {
 
     // ─── users ───────────────────────────────────────────────────────────
     // Profiles power the leaderboard and report attribution. They contain an
-    // email, so reads require a session. A user may only write their OWN
-    // profile; clients never delete profiles.
+    // email, so reads require a session. A user may write their OWN profile,
+    // or award civic points to ANOTHER user — but the award is capped to +10
+    // per write and no other field may change. This second case backs the
+    // "mark comment helpful" flow, which awards points to the comment author.
     match /users/{userId} {
-      allow read:           if signedIn();
-      allow create, update: if isRealUser() && request.auth.uid == userId;
-      allow delete:         if false;
+      allow read:   if signedIn();
+      allow create: if isRealUser() && request.auth.uid == userId;
+      allow update: if isRealUser() && (
+        request.auth.uid == userId
+        || isPointAward()
+      );
+      allow delete: if false;
+
+      function isPointAward() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        return after.uid == before.uid
+            && after.displayName == before.displayName
+            && after.email == before.email
+            && after.photoURL == before.photoURL
+            && after.completedDailyTrivia == before.completedDailyTrivia
+            && after.civicPoints >= before.civicPoints
+            && after.civicPoints <= before.civicPoints + 10;
+      }
     }
 
     // ─── reports ─────────────────────────────────────────────────────────
@@ -46,6 +64,97 @@ service cloud.firestore {
                        && resource.data.verifiedBy.size() == 0
                        && request.time >
                             resource.data.createdAt + duration.value(1, 'h');
+    }
+
+    // ─── comments (subcollection of reports) ─────────────────────────────
+    // Public to read. Only real accounts can post. Updates are tightly
+    // gated: (a) anyone real can append their own uid to flaggedBy, and at
+    // the threshold also set hiddenAt; (b) the author can soft-delete their
+    // own comment; (c) the parent report's reporter can flip helpful
+    // false → true. Hard deletes are never permitted from the client.
+    match /reports/{reportId}/comments/{commentId} {
+      allow read: if true;
+
+      allow create: if isRealUser()
+                       && request.resource.data.commentId == commentId
+                       && request.resource.data.reportId == reportId
+                       && request.resource.data.authorId == request.auth.uid
+                       && request.resource.data.text is string
+                       && request.resource.data.text.size() > 0
+                       && request.resource.data.text.size() <= 500
+                       && request.resource.data.flaggedBy.size() == 0
+                       && request.resource.data.helpful == false
+                       && request.resource.data.hiddenAt == null
+                       && request.resource.data.deletedAt == null;
+
+      allow update: if isRealUser() && (
+        isFlagUpdate() ||
+        isSoftDeleteByAuthor() ||
+        isHelpfulMarkByReporter()
+      );
+
+      allow delete: if false;
+
+      // Flag: caller appends own uid, optionally sets hiddenAt at threshold.
+      function isFlagUpdate() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        let nextFlags = before.flaggedBy.concat([request.auth.uid]);
+        return !(request.auth.uid in before.flaggedBy)
+            && after.flaggedBy == nextFlags
+            && (
+                 after.hiddenAt == before.hiddenAt
+                 || (nextFlags.size() >= 3 && after.hiddenAt is timestamp)
+               )
+            && after.text       == before.text
+            && after.authorId   == before.authorId
+            && after.authorName == before.authorName
+            && after.commentId  == before.commentId
+            && after.reportId   == before.reportId
+            && after.createdAt  == before.createdAt
+            && after.deletedAt  == before.deletedAt
+            && after.helpful    == before.helpful;
+      }
+
+      // Soft delete by author: sets deletedAt, nothing else changes.
+      function isSoftDeleteByAuthor() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        return request.auth.uid == before.authorId
+            && before.deletedAt == null
+            && after.deletedAt is timestamp
+            && after.text       == before.text
+            && after.authorId   == before.authorId
+            && after.authorName == before.authorName
+            && after.commentId  == before.commentId
+            && after.reportId   == before.reportId
+            && after.createdAt  == before.createdAt
+            && after.flaggedBy  == before.flaggedBy
+            && after.hiddenAt   == before.hiddenAt
+            && after.helpful    == before.helpful;
+      }
+
+      // Helpful mark: only the parent report's reporter, false → true,
+      // on a non-hidden non-deleted comment.
+      function isHelpfulMarkByReporter() {
+        let parent = get(/databases/$(database)/documents/reports/$(reportId)).data;
+        let before = resource.data;
+        let after  = request.resource.data;
+        return request.auth.uid == parent.reporterId
+            && before.helpful == false
+            && after.helpful  == true
+            && before.deletedAt == null
+            && before.hiddenAt  == null
+            && after.text       == before.text
+            && after.authorId   == before.authorId
+            && after.authorName == before.authorName
+            && after.commentId  == before.commentId
+            && after.reportId   == before.reportId
+            && after.createdAt  == before.createdAt
+            && after.flaggedBy  == before.flaggedBy
+            && after.hiddenAt   == before.hiddenAt
+            && after.deletedAt  == before.deletedAt;
+      }
     }
 
     // ─── trivia ──────────────────────────────────────────────────────────

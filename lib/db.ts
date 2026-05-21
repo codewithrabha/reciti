@@ -2,10 +2,11 @@ import {
   collection, doc, setDoc, getDoc, updateDoc, deleteDoc,
   query, where, getDocs, Timestamp,
   limit, onSnapshot, increment, orderBy,
+  runTransaction,
 } from 'firebase/firestore';
 import { distanceBetween } from 'geofire-common';
 import { db } from './firebase';
-import { Report, User, TriviaQuestion, Tier } from '@/types';
+import { Comment, Report, User, TriviaQuestion, Tier } from '@/types';
 
 // Collections
 const REPORTS_COL = collection(db, 'reports');
@@ -16,6 +17,18 @@ const TRIVIA_COL = collection(db, 'trivia');
 
 /** A report becomes `verified` once this many neighbours verify it. */
 export const VERIFICATION_THRESHOLD = 10;
+
+/** A comment is auto-hidden once this many distinct users flag it. */
+export const COMMENT_FLAG_THRESHOLD = 3;
+
+/** Civic points awarded when the report's reporter marks a comment as helpful. */
+export const HELPFUL_COMMENT_POINTS = 5;
+
+/** Hard cap on comment body length. */
+export const COMMENT_MAX_LENGTH = 500;
+
+/** Cap on how many comments a single thread renders in v1 (no pagination yet). */
+export const COMMENT_THREAD_CAP = 100;
 
 /**
  * A `pending` report with zero verifications is auto-deleted this long after
@@ -283,6 +296,147 @@ export const flagReport = async (reportId: string, userId: string) => {
       await updateDoc(reportRef, { flaggedBy: updatedFlaggedBy, status: newStatus });
     }
   }
+};
+
+// ─── Comments ────────────────────────────────────────────────────────────────
+
+const commentsCol = (reportId: string) =>
+  collection(db, 'reports', reportId, 'comments');
+
+/** Real-time subscription to a report's discussion thread, oldest first. */
+export const subscribeToComments = (
+  reportId: string,
+  onUpdate: (comments: Comment[]) => void,
+  onError?: (error: Error) => void,
+) => {
+  const q = query(
+    commentsCol(reportId),
+    orderBy('createdAt', 'asc'),
+    limit(COMMENT_THREAD_CAP),
+  );
+  return onSnapshot(
+    q,
+    (snap) => onUpdate(snap.docs.map((d) => d.data() as Comment)),
+    onError,
+  );
+};
+
+/** Posts a new comment. Real-account caller only (rules enforce). */
+export const submitComment = async (
+  reportId: string,
+  authorId: string,
+  authorName: string,
+  text: string,
+): Promise<void> => {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) throw new Error('Comment cannot be empty');
+  if (trimmed.length > COMMENT_MAX_LENGTH) throw new Error('Comment too long');
+  const ref = doc(commentsCol(reportId));
+  const payload: Comment = {
+    commentId: ref.id,
+    reportId,
+    authorId,
+    authorName,
+    text: trimmed,
+    createdAt: Timestamp.now(),
+    flaggedBy: [],
+    hiddenAt: null,
+    deletedAt: null,
+    helpful: false,
+  };
+  await setDoc(ref, payload);
+};
+
+/**
+ * Flags a comment. Transactional — at `COMMENT_FLAG_THRESHOLD` distinct flags
+ * the comment is auto-hidden by setting `hiddenAt`.
+ */
+export const flagComment = async (
+  reportId: string,
+  commentId: string,
+  uid: string,
+): Promise<void> => {
+  const ref = doc(commentsCol(reportId), commentId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return;
+    const c = snap.data() as Comment;
+    const flaggedBy = c.flaggedBy ?? [];
+    if (flaggedBy.includes(uid)) return;
+    const nextFlagged = [...flaggedBy, uid];
+    const updates: Record<string, unknown> = { flaggedBy: nextFlagged };
+    if (nextFlagged.length >= COMMENT_FLAG_THRESHOLD && !c.hiddenAt) {
+      updates.hiddenAt = Timestamp.now();
+    }
+    tx.update(ref, updates);
+  });
+};
+
+/** Author-only soft delete. Verifies caller is the author. */
+export const deleteOwnComment = async (
+  reportId: string,
+  commentId: string,
+  uid: string,
+): Promise<void> => {
+  const ref = doc(commentsCol(reportId), commentId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const c = snap.data() as Comment;
+  if (c.authorId !== uid) throw new Error('Not your comment');
+  if (c.deletedAt) return;
+  await updateDoc(ref, { deletedAt: Timestamp.now() });
+};
+
+/**
+ * Lets the report's reporter mark ONE comment as helpful — awards
+ * `HELPFUL_COMMENT_POINTS` to the comment's author. Cross-thread uniqueness
+ * is enforced via a pre-flight query; per-comment idempotency by the
+ * transaction itself. Both writes (helpful flip + points award) happen in a
+ * single transaction so a double-tap cannot double-award.
+ */
+export const markCommentHelpful = async (
+  reportId: string,
+  commentId: string,
+  callerUid: string,
+): Promise<void> => {
+  // Pre-flight: reporter check.
+  const reportRef = doc(db, 'reports', reportId);
+  const reportSnap = await getDoc(reportRef);
+  if (!reportSnap.exists()) throw new Error('Report not found');
+  const report = reportSnap.data() as Report;
+  if (report.reporterId !== callerUid) {
+    throw new Error('Only the reporter can mark a comment as helpful');
+  }
+
+  // Pre-flight: another helpful comment already exists in this thread?
+  const existingHelpful = await getDocs(
+    query(commentsCol(reportId), where('helpful', '==', true), limit(1)),
+  );
+  if (!existingHelpful.empty && existingHelpful.docs[0].id !== commentId) {
+    throw new Error('Another comment is already marked helpful');
+  }
+
+  const commentRef = doc(commentsCol(reportId), commentId);
+  await runTransaction(db, async (tx) => {
+    const commentSnap = await tx.get(commentRef);
+    if (!commentSnap.exists()) throw new Error('Comment not found');
+    const c = commentSnap.data() as Comment;
+    if (c.helpful === true) return; // idempotent — no double award
+    if (c.deletedAt || c.hiddenAt) {
+      throw new Error('Cannot mark a hidden or deleted comment as helpful');
+    }
+    const authorRef = doc(USERS_COL, c.authorId);
+    const authorSnap = await tx.get(authorRef);
+    if (authorSnap.exists()) {
+      const author = authorSnap.data() as User;
+      const newPoints = author.civicPoints + HELPFUL_COMMENT_POINTS;
+      tx.update(authorRef, {
+        civicPoints: increment(HELPFUL_COMMENT_POINTS),
+        tier: getTierForPoints(newPoints),
+      });
+    }
+    tx.update(commentRef, { helpful: true });
+  });
 };
 
 /** Subscribes to reports in real-time based on status and vibe. */
