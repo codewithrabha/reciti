@@ -567,6 +567,7 @@ export default function ReportDetailScreen() {
             backgroundColor: colors.background,
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
           },
         ]}
       >
@@ -650,6 +651,10 @@ export default function ReportDetailScreen() {
             </Typography>
           ) : null}
 
+          {/* Contextual actions */}
+          <View style={styles.sectionLabel} />
+          {renderActions()}
+
           {/* Directions */}
           <Typography
             variant="caption"
@@ -681,10 +686,6 @@ export default function ReportDetailScreen() {
               <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </AnimatedButton>
           </Card>
-
-          {/* Contextual actions */}
-          <View style={styles.sectionLabel} />
-          {renderActions()}
 
           {/* Timeline */}
           {report.status !== 'archived' && (
@@ -747,8 +748,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 8,
-    zIndex: 10,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    zIndex: 10
   },
   iconBtn: {
     width: 40,
