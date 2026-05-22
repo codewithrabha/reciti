@@ -5,7 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { Typography } from '@/components/ui/Typography';
 import { Report, ReportStatus } from '@/types';
-import { VERIFICATION_THRESHOLD } from '@/lib/db';
+import { VERIFICATION_THRESHOLD, RESOLUTION_CONFIRMATION_THRESHOLD } from '@/lib/db';
 import { useTheme } from '@/theme';
 
 type StageState = 'done' | 'current' | 'future';
@@ -33,7 +33,10 @@ function buildStages(report: Report): Stage[] {
     0,
     VERIFICATION_THRESHOLD - (report.verifiedBy?.length ?? 0),
   );
-  const confirmLeft = Math.max(0, 3 - (report.resolutionConfirmedBy?.length ?? 0));
+  const confirmLeft = Math.max(
+    0,
+    RESOLUTION_CONFIRMATION_THRESHOLD - (report.resolutionConfirmedBy?.length ?? 0),
+  );
 
   // Stage i is reached when rank >= i.
   const stateOf = (i: number): StageState =>

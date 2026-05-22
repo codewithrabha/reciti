@@ -50,20 +50,135 @@ service cloud.firestore {
 
     // ─── reports ─────────────────────────────────────────────────────────
     // Public to read. Only real accounts create reports, and a report must be
-    // attributed to its creator. Any signed-in user can verify/flag/resolve a
-    // report (community moderation). A report may only be DELETED while it is
-    // an expired, unverified pending report — this mirrors the client-side
-    // cleanup in lib/db.ts, so nobody can delete arbitrary reports.
+    // attributed to its creator. Updates are split into four mutually
+    // exclusive operations — verify, flag, submit-fix, confirm-fix — each
+    // tightly gated. A report may only be DELETED while it is an expired,
+    // unverified pending report — this mirrors the client-side cleanup in
+    // lib/db.ts, so nobody can delete arbitrary reports.
     match /reports/{reportId} {
       allow read:   if true;
       allow create: if isRealUser()
                        && request.resource.data.reporterId == request.auth.uid;
-      allow update: if signedIn();
+      allow update: if signedIn() && (
+        isVerifyUpdate() ||
+        isFlagUpdate() ||
+        isSubmitResolution() ||
+        isConfirmResolution()
+      );
       allow delete: if signedIn()
                        && resource.data.status == 'pending'
                        && resource.data.verifiedBy.size() == 0
                        && request.time >
                             resource.data.createdAt + duration.value(1, 'h');
+
+      // Fields that never change once a report is created. Every update
+      // predicate composes this in.
+      function reportImmutables() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        return after.reportId    == before.reportId
+            && after.reporterId  == before.reporterId
+            && after.imageUrl    == before.imageUrl
+            && after.vibe        == before.vibe
+            && after.category    == before.category
+            && after.latitude    == before.latitude
+            && after.longitude   == before.longitude
+            && after.geohash     == before.geohash
+            && after.createdAt   == before.createdAt
+            && after.description == before.description;
+      }
+
+      // Verify: any signed-in user appends own uid to verifiedBy. At the
+      // 10-verifier threshold the status flips pending → verified and
+      // verifiedAt is set.
+      function isVerifyUpdate() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        let nextVerified = before.verifiedBy.concat([request.auth.uid]);
+        let flipping = nextVerified.size() >= 10 && before.status == 'pending';
+        return reportImmutables()
+            && before.status == 'pending'
+            && !(request.auth.uid in before.verifiedBy)
+            && after.verifiedBy == nextVerified
+            && after.flaggedBy  == before.flaggedBy
+            && (
+                 (flipping && after.status == 'verified' && after.verifiedAt is timestamp)
+                 || (!flipping && after.status == before.status && after.verifiedAt == before.verifiedAt)
+               )
+            && after.resolvedImageUrl       == before.resolvedImageUrl
+            && after.resolvedBy             == before.resolvedBy
+            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
+            && after.resolutionConfirmedBy  == before.resolutionConfirmedBy
+            && after.resolvedAt             == before.resolvedAt;
+      }
+
+      // Flag: any signed-in user appends own uid to flaggedBy. At 2 flags
+      // the status flips to archived.
+      function isFlagUpdate() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        let nextFlagged = before.flaggedBy.concat([request.auth.uid]);
+        let flipping = nextFlagged.size() >= 2;
+        return reportImmutables()
+            && !(request.auth.uid in before.flaggedBy)
+            && after.flaggedBy  == nextFlagged
+            && after.verifiedBy == before.verifiedBy
+            && (
+                 (flipping && after.status == 'archived')
+                 || (!flipping && after.status == before.status)
+               )
+            && after.verifiedAt             == before.verifiedAt
+            && after.resolvedImageUrl       == before.resolvedImageUrl
+            && after.resolvedBy             == before.resolvedBy
+            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
+            && after.resolutionConfirmedBy  == before.resolutionConfirmedBy
+            && after.resolvedAt             == before.resolvedAt;
+      }
+
+      // Submit fix: only the original reporter. Flips verified → in_progress
+      // and writes the "after" photo.
+      function isSubmitResolution() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        return reportImmutables()
+            && request.auth.uid == before.reporterId
+            && before.status    == 'verified'
+            && after.status     == 'in_progress'
+            && after.resolvedImageUrl is string
+            && after.resolvedBy == request.auth.uid
+            && after.resolutionSubmittedAt is timestamp
+            && after.resolutionConfirmedBy == []
+            && after.resolvedAt == before.resolvedAt
+            && after.verifiedBy == before.verifiedBy
+            && after.flaggedBy  == before.flaggedBy
+            && after.verifiedAt == before.verifiedAt;
+      }
+
+      // Confirm fix: only neighbours in the original verifiedBy may confirm,
+      // and the submitter cannot confirm their own fix. At the 6-confirmer
+      // threshold the status flips in_progress → resolved and resolvedAt is set.
+      function isConfirmResolution() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        let nextConfirmed = before.resolutionConfirmedBy.concat([request.auth.uid]);
+        let flipping = nextConfirmed.size() >= 6;
+        return reportImmutables()
+            && before.status == 'in_progress'
+            && (request.auth.uid in before.verifiedBy)
+            && request.auth.uid != before.resolvedBy
+            && !(request.auth.uid in before.resolutionConfirmedBy)
+            && after.resolutionConfirmedBy == nextConfirmed
+            && (
+                 (flipping && after.status == 'resolved' && after.resolvedAt is timestamp)
+                 || (!flipping && after.status == before.status && after.resolvedAt == before.resolvedAt)
+               )
+            && after.verifiedBy             == before.verifiedBy
+            && after.flaggedBy              == before.flaggedBy
+            && after.verifiedAt             == before.verifiedAt
+            && after.resolvedImageUrl       == before.resolvedImageUrl
+            && after.resolvedBy             == before.resolvedBy
+            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt;
+      }
     }
 
     // ─── comments (subcollection of reports) ─────────────────────────────

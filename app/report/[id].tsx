@@ -28,6 +28,7 @@ import {
   subscribeToReport,
   verifyReport,
   VERIFICATION_THRESHOLD,
+  RESOLUTION_CONFIRMATION_THRESHOLD,
 } from '@/lib/db';
 import { uploadImage } from '@/lib/storage';
 import { useUser } from '@/hooks/useAuth';
@@ -481,14 +482,28 @@ export default function ReportDetailScreen() {
             </Card>
           );
         }
+        const isReporter = !!uid && report.reporterId === uid;
+        if (!isReporter) {
+          return (
+            <Card padding="lg">
+              <Typography variant="subtitle" weight="bold">
+                Verified — waiting on a fix
+              </Typography>
+              <Typography variant="caption" color={colors.textMuted} style={styles.cardSub}>
+                Only the original reporter can submit the “after” photo. Spotted
+                it fixed? Mention it in the discussion below.
+              </Typography>
+            </Card>
+          );
+        }
         return (
           <Card padding="lg">
             <Typography variant="subtitle" weight="bold">
               Has this been fixed?
             </Typography>
             <Typography variant="caption" color={colors.textMuted} style={styles.cardSub}>
-              If you’ve seen this issue resolved, submit an “after” photo so
-              neighbours can confirm the fix.
+              If you’ve seen this issue resolved, submit an “after” photo so the
+              neighbours who verified it can confirm the fix.
             </Typography>
             <PrimaryButton
               icon="camera"
@@ -501,6 +516,7 @@ export default function ReportDetailScreen() {
       }
       case 'in_progress': {
         const isSubmitter = !!uid && report.resolvedBy === uid;
+        const isVerifier = !!uid && report.verifiedBy.includes(uid);
         const confirmedBy = report.resolutionConfirmedBy ?? [];
         const alreadyConfirmed = !!uid && confirmedBy.includes(uid);
         return (
@@ -510,16 +526,18 @@ export default function ReportDetailScreen() {
             </Typography>
             <Typography variant="caption" color={colors.textMuted} style={styles.cardSub}>
               {isSubmitter
-                ? 'You submitted this fix — waiting for neighbours to confirm it.'
-                : 'Confirm the “after” photo shows this issue genuinely resolved.'}
+                ? 'You submitted this fix — waiting for the neighbours who verified the issue to confirm it.'
+                : isVerifier
+                  ? 'You verified this issue. Confirm the “after” photo shows it genuinely resolved.'
+                  : 'Only the neighbours who verified this issue can confirm the fix.'}
             </Typography>
-            {!isSubmitter && (
+            {isVerifier && !isSubmitter && (
               <PrimaryButton
                 icon="checkmark-done"
                 label={
                   alreadyConfirmed
                     ? 'You confirmed this fix'
-                    : `Confirm the fix (${confirmedBy.length}/3)`
+                    : `Confirm the fix (${confirmedBy.length}/${RESOLUTION_CONFIRMATION_THRESHOLD})`
                 }
                 disabled={alreadyConfirmed || actionLoading}
                 onPress={handleConfirm}

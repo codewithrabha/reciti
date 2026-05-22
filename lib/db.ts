@@ -18,6 +18,9 @@ const TRIVIA_COL = collection(db, 'trivia');
 /** A report becomes `verified` once this many neighbours verify it. */
 export const VERIFICATION_THRESHOLD = 10;
 
+/** A submitted fix becomes `resolved` once this many verifiers confirm it. */
+export const RESOLUTION_CONFIRMATION_THRESHOLD = 6;
+
 /** A comment is auto-hidden once this many distinct users flag it. */
 export const COMMENT_FLAG_THRESHOLD = 3;
 
@@ -249,6 +252,7 @@ export const submitResolution = async (
   if (!snap.exists()) return;
   const report = snap.data() as Report;
   if (report.status !== 'verified') return; // only verified issues can be resolved
+  if (report.reporterId !== userId) return; // only the original reporter can submit a fix
   await updateDoc(reportRef, {
     status: 'in_progress',
     resolvedImageUrl,
@@ -260,8 +264,9 @@ export const submitResolution = async (
 };
 
 /**
- * Confirms a submitted fix. At 3 confirmations → status becomes 'resolved'.
- * Awards +5 points. The user who submitted the fix cannot confirm it.
+ * Confirms a submitted fix. At `RESOLUTION_CONFIRMATION_THRESHOLD` confirmations
+ * → status becomes 'resolved'. Awards +5 points. Only neighbours who originally
+ * verified the issue may confirm; the submitter cannot confirm their own fix.
  */
 export const confirmResolution = async (reportId: string, userId: string) => {
   const reportRef = doc(db, 'reports', reportId);
@@ -270,13 +275,14 @@ export const confirmResolution = async (reportId: string, userId: string) => {
   const report = snap.data() as Report;
   if (report.status !== 'in_progress') return;
   if (report.resolvedBy === userId) return; // can't confirm your own fix
+  if (!report.verifiedBy.includes(userId)) return; // only original verifiers can confirm
   const confirmedBy = report.resolutionConfirmedBy ?? [];
   if (confirmedBy.includes(userId)) return;
   const updatedConfirmedBy = [...confirmedBy, userId];
   const updates: Record<string, unknown> = {
     resolutionConfirmedBy: updatedConfirmedBy,
   };
-  if (updatedConfirmedBy.length >= 3) {
+  if (updatedConfirmedBy.length >= RESOLUTION_CONFIRMATION_THRESHOLD) {
     updates.status = 'resolved';
     updates.resolvedAt = Timestamp.now();
   }
