@@ -39,17 +39,17 @@ export const REPORT_GRACE_PERIOD_MS = 60 * 60 * 1000; // 1 hour
 
 // ─── Tier Calculation ────────────────────────────────────────────────────────
 export const getTierForPoints = (points: number): Tier => {
-  if (points >= 300) return 'Guardian';
-  if (points >= 150) return 'Advocate';
-  if (points >= 50) return 'Resident';
+  if (points >= 10000) return 'Guardian';
+  if (points >= 5000) return 'Advocate';
+  if (points >= 1000) return 'Resident';
   return 'Tourist';
 };
 
 export const TIER_THRESHOLDS: Record<Tier, number> = {
   Tourist: 0,
-  Resident: 50,
-  Advocate: 150,
-  Guardian: 300,
+  Resident: 1000,
+  Advocate: 5000,
+  Guardian: 10000,
 };
 
 // ─── User ────────────────────────────────────────────────────────────────────

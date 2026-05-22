@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { Typography } from '@/components/ui/Typography';
 import { User } from '@/types';
 import { useTheme } from '@/theme';
+import { getTierForPoints } from '@/lib/db';
 
 // Gold / silver / bronze for the top three ranks.
 const MEDAL: Record<number, string> = {
@@ -68,7 +69,7 @@ export const LeaderboardRow = React.memo(function LeaderboardRow({
           {isCurrentUser ? ' (You)' : ''}
         </Typography>
         <Typography variant="caption" color={colors.textMuted}>
-          {user.tier}
+          {getTierForPoints(user.civicPoints)}
         </Typography>
       </View>
 
