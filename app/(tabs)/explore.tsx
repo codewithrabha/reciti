@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -108,6 +108,8 @@ export default function ExploreScreen() {
   const [reports, setReports] = useState<Report[] | null>(null);
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const isRefreshingRef = useRef(false);
 
   const fetchLocation = useCallback(async (): Promise<boolean> => {
     try {
@@ -135,18 +137,39 @@ export default function ExploreScreen() {
   }, [fetchLocation]);
 
   useEffect(() => {
-    setReports(null);
+    if (!isRefreshingRef.current) setReports(null);
     setError(false);
     const area =
       scope === 'near' && coords ? { center: coords, radiusKm: RADIUS_KM } : {};
+    const finishRefresh = () => {
+      if (isRefreshingRef.current) {
+        isRefreshingRef.current = false;
+        setRefreshing(false);
+      }
+    };
     return subscribeToExploreReports(
-      setReports,
+      (next) => {
+        setReports(next);
+        finishRefresh();
+      },
       { filter, ...area },
-      () => setError(true),
+      () => {
+        setError(true);
+        finishRefresh();
+      },
     );
   }, [filter, scope, coords, retryKey]);
 
   const retry = () => setRetryKey((k) => k + 1);
+
+  const onRefresh = useCallback(async () => {
+    isRefreshingRef.current = true;
+    setRefreshing(true);
+    if (scope === 'near') {
+      await fetchLocation();
+    }
+    setRetryKey((k) => k + 1);
+  }, [scope, fetchLocation]);
 
   const toggleScope = async () => {
     if (scope === 'near') {
@@ -290,6 +313,14 @@ export default function ExploreScreen() {
             styles.list,
             reports.length === 0 && styles.listEmpty,
           ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.center}>
               <StateView

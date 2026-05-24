@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { Share, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
+import * as Linking from 'expo-linking';
 import { Report } from '@/types';
 import { VERIFICATION_THRESHOLD } from '@/lib/db';
 import { formatDistanceToNow } from 'date-fns';
@@ -24,6 +25,18 @@ export function ReportCard({
 }: ReportCardProps) {
   const { colors, spacing } = useTheme();
   const isWin = report.vibe === 'win';
+  const isEngageable = report.status !== 'pending';
+
+  const handleShare = async () => {
+    try {
+      const url = Linking.createURL(`report/${report.reportId}`);
+      const headline = `${isWin ? 'Civic win' : 'Civic issue'} on ReCiti`;
+      const body = report.description ? `${headline}: ${report.description}` : headline;
+      await Share.share({ message: `${body}\n\n${url}`, url });
+    } catch {
+      // user dismissed or platform error — nothing to do
+    }
+  };
 
   const main = (
     <>
@@ -66,7 +79,7 @@ export function ReportCard({
         <Typography
           variant="body"
           color={colors.text}
-          style={[styles.description, { padding: spacing.sm}]}
+          style={[styles.description, { padding: spacing.sm }]}
           numberOfLines={2}
         >
           {report.description}
@@ -78,7 +91,7 @@ export function ReportCard({
   return (
     <Card padding="none" style={styles.card}>
       {onPress ? (
-        <AnimatedButton onPress={onPress} hapticFeedback="light" scaleTo={0.98}>
+        <AnimatedButton onPress={onPress} hapticFeedback="light" scaleTo={1}>
           {main}
         </AnimatedButton>
       ) : (
@@ -98,7 +111,7 @@ export function ReportCard({
               Verify ({report.verifiedBy.length}/{VERIFICATION_THRESHOLD})
             </Typography>
           </AnimatedButton>
-          
+
           <AnimatedButton
             onPress={onFlag}
             hapticFeedback="medium"
@@ -108,6 +121,31 @@ export function ReportCard({
             <Typography variant="body" weight="semiBold" color={colors.danger} style={{ marginLeft: spacing.xs }}>
               Flag
             </Typography>
+          </AnimatedButton>
+        </View>
+      )}
+
+      {/* Engagement footer — shown once the report has cleared verification */}
+      {isEngageable && (
+        <View style={[styles.actions, { borderTopWidth: 0 }]}>
+          <View style={[styles.actionBtn, { opacity: 0.4 }]}>
+            <Ionicons name="arrow-up-circle-outline" size={22} color={colors.textMuted} />
+          </View>
+
+          <AnimatedButton
+            onPress={onPress}
+            hapticFeedback="light"
+            style={[styles.actionBtn]}
+          >
+            <Ionicons name="chatbubble-outline" size={20} color={colors.textMuted} />
+          </AnimatedButton>
+
+          <AnimatedButton
+            onPress={handleShare}
+            hapticFeedback="light"
+            style={[styles.actionBtn]}
+          >
+            <Ionicons name="share-social-outline" size={20} color={colors.textMuted} />
           </AnimatedButton>
         </View>
       )}
@@ -134,9 +172,15 @@ const styles = StyleSheet.create({
   cardImagePlaceholder: {
     width: '100%', height: 220, alignItems: 'center', justifyContent: 'center',
   },
-  actions: { flexDirection: 'row', borderTopWidth: 1 },
+  actions: {
+    flexDirection: 'row',
+    borderTopWidth: 1
+  },
   actionBtn: {
-    flex: 1, paddingVertical: 14, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
