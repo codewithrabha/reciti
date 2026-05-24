@@ -68,3 +68,22 @@ export interface TriviaQuestion {
   category: string;
   activeDate: string; // 'YYYY-MM-DD'
 }
+
+export type NotificationType =
+  | 'report_verified'
+  | 'comment_added'
+  | 'fix_submitted'
+  | 'fix_confirmed';
+
+export interface Notification {
+  notifId: string;
+  recipientUid: string;
+  type: NotificationType;
+  reportId: string;
+  fromUid: string;
+  fromDisplayName: string | null;
+  fromIsAnonymous: boolean;
+  read: boolean;
+  createdAt: Timestamp;
+  commentPreview?: string | null;
+}

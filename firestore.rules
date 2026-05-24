@@ -272,6 +272,29 @@ service cloud.firestore {
       }
     }
 
+    // ─── notifications (subcollection of users) ──────────────────────────
+    // In-app inbox. Any signed-in user may CREATE a notification for any
+    // other user — but only as themselves (fromUid == auth.uid), and only
+    // unread + properly addressed. Reads, updates (mark-read), and deletes
+    // are restricted to the recipient.
+    match /users/{recipientUid}/notifications/{notifId} {
+      allow create: if signedIn()
+                       && request.resource.data.notifId == notifId
+                       && request.resource.data.recipientUid == recipientUid
+                       && request.resource.data.fromUid == request.auth.uid
+                       && request.resource.data.read == false
+                       && request.resource.data.createdAt is timestamp;
+      allow read:   if signedIn() && request.auth.uid == recipientUid;
+      allow update: if signedIn() && request.auth.uid == recipientUid
+                       && request.resource.data.recipientUid == resource.data.recipientUid
+                       && request.resource.data.notifId == resource.data.notifId
+                       && request.resource.data.fromUid == resource.data.fromUid
+                       && request.resource.data.type == resource.data.type
+                       && request.resource.data.reportId == resource.data.reportId
+                       && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if signedIn() && request.auth.uid == recipientUid;
+    }
+
     // ─── trivia ──────────────────────────────────────────────────────────
     // Read-only from the app. Seeded out-of-band (see scripts/seed-trivia.js).
     match /trivia/{triviaId} {

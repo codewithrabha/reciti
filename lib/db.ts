@@ -2,11 +2,11 @@ import {
   collection, doc, setDoc, getDoc, updateDoc, deleteDoc,
   query, where, getDocs, Timestamp,
   limit, onSnapshot, increment, orderBy,
-  runTransaction,
+  runTransaction, writeBatch,
 } from 'firebase/firestore';
 import { distanceBetween } from 'geofire-common';
 import { db } from './firebase';
-import { Comment, Report, User, TriviaQuestion, Tier } from '@/types';
+import { Comment, Notification, NotificationType, Report, User, TriviaQuestion, Tier } from '@/types';
 
 // Collections
 const REPORTS_COL = collection(db, 'reports');
@@ -204,6 +204,14 @@ export const verifyReport = async (reportId: string, userId: string) => {
       };
       if (justVerified) updates.verifiedAt = Timestamp.now();
       await updateDoc(reportRef, updates);
+      if (justVerified) {
+        const actor = await resolveActor(userId);
+        await writeNotification(report.reporterId, {
+          type: 'report_verified',
+          reportId,
+          ...actor,
+        });
+      }
       // Award +5 points to verifier
       await awardPoints(userId, 5);
     }
@@ -260,6 +268,16 @@ export const submitResolution = async (
     resolutionSubmittedAt: Timestamp.now(),
     resolutionConfirmedBy: [],
   });
+  const actor = await resolveActor(userId);
+  await Promise.all(
+    report.verifiedBy.map((verifierUid) =>
+      writeNotification(verifierUid, {
+        type: 'fix_submitted',
+        reportId,
+        ...actor,
+      }),
+    ),
+  );
   await awardPoints(userId, 10);
 };
 
@@ -279,14 +297,23 @@ export const confirmResolution = async (reportId: string, userId: string) => {
   const confirmedBy = report.resolutionConfirmedBy ?? [];
   if (confirmedBy.includes(userId)) return;
   const updatedConfirmedBy = [...confirmedBy, userId];
+  const justResolved = updatedConfirmedBy.length >= RESOLUTION_CONFIRMATION_THRESHOLD;
   const updates: Record<string, unknown> = {
     resolutionConfirmedBy: updatedConfirmedBy,
   };
-  if (updatedConfirmedBy.length >= RESOLUTION_CONFIRMATION_THRESHOLD) {
+  if (justResolved) {
     updates.status = 'resolved';
     updates.resolvedAt = Timestamp.now();
   }
   await updateDoc(reportRef, updates);
+  if (justResolved) {
+    const actor = await resolveActor(userId);
+    await writeNotification(report.reporterId, {
+      type: 'fix_confirmed',
+      reportId,
+      ...actor,
+    });
+  }
   await awardPoints(userId, 5);
 };
 
@@ -351,6 +378,20 @@ export const submitComment = async (
     helpful: false,
   };
   await setDoc(ref, payload);
+
+  // Notify the report owner (skipped automatically if they wrote it themselves).
+  const reportSnap = await getDoc(doc(REPORTS_COL, reportId));
+  if (reportSnap.exists()) {
+    const report = reportSnap.data() as Report;
+    await writeNotification(report.reporterId, {
+      type: 'comment_added',
+      reportId,
+      fromUid: authorId,
+      fromDisplayName: authorName,
+      fromIsAnonymous: false, // comments require a real account (rules enforce)
+      commentPreview: trimmed.slice(0, 80),
+    });
+  }
 };
 
 /**
@@ -600,6 +641,71 @@ export const getTriviaArchive = async (): Promise<TriviaQuestion[]> => {
   const snap = await getDocs(q);
   return snap.docs.map((d) => d.data() as TriviaQuestion);
 };
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+const notificationsCol = (uid: string) =>
+  collection(db, 'users', uid, 'notifications');
+
+type NotifPayload = {
+  type: NotificationType;
+  reportId: string;
+  fromUid: string;
+  fromDisplayName: string | null;
+  fromIsAnonymous: boolean;
+  commentPreview?: string | null;
+};
+
+/** Best-effort: never throws, never blocks the primary action. */
+async function writeNotification(recipientUid: string, payload: NotifPayload): Promise<void> {
+  if (!recipientUid || recipientUid === payload.fromUid) return;
+  try {
+    const ref = doc(notificationsCol(recipientUid));
+    await setDoc(ref, {
+      notifId: ref.id,
+      recipientUid,
+      read: false,
+      createdAt: Timestamp.now(),
+      commentPreview: payload.commentPreview ?? null,
+      ...payload,
+    });
+  } catch (e) {
+    console.warn('[db] notification write failed:', e);
+  }
+}
+
+/** Resolves the actor's display name / anonymous flag for the notif. */
+async function resolveActor(uid: string): Promise<Pick<NotifPayload, 'fromUid' | 'fromDisplayName' | 'fromIsAnonymous'>> {
+  const u = await getUserDoc(uid).catch(() => null);
+  return {
+    fromUid: uid,
+    fromDisplayName: u?.displayName ?? null,
+    fromIsAnonymous: !u || !u.email,
+  };
+}
+
+export function subscribeToUnreadNotifCount(uid: string, cb: (n: number) => void) {
+  const q = query(notificationsCol(uid), where('read', '==', false));
+  return onSnapshot(q, (snap) => cb(snap.size));
+}
+
+export function subscribeToNotifications(uid: string, cb: (list: Notification[]) => void) {
+  const q = query(notificationsCol(uid), orderBy('createdAt', 'desc'), limit(50));
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as Notification)));
+}
+
+export async function markNotificationRead(uid: string, notifId: string): Promise<void> {
+  await updateDoc(doc(notificationsCol(uid), notifId), { read: true });
+}
+
+export async function markAllNotificationsRead(uid: string): Promise<void> {
+  const q = query(notificationsCol(uid), where('read', '==', false));
+  const snap = await getDocs(q);
+  if (snap.empty) return;
+  const batch = writeBatch(db);
+  snap.docs.forEach((d) => batch.update(d.ref, { read: true }));
+  await batch.commit();
+}
 
 /** Submit a trivia answer. Awards +5 points if correct, marks as completed. */
 export const submitTriviaAnswer = async (

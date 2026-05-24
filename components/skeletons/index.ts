@@ -6,3 +6,4 @@ export { MyReportRowSkeleton } from './MyReportRowSkeleton';
 export { TriviaTodaySkeleton } from './TriviaTodaySkeleton';
 export { ArchiveCardSkeleton } from './ArchiveCardSkeleton';
 export { CommentSkeleton } from './CommentSkeleton';
+export { NotificationRowSkeleton } from './NotificationRowSkeleton';

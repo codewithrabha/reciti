@@ -25,6 +25,7 @@ import { PulseHero } from '@/components/pulse/PulseHero';
 import { StatCard } from '@/components/pulse/StatCard';
 import { TierProgress } from '@/components/pulse/TierProgress';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { NotificationBell } from '@/components/ui/NotificationBell';
 import { StateView } from '@/components/ui/StateView';
 import { Typography } from '@/components/ui/Typography';
 import { PulseStatsSkeleton } from '@/components/skeletons';
@@ -145,12 +146,17 @@ export default function PulseScreen() {
 
       {/* Header */}
       <View style={{ paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <Typography variant="body" color={colors.textMuted}>
-          {getGreeting()},
-        </Typography>
-        <Typography variant="h1" style={{ marginBottom: spacing.sm }}>
-          {name}
-        </Typography>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Typography variant="body" color={colors.textMuted}>
+              {getGreeting()},
+            </Typography>
+            <Typography variant="h1">{name}</Typography>
+          </View>
+          <NotificationBell />
+        </View>
+
+        <View style={{ height: spacing.sm }} />
 
         <AnimatedButton
           onPress={locationGranted ? undefined : enableLocation}
@@ -287,6 +293,7 @@ export default function PulseScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingBottom: 120 },
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
   locationChip: {
     flexDirection: 'row',
     alignItems: 'center',
