@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +27,7 @@ import { TierProgress } from '@/components/pulse/TierProgress';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { StateView } from '@/components/ui/StateView';
 import { Typography } from '@/components/ui/Typography';
+import { PulseStatsSkeleton } from '@/components/skeletons';
 import { useTheme } from '@/theme';
 
 const RADIUS_KM = 5;
@@ -198,11 +199,11 @@ export default function PulseScreen() {
             onAction={retry}
           />
         ) : stats === null ? (
-          <View style={styles.loading}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+            <PulseStatsSkeleton />
+          </Animated.View>
         ) : (
-          <>
+          <Animated.View entering={FadeIn.duration(200)}>
             <View style={{ marginTop: spacing.md }}>
               <PulseHero activeCount={activeCount} />
             </View>
@@ -276,7 +277,7 @@ export default function PulseScreen() {
                 />
               ))
             )}
-          </>
+          </Animated.View>
         )}
       </ScrollView>
     </View>

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -25,6 +26,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
 import { Typography } from '@/components/ui/Typography';
+import { LeaderboardRowSkeleton, MyReportRowSkeleton } from '@/components/skeletons';
 import { useTheme } from '@/theme';
 
 const GRADIENT = ['#34D399', '#10B981', '#059669'] as const;
@@ -273,9 +275,9 @@ export default function ProfileScreen() {
             LEADERBOARD
           </Typography>
           {loading && leaderboard.length === 0 ? (
-            <View style={styles.loading}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
+            <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+              <LeaderboardRowSkeleton count={6} />
+            </Animated.View>
           ) : leaderboard.length === 0 ? (
             <Card padding="none">
               <StateView
@@ -307,9 +309,9 @@ export default function ProfileScreen() {
 
   // Reports states shown in place of the rows when there are none.
   const listEmpty = error ? null : loading ? (
-    <View style={styles.loading}>
-      <ActivityIndicator color={colors.primary} />
-    </View>
+    <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+      <MyReportRowSkeleton count={4} />
+    </Animated.View>
   ) : (
     <Card padding="none">
       <StateView

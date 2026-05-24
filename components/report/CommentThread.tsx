@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Comment, Report } from '@/types';
 import { subscribeToComments } from '@/lib/db';
 import { StateView } from '@/components/ui/StateView';
 import { Typography } from '@/components/ui/Typography';
+import { CommentSkeleton } from '@/components/skeletons';
 import { useTheme } from '@/theme';
 
 import { CommentItem } from './CommentItem';
@@ -56,9 +58,9 @@ export function CommentThread({ report }: Props) {
           compact
         />
       ) : comments === undefined ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+          <CommentSkeleton count={3} />
+        </Animated.View>
       ) : comments.length === 0 ? (
         <View style={styles.empty}>
           <View style={[styles.emptyIcon, { backgroundColor: colors.primaryMuted }]}>

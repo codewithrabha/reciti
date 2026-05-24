@@ -10,6 +10,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import RAnimated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -41,6 +42,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
 import { Typography } from '@/components/ui/Typography';
+import { ReportDetailSkeleton } from '@/components/skeletons';
 import { useTheme } from '@/theme';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -388,9 +390,13 @@ export default function ReportDetailScreen() {
 
   if (report === undefined) {
     return (
-      <View style={[styles.fill, styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <RAnimated.View
+        entering={FadeIn.duration(200)}
+        exiting={FadeOut.duration(200)}
+        style={[styles.fill, { backgroundColor: colors.background, paddingTop: insets.top }]}
+      >
+        <ReportDetailSkeleton />
+      </RAnimated.View>
     );
   }
 

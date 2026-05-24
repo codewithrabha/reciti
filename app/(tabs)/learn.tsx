@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LegendList } from '@legendapp/list';
@@ -13,6 +14,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
 import { Typography } from '@/components/ui/Typography';
+import { ArchiveCardSkeleton, TriviaTodaySkeleton } from '@/components/skeletons';
 import { useTheme } from '@/theme';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -128,9 +130,9 @@ export default function LearnScreen() {
           />
         </Card>
       ) : today === undefined ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+          <TriviaTodaySkeleton />
+        </Animated.View>
       ) : today === null ? (
         <Card padding="none">
           <StateView
@@ -175,9 +177,9 @@ export default function LearnScreen() {
       />
     </Card>
   ) : archiveLoading ? (
-    <View style={styles.loading}>
-      <ActivityIndicator color={colors.primary} />
-    </View>
+    <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+      <ArchiveCardSkeleton count={5} />
+    </Animated.View>
   ) : (
     <Card padding="none">
       <StateView

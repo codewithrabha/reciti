@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,7 @@ import { FilterChips } from '@/components/explore/FilterChips';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { StateView } from '@/components/ui/StateView';
 import { Typography } from '@/components/ui/Typography';
+import { ReportCardSkeleton } from '@/components/skeletons';
 import { useTheme } from '@/theme';
 
 const RADIUS_KM = 5;
@@ -256,9 +258,13 @@ export default function ExploreScreen() {
           />
         </View>
       ) : reports === null ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(200)}
+          style={styles.list}
+        >
+          <ReportCardSkeleton count={3} />
+        </Animated.View>
       ) : mode === 'map' ? (
         <MapPlaceholder count={reports.length} onBrowse={() => setMode('feed')} />
       ) : (
