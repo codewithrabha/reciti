@@ -662,7 +662,8 @@ export default function ReportDetailScreen() {
                 {cap(report.category)} {isWin ? 'win' : 'issue'}
               </Typography>
               <Typography variant="caption" color={colors.textMuted}>
-                Reported by {reporterName ?? 'a neighbour'} ·{' '}
+                Reported by {reporterName ?? 'a neighbour'}
+                {report.city ? ` · ${report.city}` : ''} ·{' '}
                 {formatDistanceToNow(report.createdAt.toDate(), { addSuffix: true })}
               </Typography>
             </View>
@@ -701,10 +702,12 @@ export default function ReportDetailScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Typography variant="body" weight="bold">
-                  Get directions
+                  {report.city ?? 'Get directions'}
                 </Typography>
                 <Typography variant="caption" color={colors.textMuted}>
-                  Open this spot in your maps app
+                  {report.city
+                    ? 'Tap to open this spot in your maps app'
+                    : 'Open this spot in your maps app'}
                 </Typography>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />

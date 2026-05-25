@@ -68,6 +68,54 @@ export default function CaptureScreen() {
   const [showModal, setShowModal] = useState(false);
   const [submitted, setSubmitted] = useState<Submitted | null>(null);
 
+  type LocStatus = 'idle' | 'fetching' | 'ready' | 'denied' | 'error';
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [city, setCity] = useState<string | null>(null);
+  const [locStatus, setLocStatus] = useState<LocStatus>('idle');
+
+  const detectLocation = useCallback(async (): Promise<
+    { latitude: number; longitude: number; city: string | null } | null
+  > => {
+    setLocStatus('fetching');
+    try {
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status !== 'granted') {
+        setLocStatus('denied');
+        return null;
+      }
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = pos.coords;
+      setCoords({ latitude, longitude });
+
+      let resolvedCity: string | null = null;
+      try {
+        const results = await Location.reverseGeocodeAsync({ latitude, longitude });
+        resolvedCity = results[0]?.city ?? results[0]?.subregion ?? null;
+      } catch {
+        // reverse-geocode failed — keep coords, leave city null
+      }
+      setCity(resolvedCity);
+      setLocStatus('ready');
+      return { latitude, longitude, city: resolvedCity };
+    } catch {
+      setLocStatus('error');
+      return null;
+    }
+  }, []);
+
+  // Detect location when a photo is added; clear when the photo is removed.
+  useEffect(() => {
+    if (imageUri && locStatus === 'idle') {
+      detectLocation();
+    } else if (!imageUri) {
+      setCoords(null);
+      setCity(null);
+      setLocStatus('idle');
+    }
+  }, [imageUri, locStatus, detectLocation]);
+
   /**
    * On Android the OS can destroy this Activity while the camera is open. When
    * that happens `launchCameraAsync` resolves as canceled even though a photo
@@ -152,16 +200,19 @@ export default function CaptureScreen() {
 
     setLoading(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Location required', 'Location permission is needed to tag your report.');
-        setLoading(false);
-        return;
+      let resolvedCoords = coords;
+      let resolvedCity = city;
+      if (!resolvedCoords) {
+        const detected = await detectLocation();
+        if (!detected) {
+          Alert.alert('Location required', 'Location permission is needed to tag your report.');
+          setLoading(false);
+          return;
+        }
+        resolvedCoords = { latitude: detected.latitude, longitude: detected.longitude };
+        resolvedCity = detected.city;
       }
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const { latitude, longitude } = location.coords;
+      const { latitude, longitude } = resolvedCoords;
       const geohash = geohashForLocation([latitude, longitude]);
 
       const context = ImageManipulator.manipulate(imageUri);
@@ -185,6 +236,7 @@ export default function CaptureScreen() {
         longitude,
         geohash,
         description: trimmedDescription ? trimmedDescription : null,
+        city: resolvedCity,
       });
 
       setSubmitted({ category, vibe, reportId });
@@ -309,6 +361,67 @@ export default function CaptureScreen() {
               </AnimatedButton>
             </View>
           </View>
+        )}
+
+        {/* Location chip — appears once a photo is selected */}
+        {imageUri && (
+          <AnimatedButton
+            onPress={detectLocation}
+            hapticFeedback="light"
+            disabled={locStatus === 'fetching'}
+            style={[
+              styles.locationChip,
+              {
+                backgroundColor: colors.surface,
+                borderColor:
+                  locStatus === 'denied' || locStatus === 'error'
+                    ? colors.danger
+                    : colors.border,
+                borderRadius: radii.md,
+              },
+            ]}
+          >
+            <Ionicons
+              name={
+                locStatus === 'denied' || locStatus === 'error'
+                  ? 'alert-circle'
+                  : 'location'
+              }
+              size={16}
+              color={
+                locStatus === 'denied' || locStatus === 'error'
+                  ? colors.danger
+                  : colors.primary
+              }
+            />
+            {locStatus === 'fetching' ? (
+              <>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Typography variant="caption" weight="semiBold" color={colors.textMuted}>
+                  Detecting your city…
+                </Typography>
+              </>
+            ) : (
+              <Typography
+                variant="caption"
+                weight="semiBold"
+                color={
+                  locStatus === 'denied' || locStatus === 'error'
+                    ? colors.danger
+                    : colors.text
+                }
+                style={{ flex: 1 }}
+              >
+                {locStatus === 'ready'
+                  ? city ?? 'Location pinned (city unknown)'
+                  : locStatus === 'denied'
+                    ? 'Location permission needed — tap to retry'
+                    : locStatus === 'error'
+                      ? "Couldn't get your location — tap to retry"
+                      : 'Tap to add location'}
+              </Typography>
+            )}
+          </AnimatedButton>
         )}
 
         {/* Vibe */}
@@ -606,6 +719,15 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 9999,
+  },
+  locationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 12,
+    borderWidth: 1,
   },
   // Sections
   sectionLabel: { letterSpacing: 1, marginTop: 24, marginBottom: 10 },

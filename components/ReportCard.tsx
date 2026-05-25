@@ -54,9 +54,20 @@ export function ReportCard({
             <Typography variant="body" weight="semiBold">
               {report.category.charAt(0).toUpperCase() + report.category.slice(1)} {isWin ? 'Win' : 'Issue'}
             </Typography>
-            <Typography variant="caption" color={colors.textMuted}>
-              {formatDistanceToNow(report.createdAt.toDate(), { addSuffix: true })}
-            </Typography>
+            <View style={styles.metaRow}>
+              {report.city ? (
+                <>
+                  <Ionicons name="location" size={11} color={colors.textMuted} />
+                  <Typography variant="caption" color={colors.textMuted}>
+                    {report.city}
+                  </Typography>
+                  <Typography variant="caption" color={colors.textMuted}>·</Typography>
+                </>
+              ) : null}
+              <Typography variant="caption" color={colors.textMuted}>
+                {formatDistanceToNow(report.createdAt.toDate(), { addSuffix: true })}
+              </Typography>
+            </View>
           </View>
         </View>
         <Badge
@@ -163,6 +174,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
   iconBadge: {
     width: 32, height: 32, borderRadius: 16,
     alignItems: 'center', justifyContent: 'center',

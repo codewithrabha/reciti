@@ -115,6 +115,7 @@ export const createReport = async (
     flaggedBy: [],
     createdAt: Timestamp.now(),
     description: reportData.description ?? null,
+    city: reportData.city ?? null,
     verifiedAt: null,
     resolutionSubmittedAt: null,
     resolvedAt: null,

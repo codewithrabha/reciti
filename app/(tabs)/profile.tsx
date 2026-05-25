@@ -94,6 +94,7 @@ const ReportRow = React.memo(function ReportRow({
           {cap(report.category)} {report.vibe === 'win' ? 'win' : 'issue'}
         </Typography>
         <Typography variant="caption" color={colors.textMuted}>
+          {report.city ? `${report.city} · ` : ''}
           {report.createdAt.toDate().toLocaleDateString()}
         </Typography>
       </View>

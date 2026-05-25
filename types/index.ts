@@ -36,6 +36,9 @@ export interface Report {
   // Optional free-text context for when the image alone isn't enough.
   description?: string | null;
 
+  // City resolved via reverse-geocoding the capture coords (best-effort; may be null).
+  city?: string | null;
+
   // Lifecycle timestamps — set as the report progresses (absent on older reports).
   verifiedAt?: Timestamp | null;
   resolutionSubmittedAt?: Timestamp | null;
