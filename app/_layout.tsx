@@ -84,6 +84,7 @@ function RootNavigator() {
           <Stack.Screen name="auth" options={{ headerShown: false }} />
           <Stack.Screen name="report/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
+          <Stack.Screen name="tiers" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

@@ -1,7 +1,8 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Card } from '@/components/ui/Card';
 import { Typography } from '@/components/ui/Typography';
@@ -24,6 +25,83 @@ interface TierProgressProps {
 export function TierProgress({ userDoc }: TierProgressProps) {
   const { colors, radii, spacing } = useTheme();
   const router = useRouter();
+  const [infoOpen, setInfoOpen] = useState(false);
+
+  const InfoButton = (
+    <AnimatedButton
+      onPress={() => setInfoOpen(true)}
+      hapticFeedback="light"
+      style={styles.infoBtn}
+    >
+      <Ionicons name="information-circle-outline" size={20} color={colors.textMuted} />
+    </AnimatedButton>
+  );
+
+  const InfoModal = (
+    <Modal
+      transparent
+      visible={infoOpen}
+      animationType="fade"
+      onRequestClose={() => setInfoOpen(false)}
+    >
+      <Pressable style={styles.modalOverlay} onPress={() => setInfoOpen(false)}>
+        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+        <Pressable onPress={() => {}} style={styles.modalCardWrap}>
+          <Card padding="lg">
+            <View style={styles.modalHeader}>
+              <Typography variant="h3" weight="bold">
+                How tiers work
+              </Typography>
+              <AnimatedButton
+                onPress={() => setInfoOpen(false)}
+                hapticFeedback="light"
+                style={styles.closeBtn}
+              >
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </AnimatedButton>
+            </View>
+            <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.sm }}>
+              Earn Civic Points by submitting reports, verifying neighbours, confirming fixes, and completing the daily trivia.
+            </Typography>
+            <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.sm }}>
+              As your points grow, you climb from Tourist to Guardian. Your tier is a badge of your commitment — neighbours see it next to your reports.
+            </Typography>
+            <View style={{ marginTop: spacing.md, gap: 10 }}>
+              {TIER_ORDER.map((t) => (
+                <View key={t} style={styles.tierGuideRow}>
+                  <View style={[styles.tierBadge, { backgroundColor: colors.primaryMuted }]}>
+                    <Ionicons name={TIER_ICON[t]} size={16} color={colors.primary} />
+                  </View>
+                  <Typography variant="body" weight="semiBold" style={{ flex: 1 }}>
+                    {t}
+                  </Typography>
+                  <Typography variant="caption" color={colors.textMuted}>
+                    {TIER_THRESHOLDS[t].toLocaleString()} pts
+                  </Typography>
+                </View>
+              ))}
+            </View>
+            <Typography variant="caption" color={colors.textMuted} style={{ marginTop: spacing.md }}>
+              Tiers don’t lock features — they celebrate your civic climb and signal it to your neighbours.
+            </Typography>
+            <AnimatedButton
+              onPress={() => {
+                setInfoOpen(false);
+                router.push('/tiers');
+              }}
+              hapticFeedback="light"
+              style={[styles.learnMoreBtn, { backgroundColor: colors.primaryMuted, borderRadius: radii.md }]}
+            >
+              <Typography variant="body" weight="bold" color={colors.primary}>
+                Learn more
+              </Typography>
+              <Ionicons name="arrow-forward" size={18} color={colors.primary} />
+            </AnimatedButton>
+          </Card>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
 
   // Guests / anonymous users have no tier yet.
   if (!userDoc) {
@@ -51,6 +129,8 @@ export function TierProgress({ userDoc }: TierProgressProps) {
             Sign in
           </Typography>
         </AnimatedButton>
+        {InfoButton}
+        {InfoModal}
       </Card>
     );
   }
@@ -81,7 +161,12 @@ export function TierProgress({ userDoc }: TierProgressProps) {
           </Typography>
         </View>
         {!isMax && nextTier && (
-          <Typography variant="caption" weight="semiBold" color={colors.primary}>
+          <Typography
+            variant="caption"
+            weight="semiBold"
+            color={colors.primary}
+            style={{ marginRight: 28 }}
+          >
             {toNext} to {nextTier}
           </Typography>
         )}
@@ -105,6 +190,9 @@ export function TierProgress({ userDoc }: TierProgressProps) {
           ? 'Top tier reached — you’re a Guardian of your city.'
           : `Keep reporting and verifying to reach ${nextTier}.`}
       </Typography>
+
+      {InfoButton}
+      {InfoModal}
     </Card>
   );
 }
@@ -130,6 +218,47 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 16,
+  },
+  infoBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    padding: 4,
+    zIndex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalCardWrap: { width: '100%' },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  closeBtn: { padding: 4 },
+  tierGuideRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  tierBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  learnMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
     marginTop: 16,
   },
 });
