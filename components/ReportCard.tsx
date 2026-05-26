@@ -78,7 +78,17 @@ export function ReportCard({
 
       {/* Image */}
       {report.imageUrl ? (
-        <Image source={{ uri: report.imageUrl }} style={styles.cardImage} contentFit="cover" transition={300} />
+        <View>
+          <Image source={{ uri: report.imageUrl }} style={styles.cardImage} contentFit="cover" transition={300} />
+          {report.imageUrls && report.imageUrls.length > 1 && (
+            <View style={[styles.photoCountBadge, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+              <Ionicons name="copy" size={12} color="#FFFFFF" />
+              <Typography variant="caption" weight="bold" color="#FFFFFF">
+                +{report.imageUrls.length - 1}
+              </Typography>
+            </View>
+          )}
+        </View>
       ) : (
         <View style={[styles.cardImagePlaceholder, { backgroundColor: colors.background }]}>
           <Ionicons name="image-outline" size={32} color={colors.border} />
@@ -180,6 +190,17 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   cardImage: { width: '100%', height: 220 },
+  photoCountBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 9999,
+  },
   description: { lineHeight: 21 },
   cardImagePlaceholder: {
     width: '100%', height: 220, alignItems: 'center', justifyContent: 'center',

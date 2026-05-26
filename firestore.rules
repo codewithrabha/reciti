@@ -72,13 +72,17 @@ service cloud.firestore {
                             resource.data.createdAt + duration.value(1, 'h');
 
       // Fields that never change once a report is created. Every update
-      // predicate composes this in.
+      // predicate composes this in. `imageUrls` is locked too, and the
+      // equality handles old reports (missing the field) and new reports
+      // (multi-photo array) the same way — only identical-or-both-absent
+      // passes.
       function reportImmutables() {
         let before = resource.data;
         let after  = request.resource.data;
         return after.reportId    == before.reportId
             && after.reporterId  == before.reporterId
             && after.imageUrl    == before.imageUrl
+            && after.imageUrls   == before.imageUrls
             && after.vibe        == before.vibe
             && after.category    == before.category
             && after.latitude    == before.latitude

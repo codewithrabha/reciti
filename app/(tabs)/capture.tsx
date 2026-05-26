@@ -32,6 +32,7 @@ type Category = 'waste' | 'traffic' | 'infrastructure';
 
 const GRADIENT = ['#34D399', '#10B981', '#059669'] as const;
 const DESCRIPTION_MAX = 280;
+const MAX_PHOTOS = 3;
 
 const CATEGORIES: { label: string; value: Category; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: 'Waste', value: 'waste', icon: 'trash-outline' },
@@ -60,12 +61,13 @@ export default function CaptureScreen() {
   const router = useRouter();
   const { colors, spacing, radii, isDark } = useTheme();
 
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const [vibe, setVibe] = useState<Vibe>('fail');
   const [category, setCategory] = useState<Category>('waste');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showPhotosSheet, setShowPhotosSheet] = useState(false);
   const [submitted, setSubmitted] = useState<Submitted | null>(null);
 
   type LocStatus = 'idle' | 'fetching' | 'ready' | 'denied' | 'error';
@@ -105,16 +107,17 @@ export default function CaptureScreen() {
     }
   }, []);
 
-  // Detect location when a photo is added; clear when the photo is removed.
+  // Detect location when the first photo is added; clear when all are removed.
+  const hasAnyPhoto = imageUris.length > 0;
   useEffect(() => {
-    if (imageUri && locStatus === 'idle') {
+    if (hasAnyPhoto && locStatus === 'idle') {
       detectLocation();
-    } else if (!imageUri) {
+    } else if (!hasAnyPhoto) {
       setCoords(null);
       setCity(null);
       setLocStatus('idle');
     }
-  }, [imageUri, locStatus, detectLocation]);
+  }, [hasAnyPhoto, locStatus, detectLocation]);
 
   /**
    * On Android the OS can destroy this Activity while the camera is open. When
@@ -131,7 +134,8 @@ export default function CaptureScreen() {
         !pending.canceled &&
         pending.assets?.[0]?.uri
       ) {
-        setImageUri(pending.assets[0].uri);
+        const uri = pending.assets[0].uri;
+        setImageUris((prev) => (prev.length >= MAX_PHOTOS ? prev : [...prev, uri]));
       }
     } catch (e) {
       console.warn('[capture] Failed to recover pending camera photo:', e);
@@ -143,19 +147,26 @@ export default function CaptureScreen() {
     recoverPendingPhoto();
   }, [recoverPendingPhoto]);
 
+  const appendPhoto = (uri: string) => {
+    setImageUris((prev) => (prev.length >= MAX_PHOTOS ? prev : [...prev, uri]));
+  };
+
+  const removePhotoAt = (index: number) => {
+    setImageUris((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleTakePhoto = async () => {
+    if (imageUris.length >= MAX_PHOTOS) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
       Alert.alert('Permission required', 'Please grant camera access in Settings.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [4, 3],
       quality: 1,
     });
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      appendPhoto(result.assets[0].uri);
       return;
     }
     // Canceled may mean the Activity was killed mid-capture — try to recover.
@@ -163,22 +174,35 @@ export default function CaptureScreen() {
   };
 
   const handlePickImage = async () => {
+    if (imageUris.length >= MAX_PHOTOS) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert('Permission required', 'Please grant photo library access in Settings.');
       return;
     }
+    const remaining = MAX_PHOTOS - imageUris.length;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [4, 3],
       quality: 1,
+      allowsMultipleSelection: remaining > 1,
+      selectionLimit: remaining,
     });
-    if (!result.canceled) setImageUri(result.assets[0].uri);
+    if (!result.canceled) {
+      const uris = result.assets.map((a) => a.uri).slice(0, remaining);
+      setImageUris((prev) => [...prev, ...uris].slice(0, MAX_PHOTOS));
+    }
+  };
+
+  const promptAddPhoto = () => {
+    Alert.alert('Add photo', undefined, [
+      { text: 'Camera', onPress: handleTakePhoto },
+      { text: 'Gallery', onPress: handlePickImage },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const handleSubmit = async () => {
-    if (!imageUri) {
+    if (imageUris.length === 0) {
       Alert.alert('Add a photo', 'Capture or pick a photo of what you spotted first.');
       return;
     }
@@ -215,21 +239,25 @@ export default function CaptureScreen() {
       const { latitude, longitude } = resolvedCoords;
       const geohash = geohashForLocation([latitude, longitude]);
 
-      const context = ImageManipulator.manipulate(imageUri);
-      context.resize({ width: 1024 });
-      const imageRef = await context.renderAsync();
-      const compressed = await imageRef.saveAsync({
-        format: SaveFormat.JPEG,
-        compress: 0.7,
-      });
-
       const storageId = `${user.uid}_${Date.now()}`;
-      const imageUrl = await uploadImage(compressed.uri, `reports/${storageId}.jpg`);
+      const uploadedUrls = await Promise.all(
+        imageUris.map(async (localUri, i) => {
+          const ctx = ImageManipulator.manipulate(localUri);
+          ctx.resize({ width: 1024 });
+          const ref = await ctx.renderAsync();
+          const compressed = await ref.saveAsync({
+            format: SaveFormat.JPEG,
+            compress: 0.7,
+          });
+          return uploadImage(compressed.uri, `reports/${storageId}_${i}.jpg`);
+        }),
+      );
 
       const trimmedDescription = description.trim();
       const reportId = await createReport({
         reporterId: user.uid,
-        imageUrl,
+        imageUrl: uploadedUrls[0],
+        imageUrls: uploadedUrls,
         vibe,
         category,
         latitude,
@@ -240,7 +268,7 @@ export default function CaptureScreen() {
       });
 
       setSubmitted({ category, vibe, reportId });
-      setImageUri(null);
+      setImageUris([]);
       setDescription('');
       setShowModal(true);
     } catch (error) {
@@ -260,7 +288,7 @@ export default function CaptureScreen() {
     }
   };
 
-  const submitDisabled = loading || !imageUri;
+  const submitDisabled = loading || imageUris.length === 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -288,36 +316,57 @@ export default function CaptureScreen() {
           </AnimatedButton>
         )}
 
-        {/* Photo hero */}
-        {imageUri ? (
-          <View
-            style={[
-              styles.photoFilled,
-              { borderRadius: radii.lg, backgroundColor: colors.surface },
-            ]}
-          >
+        {/* Photo zone — only the cover photo is shown inline; extras live in the sheet. */}
+        {imageUris.length > 0 ? (
+          <View style={[styles.photoFilled, { borderRadius: radii.lg, backgroundColor: colors.surface }]}>
             <Image
-              source={{ uri: imageUri }}
+              source={{ uri: imageUris[0] }}
               style={[styles.photoImage, { borderRadius: radii.lg }]}
               contentFit="cover"
             />
             <AnimatedButton
-              onPress={() => setImageUri(null)}
+              onPress={() => removePhotoAt(0)}
               hapticFeedback="medium"
               style={styles.removeBtn}
             >
               <Ionicons name="close-circle" size={30} color={colors.danger} />
             </AnimatedButton>
-            <AnimatedButton
-              onPress={handlePickImage}
-              hapticFeedback="light"
-              style={[styles.replaceBtn, { backgroundColor: colors.glassBackground }]}
-            >
-              <Ionicons name="camera-reverse-outline" size={16} color={colors.text} />
-              <Typography variant="caption" weight="semiBold">
-                Change
-              </Typography>
-            </AnimatedButton>
+            <View style={styles.coverBtnRow}>
+              <AnimatedButton
+                onPress={handlePickImage}
+                hapticFeedback="light"
+                style={[styles.replaceBtn, { backgroundColor: colors.glassBackground }]}
+              >
+                <Ionicons name="camera-reverse-outline" size={16} color={colors.text} />
+                <Typography variant="caption" weight="semiBold">
+                  Change
+                </Typography>
+              </AnimatedButton>
+              {imageUris.length < MAX_PHOTOS && (
+                <AnimatedButton
+                  onPress={promptAddPhoto}
+                  hapticFeedback="light"
+                  style={[styles.replaceBtn, { backgroundColor: colors.glassBackground }]}
+                >
+                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Typography variant="caption" weight="semiBold" color={colors.primary}>
+                    Add another
+                  </Typography>
+                </AnimatedButton>
+              )}
+              {imageUris.length >= 2 && (
+                <AnimatedButton
+                  onPress={() => setShowPhotosSheet(true)}
+                  hapticFeedback="light"
+                  style={[styles.replaceBtn, { backgroundColor: colors.glassBackground }]}
+                >
+                  <Ionicons name="images" size={16} color={colors.text} />
+                  <Typography variant="caption" weight="semiBold">
+                    {imageUris.length}
+                  </Typography>
+                </AnimatedButton>
+              )}
+            </View>
           </View>
         ) : (
           <View
@@ -364,7 +413,7 @@ export default function CaptureScreen() {
         )}
 
         {/* Location chip — appears once a photo is selected */}
-        {imageUri && (
+        {hasAnyPhoto && (
           <AnimatedButton
             onPress={detectLocation}
             hapticFeedback="light"
@@ -662,6 +711,69 @@ export default function CaptureScreen() {
           </Card>
         </BlurView>
       </Modal>
+
+      {/* Photos sheet — manage all attached photos. */}
+      <Modal
+        transparent
+        visible={showPhotosSheet}
+        animationType="fade"
+        onRequestClose={() => setShowPhotosSheet(false)}
+      >
+        <BlurView intensity={20} tint="dark" style={styles.modalOverlay}>
+          <Card style={styles.modalCard} padding="lg">
+            <View style={styles.sheetHeader}>
+              <Typography variant="h2" weight="bold">
+                Photos
+              </Typography>
+              <Typography variant="body" color={colors.textMuted}>
+                {imageUris.length}/{MAX_PHOTOS}
+              </Typography>
+            </View>
+
+            <View style={styles.sheetList}>
+              {imageUris.map((uri, i) => (
+                <View
+                  key={`${uri}-${i}`}
+                  style={[styles.sheetRow, { backgroundColor: colors.background, borderRadius: radii.md }]}
+                >
+                  <Image source={{ uri }} style={styles.sheetThumb} contentFit="cover" />
+                  <View style={{ flex: 1 }}>
+                    <Typography variant="body" weight="semiBold">
+                      Photo {i + 1}
+                    </Typography>
+                    {i === 0 && (
+                      <Typography variant="caption" color={colors.primary} weight="semiBold">
+                        Cover
+                      </Typography>
+                    )}
+                  </View>
+                  <AnimatedButton
+                    onPress={() => {
+                      const nextCount = imageUris.length - 1;
+                      removePhotoAt(i);
+                      if (nextCount < 2) setShowPhotosSheet(false);
+                    }}
+                    hapticFeedback="medium"
+                    style={[styles.sheetRemove, { backgroundColor: colors.dangerMuted, borderRadius: radii.full }]}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  </AnimatedButton>
+                </View>
+              ))}
+            </View>
+
+            <AnimatedButton
+              onPress={() => setShowPhotosSheet(false)}
+              hapticFeedback="light"
+              style={styles.modalDone}
+            >
+              <Typography variant="body" weight="semiBold" color={colors.textMuted} align="center">
+                Done
+              </Typography>
+            </AnimatedButton>
+          </Card>
+        </BlurView>
+      </Modal>
     </View>
   );
 }
@@ -709,10 +821,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
   },
-  replaceBtn: {
+  coverBtnRow: {
     position: 'absolute',
     bottom: 8,
     right: 8,
+    flexDirection: 'row',
+    gap: 6,
+  },
+  replaceBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -822,4 +938,26 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalDone: { paddingVertical: 12, marginTop: 4 },
+  sheetHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sheetList: { width: '100%', gap: 8 },
+  sheetRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 8,
+  },
+  sheetThumb: { width: 56, height: 56, borderRadius: 8 },
+  sheetRemove: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

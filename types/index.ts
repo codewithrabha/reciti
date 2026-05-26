@@ -22,7 +22,12 @@ export type ReportStatus =
 export interface Report {
   reportId: string;
   reporterId: string;
+  // Canonical first photo — always set. Pre-existing single-photo reports
+  // only have this field; new reports also set `imageUrls`.
   imageUrl: string;
+  // Full ordered list of attached photos (1–3). Optional for backwards
+  // compatibility with old reports written before multi-photo support.
+  imageUrls?: string[];
   vibe: 'win' | 'fail';
   category: 'waste' | 'traffic' | 'infrastructure';
   status: ReportStatus;

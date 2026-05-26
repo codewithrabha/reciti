@@ -180,6 +180,7 @@ export default function ReportDetailScreen() {
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const [scrolled, setScrolled] = useState(false);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -622,25 +623,56 @@ export default function ReportDetailScreen() {
         }}
       >
         {/* Hero */}
-        <View style={styles.hero}>
-          {report.imageUrl ? (
-            <Image
-              source={{ uri: report.imageUrl }}
-              style={styles.heroImage}
-              contentFit="cover"
-              transition={300}
-            />
-          ) : (
-            <View style={[styles.heroImage, styles.center, { backgroundColor: colors.surface }]}>
-              <Ionicons name="image-outline" size={48} color={colors.border} />
-            </View>
-          )}
-          <View style={[styles.statusPill, { backgroundColor: status.color, bottom: 16 }]}>
-            <Typography variant="caption" weight="bold" color="#FFFFFF">
-              {status.label}
-            </Typography>
-          </View>
-        </View>
+        {(() => {
+          const gallery = report.imageUrls && report.imageUrls.length > 0
+            ? report.imageUrls
+            : (report.imageUrl ? [report.imageUrl] : []);
+          const safeIdx = Math.min(activeImageIdx, Math.max(0, gallery.length - 1));
+          const heroUrl = gallery[safeIdx];
+          return (
+            <>
+              <View style={styles.hero}>
+                {heroUrl ? (
+                  <Image
+                    source={{ uri: heroUrl }}
+                    style={styles.heroImage}
+                    contentFit="cover"
+                    transition={300}
+                  />
+                ) : (
+                  <View style={[styles.heroImage, styles.center, { backgroundColor: colors.surface }]}>
+                    <Ionicons name="image-outline" size={48} color={colors.border} />
+                  </View>
+                )}
+                <View style={[styles.statusPill, { backgroundColor: status.color, bottom: 16 }]}>
+                  <Typography variant="caption" weight="bold" color="#FFFFFF">
+                    {status.label}
+                  </Typography>
+                </View>
+              </View>
+              {gallery.length > 1 && (
+                <View style={[styles.thumbStrip, { backgroundColor: colors.background }]}>
+                  {gallery.map((url, i) => {
+                    const active = i === safeIdx;
+                    return (
+                      <AnimatedButton
+                        key={`${url}-${i}`}
+                        onPress={() => setActiveImageIdx(i)}
+                        hapticFeedback="light"
+                        style={[
+                          styles.thumbBtn,
+                          { borderColor: active ? colors.primary : 'transparent' },
+                        ]}
+                      >
+                        <Image source={{ uri: url }} style={styles.thumbImg} contentFit="cover" />
+                      </AnimatedButton>
+                    );
+                  })}
+                </View>
+              )}
+            </>
+          );
+        })()}
 
         <View style={styles.body}>
           {/* Meta */}
@@ -765,6 +797,20 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 140 },
   hero: { position: 'relative' },
   heroImage: { width: '100%', height: 290 },
+  thumbStrip: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  thumbBtn: {
+    flex: 1,
+    aspectRatio: 4 / 3,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+  },
+  thumbImg: { width: '100%', height: '100%' },
   stickyHeader: {
     position: 'absolute',
     top: 0,
