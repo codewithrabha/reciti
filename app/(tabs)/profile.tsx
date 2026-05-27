@@ -2,10 +2,13 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   RefreshControl,
   StyleSheet,
+  TextInput,
   View,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { LegendList } from '@legendapp/list';
 
 import { useUser, useUserDoc, useRefreshUserDoc } from '@/hooks/useAuth';
-import { signOut } from '@/lib/auth';
+import { signOut, updateDisplayName } from '@/lib/auth';
 import { getLeaderboard, getUserReports } from '@/lib/db';
 import { Report, ReportStatus, User } from '@/types';
 import { TierProgress } from '@/components/pulse/TierProgress';
@@ -118,6 +121,9 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [savingName, setSavingName] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!user || user.isAnonymous) return;
@@ -165,6 +171,38 @@ export default function ProfileScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: handleSignOut },
     ]);
+  };
+
+  const openNameEditor = () => {
+    setNameDraft(userDoc?.displayName ?? user?.displayName ?? '');
+    setEditingName(true);
+  };
+
+  const cancelNameEditor = () => {
+    if (savingName) return;
+    setEditingName(false);
+  };
+
+  const saveName = async () => {
+    const trimmed = nameDraft.trim();
+    if (!trimmed) {
+      Alert.alert('Name required', 'Display name cannot be empty.');
+      return;
+    }
+    if (trimmed.length > 30) {
+      Alert.alert('Too long', 'Display name must be 30 characters or fewer.');
+      return;
+    }
+    setSavingName(true);
+    try {
+      await updateDisplayName(trimmed);
+      await refreshUserDoc();
+      setEditingName(false);
+    } catch {
+      Alert.alert('Error', "Couldn't update your name. Please try again.");
+    } finally {
+      setSavingName(false);
+    }
   };
 
   /* ----------------------------- guest state ----------------------------- */
@@ -339,9 +377,17 @@ export default function ProfileScreen() {
             </View>
           )}
           <View style={styles.headerText}>
-            <Typography variant="h3" weight="bold" numberOfLines={1}>
-              {name}
-            </Typography>
+            <AnimatedButton
+              onPress={openNameEditor}
+              hapticFeedback="light"
+              scaleTo={0.98}
+              style={styles.nameRow}
+            >
+              <Typography variant="h3" weight="bold" numberOfLines={1} style={styles.nameText}>
+                {name}
+              </Typography>
+              <Ionicons name="pencil" size={14} color={colors.textMuted} />
+            </AnimatedButton>
             {!!user.email && (
               <Typography variant="caption" color={colors.textMuted} numberOfLines={1}>
                 {user.email}
@@ -389,6 +435,85 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.list}
       />
+
+      <Modal
+        transparent
+        visible={editingName}
+        animationType="fade"
+        onRequestClose={cancelNameEditor}
+      >
+        <BlurView intensity={20} tint="dark" style={styles.modalOverlay}>
+          <Card style={styles.modalCard} padding="lg">
+            <View style={styles.modalHeader}>
+              <Ionicons name="person-circle-outline" size={24} color={colors.primary} />
+              <Typography variant="h3" weight="bold" style={styles.modalTitle}>
+                Edit display name
+              </Typography>
+            </View>
+            <TextInput
+              value={nameDraft}
+              onChangeText={(t) => setNameDraft(t.slice(0, 30))}
+              placeholder="Your display name"
+              placeholderTextColor={colors.textMuted}
+              maxLength={30}
+              autoFocus
+              editable={!savingName}
+              style={[
+                styles.nameInput,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  borderRadius: radii.md,
+                  color: colors.text,
+                },
+              ]}
+            />
+            <Typography
+              variant="caption"
+              color={colors.textMuted}
+              style={styles.modalCounter}
+            >
+              {nameDraft.length}/30
+            </Typography>
+            <View style={styles.modalActions}>
+              <AnimatedButton
+                onPress={cancelNameEditor}
+                hapticFeedback="light"
+                disabled={savingName}
+                style={[
+                  styles.modalBtn,
+                  { borderColor: colors.border, borderWidth: 1.5, borderRadius: radii.md },
+                ]}
+              >
+                <Typography variant="body" weight="semiBold">
+                  Cancel
+                </Typography>
+              </AnimatedButton>
+              <AnimatedButton
+                onPress={saveName}
+                hapticFeedback="medium"
+                disabled={savingName || !nameDraft.trim()}
+                style={[
+                  styles.modalBtn,
+                  {
+                    backgroundColor:
+                      savingName || !nameDraft.trim() ? colors.border : colors.primary,
+                    borderRadius: radii.md,
+                  },
+                ]}
+              >
+                {savingName ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Typography variant="body" weight="bold" color="#FFFFFF">
+                    Save
+                  </Typography>
+                )}
+              </AnimatedButton>
+            </View>
+          </Card>
+        </BlurView>
+      </Modal>
     </View>
   );
 }
@@ -427,7 +552,36 @@ const styles = StyleSheet.create({
   avatar: { width: 60, height: 60, borderRadius: 30 },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1, gap: 2 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nameText: { flexShrink: 1 },
   signOutBtn: { padding: 8 },
+
+  // Edit-name modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalCard: { width: '100%' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  modalTitle: { flex: 1 },
+  nameInput: {
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 16,
+    fontSize: 16,
+  },
+  modalCounter: { marginTop: 6, textAlign: 'right' },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   // Sections
   sectionLabel: { letterSpacing: 1, marginTop: 24, marginBottom: 10 },

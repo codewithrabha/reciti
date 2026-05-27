@@ -91,6 +91,14 @@ export const signInWithGoogle = async () => {
   return user;
 };
 
+/** Update the current user's display name in both Firebase auth and Firestore. */
+export const updateDisplayName = async (displayName: string) => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error('Not signed in');
+  await updateProfile(currentUser, { displayName });
+  await createOrUpdateUserDoc(currentUser.uid, { displayName });
+};
+
 /** Sign out */
 export const signOut = async () => {
   // Sign out of Google too if signed in
