@@ -288,7 +288,7 @@ export default function CaptureScreen() {
     }
   };
 
-  const submitDisabled = loading || imageUris.length === 0;
+  const submitDisabled = loading || imageUris.length === 0 || locStatus === 'fetching';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
