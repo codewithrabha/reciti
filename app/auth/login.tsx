@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 20, paddingTop: 32, paddingBottom: 48 },
   backBtn: { alignSelf: 'flex-start', marginBottom: 8, padding: 4 },
-  hero: { alignItems: 'center', marginBottom: 28 },
+  hero: { alignItems: 'center',marginVertical: 25 },
   orb: {
     width: 88,
     height: 88,
@@ -462,5 +462,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-  guestBtn: { marginTop: 24, paddingVertical: 8 },
+  guestBtn: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,  
+  },
 });
