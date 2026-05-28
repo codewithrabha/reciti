@@ -394,18 +394,29 @@ export default function ProfileScreen() {
               </Typography>
             )}
           </View>
-          <AnimatedButton
-            onPress={confirmSignOut}
-            disabled={signingOut}
-            hapticFeedback="medium"
-            style={styles.signOutBtn}
-          >
-            {signingOut ? (
-              <ActivityIndicator size="small" color={colors.textMuted} />
-            ) : (
-              <Ionicons name="log-out-outline" size={24} color={colors.textMuted} />
-            )}
-          </AnimatedButton>
+          <View style={styles.headerActions}>
+            <AnimatedButton
+              onPress={() => router.push('/settings')}
+              hapticFeedback="light"
+              style={styles.iconBtn}
+              accessibilityLabel="Settings"
+            >
+              <Ionicons name="settings-outline" size={24} color={colors.textMuted} />
+            </AnimatedButton>
+            <AnimatedButton
+              onPress={confirmSignOut}
+              disabled={signingOut}
+              hapticFeedback="medium"
+              style={styles.iconBtn}
+              accessibilityLabel="Sign out"
+            >
+              {signingOut ? (
+                <ActivityIndicator size="small" color={colors.textMuted} />
+              ) : (
+                <Ionicons name="log-out-outline" size={24} color={colors.textMuted} />
+              )}
+            </AnimatedButton>
+          </View>
         </View>
       </View>
 
@@ -554,7 +565,8 @@ const styles = StyleSheet.create({
   headerText: { flex: 1, gap: 2 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   nameText: { flexShrink: 1 },
-  signOutBtn: { padding: 8 },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  iconBtn: { padding: 8 },
 
   // Edit-name modal
   modalOverlay: {

@@ -17,6 +17,7 @@ import {
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initAuthListener } from '@/store/authStore';
 import { OnboardingProvider, useOnboarding } from '@/hooks/useOnboarding';
+import { AppUpdateProvider } from '@/hooks/useAppUpdate';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -65,6 +66,7 @@ function RootNavigator() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <AppUpdateProvider>
         <Stack>
           {/*
             First launch is gated to onboarding. Both groups are guarded so the
@@ -85,7 +87,12 @@ function RootNavigator() {
           <Stack.Screen name="report/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
           <Stack.Screen name="tiers" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
+          <Stack.Screen name="terms" options={{ headerShown: false }} />
+          <Stack.Screen name="about" options={{ headerShown: false }} />
         </Stack>
+        </AppUpdateProvider>
         <StatusBar style="auto" />
       </ThemeProvider>
     </GestureHandlerRootView>
