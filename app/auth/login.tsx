@@ -166,14 +166,7 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <AnimatedButton
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hapticFeedback="light"
-          hitSlop={8}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </AnimatedButton>
+
 
         {/* Hero */}
         <View style={styles.hero}>
