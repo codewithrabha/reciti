@@ -687,12 +687,32 @@ async function resolveActor(uid: string): Promise<Pick<NotifPayload, 'fromUid' |
 
 export function subscribeToUnreadNotifCount(uid: string, cb: (n: number) => void) {
   const q = query(notificationsCol(uid), where('read', '==', false));
-  return onSnapshot(q, (snap) => cb(snap.size));
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.size),
+    (err) => {
+      // On sign-out the listener briefly outlives the auth session, so a
+      // permission-denied here is expected — ignore it. Surface anything else.
+      if (err.code !== 'permission-denied') {
+        console.warn('[db] unread-notif listener error:', err);
+      }
+      cb(0);
+    },
+  );
 }
 
 export function subscribeToNotifications(uid: string, cb: (list: Notification[]) => void) {
   const q = query(notificationsCol(uid), orderBy('createdAt', 'desc'), limit(50));
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as Notification)));
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => d.data() as Notification)),
+    (err) => {
+      if (err.code !== 'permission-denied') {
+        console.warn('[db] notifications listener error:', err);
+      }
+      cb([]);
+    },
+  );
 }
 
 export async function markNotificationRead(uid: string, notifId: string): Promise<void> {
