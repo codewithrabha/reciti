@@ -51,6 +51,7 @@ export default function PulseScreen() {
 
   const [coords, setCoords] = useState<Coords | null>(null);
   const [locationGranted, setLocationGranted] = useState(false);
+  const [locationResolved, setLocationResolved] = useState(false);
   const [stats, setStats] = useState<PulseStats | null>(null);
   const [pending, setPending] = useState<Report[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,6 +75,8 @@ export default function PulseScreen() {
       });
     } catch {
       setCoords(null);
+    } finally {
+      setLocationResolved(true);
     }
   }, []);
 
@@ -82,15 +85,19 @@ export default function PulseScreen() {
   }, [fetchLocation]);
 
   // Real-time pulse stats — re-subscribes when the area changes or on retry.
+  // Waits for location resolution so we subscribe once with the right area,
+  // instead of loading unscoped data then reloading once coords arrive.
   useEffect(() => {
+    if (!locationResolved) return;
     setStats(null);
     setError(false);
     const opts = coords ? { center: coords, radiusKm: RADIUS_KM } : {};
     return subscribeToPulseStats(setStats, opts, () => setError(true));
-  }, [coords, retryKey]);
+  }, [coords, retryKey, locationResolved]);
 
   // Real-time verification queue — top 3 pending reports, excluding the user's own.
   useEffect(() => {
+    if (!locationResolved) return;
     return subscribeToVerificationQueue(
       setPending,
       {
@@ -100,7 +107,7 @@ export default function PulseScreen() {
       },
       () => setError(true),
     );
-  }, [coords, user?.uid, retryKey]);
+  }, [coords, user?.uid, retryKey, locationResolved]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
