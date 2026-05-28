@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { LegendList } from '@legendapp/list';
 
 import { useUser, useUserDoc, useRefreshUserDoc } from '@/hooks/useAuth';
-import { signOut, updateDisplayName } from '@/lib/auth';
+import { updateDisplayName } from '@/lib/auth';
 import { getLeaderboard, getUserReports } from '@/lib/db';
 import { Report, ReportStatus, User } from '@/types';
 import { TierProgress } from '@/components/pulse/TierProgress';
@@ -119,7 +119,6 @@ export default function ProfileScreen() {
   const [leaderboard, setLeaderboard] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -155,23 +154,6 @@ export default function ProfileScreen() {
     setRefreshing(false);
   }, [loadData, refreshUserDoc]);
 
-  const handleSignOut = async () => {
-    setSigningOut(true);
-    try {
-      await signOut();
-    } catch {
-      Alert.alert('Error', 'Sign out failed. Please try again.');
-    } finally {
-      setSigningOut(false);
-    }
-  };
-
-  const confirmSignOut = () => {
-    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: handleSignOut },
-    ]);
-  };
 
   const openNameEditor = () => {
     setNameDraft(userDoc?.displayName ?? user?.displayName ?? '');
@@ -394,29 +376,14 @@ export default function ProfileScreen() {
               </Typography>
             )}
           </View>
-          <View style={styles.headerActions}>
-            <AnimatedButton
-              onPress={() => router.push('/settings')}
-              hapticFeedback="light"
-              style={styles.iconBtn}
-              accessibilityLabel="Settings"
-            >
-              <Ionicons name="settings-outline" size={24} color={colors.textMuted} />
-            </AnimatedButton>
-            <AnimatedButton
-              onPress={confirmSignOut}
-              disabled={signingOut}
-              hapticFeedback="medium"
-              style={styles.iconBtn}
-              accessibilityLabel="Sign out"
-            >
-              {signingOut ? (
-                <ActivityIndicator size="small" color={colors.textMuted} />
-              ) : (
-                <Ionicons name="log-out-outline" size={24} color={colors.textMuted} />
-              )}
-            </AnimatedButton>
-          </View>
+          <AnimatedButton
+            onPress={() => router.push('/settings')}
+            hapticFeedback="light"
+            style={styles.iconBtn}
+            accessibilityLabel="Settings"
+          >
+            <Ionicons name="settings-outline" size={24} color={colors.textMuted} />
+          </AnimatedButton>
         </View>
       </View>
 
@@ -565,7 +532,6 @@ const styles = StyleSheet.create({
   headerText: { flex: 1, gap: 2 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   nameText: { flexShrink: 1 },
-  headerActions: { flexDirection: 'row', alignItems: 'center' },
   iconBtn: { padding: 8 },
 
   // Edit-name modal

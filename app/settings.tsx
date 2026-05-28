@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
@@ -9,6 +9,8 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Card } from '@/components/ui/Card';
 import { Typography } from '@/components/ui/Typography';
 import { useAppUpdate } from '@/hooks/useAppUpdate';
+import { useUser } from '@/hooks/useAuth';
+import { signOut } from '@/lib/auth';
 import { useTheme } from '@/theme';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
@@ -62,6 +64,10 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { colors, spacing } = useTheme();
   const { checking, checkForUpdate } = useAppUpdate();
+  const user = useUser();
+  const [signingOut, setSigningOut] = useState(false);
+
+  const isSignedIn = !!user && !user.isAnonymous;
 
   const go = (href: Href) => () => router.push(href);
 
@@ -72,6 +78,24 @@ export default function SettingsScreen() {
     if (status === 'none') {
       Alert.alert("You're up to date", `ReCiti ${APP_VERSION} is the latest version.`);
     }
+  };
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+      router.back(); // back to Profile, which now shows the guest state
+    } catch {
+      Alert.alert('Error', 'Sign out failed. Please try again.');
+      setSigningOut(false);
+    }
+  };
+
+  const confirmSignOut = () => {
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: handleSignOut },
+    ]);
   };
 
   return (
@@ -138,6 +162,37 @@ export default function SettingsScreen() {
             isLast
           />
         </Card>
+
+        {isSignedIn && (
+          <>
+            <Typography
+              variant="caption"
+              weight="bold"
+              color={colors.textMuted}
+              style={styles.sectionLabel}
+            >
+              ACCOUNT
+            </Typography>
+            <Card padding="none">
+              <AnimatedButton
+                onPress={confirmSignOut}
+                hapticFeedback="medium"
+                scaleTo={0.99}
+                disabled={signingOut}
+                style={styles.row}
+                accessibilityLabel="Sign out"
+              >
+                <View style={[styles.rowIcon, { backgroundColor: colors.dangerMuted }]}>
+                  <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+                </View>
+                <Typography variant="body" weight="medium" color={colors.danger} style={{ flex: 1 }}>
+                  Sign out
+                </Typography>
+                {signingOut && <ActivityIndicator size="small" color={colors.danger} />}
+              </AnimatedButton>
+            </Card>
+          </>
+        )}
 
         {/* Footer */}
         <View style={[styles.footer, { marginTop: spacing.xl }]}>

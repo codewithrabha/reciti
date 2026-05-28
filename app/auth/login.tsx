@@ -33,6 +33,7 @@ type FieldErrors = {
   email?: string;
   password?: string;
   confirmPassword?: string;
+  terms?: string;
 };
 
 const GRADIENT = ['#34D399', '#10B981', '#059669'] as const;
@@ -69,6 +70,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [accepted, setAccepted] = useState(false);
 
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -116,6 +118,9 @@ export default function LoginScreen() {
     if (isSignup && confirmPassword !== password) {
       next.confirmPassword = 'Passwords don’t match.';
     }
+    if (isSignup && !accepted) {
+      next.terms = 'Please accept the Privacy Policy and Terms to continue.';
+    }
 
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -141,6 +146,15 @@ export default function LoginScreen() {
   };
 
   const handleGoogleSignIn = async () => {
+    // Google can create an account on first use, so require consent on the
+    // Create Account tab (where the checkbox is shown).
+    if (isSignup && !accepted) {
+      setErrors((prev) => ({
+        ...prev,
+        terms: 'Please accept the Privacy Policy and Terms to continue.',
+      }));
+      return;
+    }
     setFormError(null);
     setGoogleLoading(true);
     try {
@@ -295,6 +309,70 @@ export default function LoginScreen() {
             </Animated.View>
           )}
 
+          {isSignup && (
+            <Animated.View
+              entering={FadeIn.duration(180)}
+              exiting={FadeOut.duration(120)}
+              style={styles.consentBlock}
+            >
+              <AnimatedButton
+                onPress={() => {
+                  setAccepted((a) => !a);
+                  clearError('terms');
+                }}
+                hapticFeedback="light"
+                scaleTo={0.97}
+                style={styles.consentRow}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: accepted }}
+                accessibilityLabel="I agree to the Privacy Policy and Terms & Conditions"
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    {
+                      borderColor: errors.terms
+                        ? colors.danger
+                        : accepted
+                          ? colors.primary
+                          : colors.border,
+                      backgroundColor: accepted ? colors.primary : 'transparent',
+                      borderRadius: radii.sm,
+                    },
+                  ]}
+                >
+                  {accepted && <Ionicons name="checkmark" size={14} color={colors.white} />}
+                </View>
+                <Typography variant="caption" color={colors.textMuted} style={styles.consentText}>
+                  I agree to the{' '}
+                  <Typography
+                    variant="caption"
+                    weight="semiBold"
+                    color={colors.primary}
+                    onPress={() => router.push('/privacy-policy')}
+                  >
+                    Privacy Policy
+                  </Typography>
+                  {' '}and{' '}
+                  <Typography
+                    variant="caption"
+                    weight="semiBold"
+                    color={colors.primary}
+                    onPress={() => router.push('/terms')}
+                  >
+                    Terms &amp; Conditions
+                  </Typography>
+                  .
+                </Typography>
+              </AnimatedButton>
+              {!!errors.terms && (
+                <Typography variant="caption" color={colors.danger} style={styles.consentError}>
+                  {errors.terms}
+                </Typography>
+              )}
+            </Animated.View>
+          )}
+
           {!isSignup && (
             <Animated.View
               entering={FadeIn.duration(180)}
@@ -436,6 +514,18 @@ const styles = StyleSheet.create({
   tabIndicator: { position: 'absolute', top: 4, left: 4, bottom: 4 },
   tabBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', zIndex: 1 },
   forgotRow: { alignItems: 'flex-end', marginTop: -6, marginBottom: 10 },
+  consentBlock: { marginTop: 4, marginBottom: 6 },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  consentText: { flex: 1, lineHeight: 19 },
+  consentError: { marginTop: 6, marginLeft: 32 },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
