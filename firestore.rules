@@ -306,6 +306,31 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ─── deletionRequests ────────────────────────────────────────────────
+    // A signed-in user may file (or overwrite) ONLY their own deletion
+    // request, and only as 'pending'. They can read their own. Nothing is
+    // deletable from the client — requests are cleared once processed.
+    match /deletionRequests/{userId} {
+      allow create, update: if signedIn()
+                       && request.auth.uid == userId
+                       && request.resource.data.uid == userId
+                       && request.resource.data.status == 'pending';
+      allow read:   if signedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // ─── feedback ────────────────────────────────────────────────────────
+    // Any signed-in user may submit feedback as themselves. Not readable,
+    // updatable, or deletable from the client — reviewed in the console.
+    match /feedback/{feedbackId} {
+      allow create: if signedIn()
+                       && request.resource.data.uid == request.auth.uid
+                       && request.resource.data.message is string
+                       && request.resource.data.message.size() > 0
+                       && request.resource.data.message.size() <= 2000;
+      allow read, update, delete: if false;
+    }
+
     // Everything else is denied by default.
   }
 }

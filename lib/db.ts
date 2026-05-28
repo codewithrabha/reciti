@@ -726,3 +726,51 @@ export const submitTriviaAnswer = async (
   await updateDoc(userRef, updates);
   if (isCorrect) await awardPoints(uid, 5);
 };
+
+// ─── Account & feedback ──────────────────────────────────────────────────────
+
+/** Hard cap on a feedback message body. */
+export const FEEDBACK_MAX_LENGTH = 2000;
+
+/**
+ * Files (or overwrites) the caller's account-deletion request. There is no
+ * server to act on it on the free plan, so the actual data erasure is done
+ * out-of-band — this just records the intent. Doc id is the user's uid so a
+ * user can only ever have one pending request.
+ */
+export const requestAccountDeletion = async (
+  uid: string,
+  email: string | null,
+  displayName: string | null,
+): Promise<void> => {
+  await setDoc(doc(db, 'deletionRequests', uid), {
+    uid,
+    email: email ?? null,
+    displayName: displayName ?? null,
+    status: 'pending',
+    createdAt: Timestamp.now(),
+  });
+};
+
+/** Stores a piece of user feedback for the team to review in the console. */
+export const submitFeedback = async (
+  uid: string,
+  email: string | null,
+  displayName: string | null,
+  message: string,
+  appVersion: string,
+): Promise<void> => {
+  const trimmed = message.trim();
+  if (trimmed.length === 0) throw new Error('Feedback cannot be empty');
+  if (trimmed.length > FEEDBACK_MAX_LENGTH) throw new Error('Feedback too long');
+  const ref = doc(collection(db, 'feedback'));
+  await setDoc(ref, {
+    feedbackId: ref.id,
+    uid,
+    email: email ?? null,
+    displayName: displayName ?? null,
+    message: trimmed,
+    appVersion,
+    createdAt: Timestamp.now(),
+  });
+};
