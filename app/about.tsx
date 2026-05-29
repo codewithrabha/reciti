@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { Typography } from '@/components/ui/Typography';
 import { useTheme } from '@/theme';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
+const CONTACT_EMAIL = 'abhijitrabha.dev@gmail.com';
 
 const DOES: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
   { icon: 'camera', text: 'Capture civic wins and issues around you' },
@@ -118,6 +119,28 @@ export default function AboutScreen() {
           >
             <Typography variant="body" weight="medium" style={{ flex: 1 }}>
               Terms & Conditions
+            </Typography>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </AnimatedButton>
+        </Card>
+
+        {/* Contact */}
+        <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
+          CONTACT
+        </Typography>
+        <Card padding="none">
+          <AnimatedButton
+            onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)}
+            hapticFeedback="light"
+            scaleTo={0.99}
+            style={styles.linkRow}
+            accessibilityLabel={`Email ${CONTACT_EMAIL}`}
+          >
+            <View style={[styles.doIcon, { backgroundColor: colors.primaryMuted, marginRight: 12 }]}>
+              <Ionicons name="mail" size={16} color={colors.primary} />
+            </View>
+            <Typography variant="body" weight="medium" style={{ flex: 1 }}>
+              {CONTACT_EMAIL}
             </Typography>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </AnimatedButton>
