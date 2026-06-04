@@ -1,12 +1,23 @@
+import { Comment, Notification, NotificationType, Report, Tier, TriviaQuestion, User } from '@/types';
 import {
-  collection, doc, setDoc, getDoc, updateDoc, deleteDoc,
-  query, where, getDocs, Timestamp,
-  limit, onSnapshot, increment, orderBy,
-  runTransaction, writeBatch,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  increment,
+  limit, onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  setDoc,
+  Timestamp,
+  updateDoc,
+  where,
+  writeBatch,
 } from 'firebase/firestore';
 import { distanceBetween } from 'geofire-common';
 import { db } from './firebase';
-import { Comment, Notification, NotificationType, Report, User, TriviaQuestion, Tier } from '@/types';
 
 // Collections
 const REPORTS_COL = collection(db, 'reports');
@@ -40,6 +51,11 @@ export const COMMENT_THREAD_CAP = 100;
  */
 export const REPORT_GRACE_PERIOD_MS = 60 * 60 * 1000; // 1 hour
 
+// ─── Trivia Constants ──────────────────────────────────────────────────────
+
+/** 24 hours in milliseconds — users can re-answer a trivia after this window. */
+export const TRIVIA_RESET_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 // ─── Tier Calculation ────────────────────────────────────────────────────────
 export const getTierForPoints = (points: number): Tier => {
   if (points >= 10000) return 'Guardian';
@@ -69,7 +85,7 @@ export const createOrUpdateUserDoc = async (uid: string, partial: Partial<User>)
       photoURL: partial.photoURL ?? null,
       civicPoints: 0,
       tier: 'Tourist' as Tier,
-      completedDailyTrivia: [],
+      completedDailyTrivia: {},
     });
   } else {
     await updateDoc(userRef, partial as Record<string, unknown>);
@@ -630,17 +646,59 @@ export const getTodayTrivia = async (): Promise<TriviaQuestion | null> => {
   return snap.docs[0].data() as TriviaQuestion;
 };
 
-/** Fetches past trivia questions (before today), newest first — the knowledge archive. */
+/**
+ * Fetches all past trivia questions (before today), newest first — the knowledge archive.
+ * Includes the full history for new users to discover.
+ */
 export const getTriviaArchive = async (): Promise<TriviaQuestion[]> => {
   const today = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
   const q = query(
     TRIVIA_COL,
     where('activeDate', '<', today),
     orderBy('activeDate', 'desc'),
-    limit(30),
   );
   const snap = await getDocs(q);
   return snap.docs.map((d) => d.data() as TriviaQuestion);
+};
+
+/**
+ * Fetches the total count of all trivia questions (today's + archive).
+ */
+export const getTriviaCount = async (): Promise<number> => {
+  const today = new Date().toISOString().split('T')[0];
+  const allTrivia = await getDocs(TRIVIA_COL);
+  return allTrivia.size;
+};
+
+/**
+ * Get today's trivia, or if none exists, get the oldest unanswered trivia
+ * from the archive so new users can work through past trivia one per day.
+ */
+export const getTodayOrNextTrivia = async (userDoc?: User | null): Promise<TriviaQuestion | null> => {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // First, try to get today's dedicated trivia
+  const q = query(TRIVIA_COL, where('activeDate', '==', today), limit(1));
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    return snap.docs[0].data() as TriviaQuestion;
+  }
+  
+  // If no today's trivia, get the oldest unanswered trivia from archive
+  if (userDoc) {
+    const allTrivia = await getTriviaArchive(); // returns newest first
+    const answeredIds = Object.keys(userDoc.completedDailyTrivia ?? {});
+    
+    // Find the oldest (last in array since newest-first)
+    for (let i = allTrivia.length - 1; i >= 0; i--) {
+      const trivia = allTrivia[i];
+      if (!answeredIds.includes(trivia.id)) {
+        return trivia;
+      }
+    }
+  }
+  
+  return null;
 };
 
 // ─── Notifications ───────────────────────────────────────────────────────────
@@ -728,7 +786,21 @@ export async function markAllNotificationsRead(uid: string): Promise<void> {
   await batch.commit();
 }
 
-/** Submit a trivia answer. Awards +5 points if correct, marks as completed. */
+/**
+ * Checks if a trivia was answered in the past 24 hours (still in the reset window).
+ * Returns true if answered today; false if not answered or if >24 hours have passed.
+ */
+function isAnsweredToday(triviaId: string, completedDailyTrivia: Record<string, string>): boolean {
+  const answeredAtString = completedDailyTrivia[triviaId];
+  if (!answeredAtString) return false;
+  const answeredAt = new Date(answeredAtString).getTime();
+  return Date.now() - answeredAt < TRIVIA_RESET_WINDOW_MS;
+}
+
+/**
+ * Submit a trivia answer. Awards +5 points if correct AND not answered in the past 24 hours.
+ * Marks the answer timestamp (ISO string) so the user can re-answer after 24 hours.
+ */
 export const submitTriviaAnswer = async (
   uid: string,
   triviaId: string,
@@ -738,14 +810,26 @@ export const submitTriviaAnswer = async (
   const snap = await getDoc(userRef);
   if (!snap.exists()) return;
   const user = snap.data() as User;
-  if (user.completedDailyTrivia.includes(triviaId)) return; // already answered
+  
+  // Check if already answered within the 24-hour window
+  if (isAnsweredToday(triviaId, user.completedDailyTrivia)) {
+    return; // Already answered today — no points, no update
+  }
 
+  // Update the completion timestamp (ISO 8601 string)
   const updates: Record<string, unknown> = {
-    completedDailyTrivia: [...user.completedDailyTrivia, triviaId],
+    completedDailyTrivia: {
+      ...user.completedDailyTrivia,
+      [triviaId]: new Date().toISOString(),
+    },
   };
   await updateDoc(userRef, updates);
+  
+  // Award points only if correct
   if (isCorrect) await awardPoints(uid, 5);
 };
+
+export { isAnsweredToday };
 
 // ─── Account & feedback ──────────────────────────────────────────────────────
 

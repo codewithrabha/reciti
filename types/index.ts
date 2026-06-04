@@ -9,7 +9,7 @@ export interface User {
   photoURL: string | null;
   civicPoints: number;
   tier: Tier;
-  completedDailyTrivia: string[];
+  completedDailyTrivia: Record<string, string>;
 }
 
 export type ReportStatus =

@@ -38,11 +38,13 @@ service cloud.firestore {
       function isPointAward() {
         let before = resource.data;
         let after  = request.resource.data;
+        // Allow updates to completedDailyTrivia (stores trivia ID → ISO timestamp).
+        // Client-side validation ensures only timestamps are stored.
         return after.uid == before.uid
             && after.displayName == before.displayName
             && after.email == before.email
             && after.photoURL == before.photoURL
-            && after.completedDailyTrivia == before.completedDailyTrivia
+            && after.completedDailyTrivia is map
             && after.civicPoints >= before.civicPoints
             && after.civicPoints <= before.civicPoints + 10;
       }

@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Typography } from '@/components/ui/Typography';
-import { TriviaQuestion } from '@/types';
 import { useTheme } from '@/theme';
+import { TriviaQuestion } from '@/types';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -68,7 +68,7 @@ export function TriviaCard({
     if (!revealed) return null;
     if (selected === null) {
       return {
-        text: 'You answered this earlier — here’s the correct answer.',
+        text: 'You already answered this today — come back tomorrow to try again for points.',
         color: colors.textMuted,
         bg: colors.background,
         icon: 'information-circle' as const,

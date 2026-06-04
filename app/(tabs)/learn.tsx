@@ -1,21 +1,21 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LegendList } from '@legendapp/list';
+import { format } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { LegendList } from '@legendapp/list';
-import { format } from 'date-fns';
 
-import { TriviaQuestion } from '@/types';
-import { getTodayTrivia, getTriviaArchive, submitTriviaAnswer } from '@/lib/db';
-import { useUser, useUserDoc, useRefreshUserDoc } from '@/hooks/useAuth';
 import { TriviaCard } from '@/components/learn/TriviaCard';
+import { ArchiveCardSkeleton, TriviaTodaySkeleton } from '@/components/skeletons';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
 import { Typography } from '@/components/ui/Typography';
-import { ArchiveCardSkeleton, TriviaTodaySkeleton } from '@/components/skeletons';
+import { useRefreshUserDoc, useUser, useUserDoc } from '@/hooks/useAuth';
+import { getTodayOrNextTrivia, getTriviaArchive, getTriviaCount, isAnsweredToday, submitTriviaAnswer } from '@/lib/db';
 import { useTheme } from '@/theme';
+import { TriviaQuestion } from '@/types';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -69,12 +69,13 @@ export default function LearnScreen() {
   const [archive, setArchive] = useState<TriviaQuestion[]>([]);
   const [archiveLoading, setArchiveLoading] = useState(true);
   const [archiveError, setArchiveError] = useState(false);
+  const [totalTrivia, setTotalTrivia] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     setToday(undefined);
     setTodayError(false);
-    getTodayTrivia()
+    getTodayOrNextTrivia(userDoc)
       .then(setToday)
       .catch(() => setTodayError(true));
 
@@ -84,7 +85,9 @@ export default function LearnScreen() {
       .then(setArchive)
       .catch(() => setArchiveError(true))
       .finally(() => setArchiveLoading(false));
-  }, [retryKey]);
+    getTriviaCount()
+      .then(setTotalTrivia)
+      .catch(() => setTotalTrivia(0));  }, [retryKey]);
 
   const retry = () => setRetryKey((k) => k + 1);
 
@@ -97,9 +100,9 @@ export default function LearnScreen() {
     [user, today, refreshUserDoc],
   );
 
-  const answeredCount = userDoc?.completedDailyTrivia?.length ?? 0;
+  const answeredCount = userDoc?.completedDailyTrivia ? Object.keys(userDoc.completedDailyTrivia).length : 0;
   const alreadyCompleted =
-    !!today && !!userDoc && (userDoc.completedDailyTrivia ?? []).includes(today.id);
+    !!today && !!userDoc && isAnsweredToday(today.id, userDoc.completedDailyTrivia ?? {});
 
   // Only feed real rows to the list — error/loading states render via ListEmptyComponent.
   const archiveData = archiveError || archiveLoading ? NO_ARCHIVE : archive;
@@ -200,11 +203,11 @@ export default function LearnScreen() {
         <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.xs }}>
           Sharpen your civic knowledge, one question a day.
         </Typography>
-        {userDoc && (
+        {userDoc && totalTrivia > 0 && (
           <View style={[styles.statPill, { backgroundColor: colors.primaryMuted, borderRadius: radii.full }]}>
             <Ionicons name="school" size={14} color={colors.primary} />
             <Typography variant="caption" weight="bold" color={colors.primary}>
-              {answeredCount} question{answeredCount === 1 ? '' : 's'} answered
+              {answeredCount} of {totalTrivia} question{totalTrivia === 1 ? '' : 's'}
             </Typography>
           </View>
         )}
