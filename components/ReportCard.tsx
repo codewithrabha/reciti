@@ -42,6 +42,7 @@ export function ReportCard({
     <>
       {/* Header */}
       <View style={[styles.cardHeader, { padding: spacing.md }]}>
+        
         <View style={styles.cardHeaderLeft}>
           <View style={[styles.iconBadge, { backgroundColor: isWin ? colors.primaryMuted : colors.dangerMuted }]}>
             <Ionicons
@@ -50,6 +51,7 @@ export function ReportCard({
               color={isWin ? colors.primary : colors.danger}
             />
           </View>
+
           <View style={{ marginLeft: spacing.sm }}>
             <Typography variant="body" weight="semiBold">
               {report.category.charAt(0).toUpperCase() + report.category.slice(1)} {isWin ? 'Win' : 'Issue'}
@@ -65,15 +67,17 @@ export function ReportCard({
                 </>
               ) : null}
               <Typography variant="caption" color={colors.textMuted}>
-                {formatDistanceToNow(report.createdAt.toDate(), { addSuffix: true })}
+                {formatDistanceToNow(report.createdAt.toDate(), { addSuffix: false })}
               </Typography>
             </View>
           </View>
         </View>
+
         <Badge
           label={isWin ? '+ Civic Win' : '- Civic Fail'}
           variant={isWin ? 'primary' : 'danger'}
         />
+        
       </View>
 
       {/* Image */}
