@@ -86,7 +86,7 @@ export default function CaptureScreen() {
         return null;
       }
       const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+        accuracy: Location.Accuracy.Highest,
       });
       const { latitude, longitude } = pos.coords;
       setCoords({ latitude, longitude });
