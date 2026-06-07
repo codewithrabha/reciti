@@ -43,7 +43,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               size={30}
-              name={focused ? "planet" : "planet-outline"}
+              name={focused ? "earth" : "earth-outline"}
               color={color}
             />
           ),
