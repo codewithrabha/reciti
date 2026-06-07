@@ -297,15 +297,12 @@ export default function ExploreScreen() {
           renderItem={({ item }) => (
             <ReportCard
               report={item}
-              isRadarView={item.status === 'pending'}
               onPress={() =>
                 router.push({
                   pathname: '/report/[id]',
                   params: { id: item.reportId },
                 })
               }
-              onVerify={() => handleVerify(item.reportId)}
-              onFlag={() => handleFlag(item.reportId)}
             />
           )}
           showsVerticalScrollIndicator={false}

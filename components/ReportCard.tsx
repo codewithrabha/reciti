@@ -101,6 +101,7 @@ export function ReportCard({
 
       {/* Description preview */}
       {report.description ? (
+        <View style={{ padding: spacing.md }}>
         <Typography
           variant="body"
           color={colors.text}
@@ -109,6 +110,7 @@ export function ReportCard({
         >
           {report.description}
         </Typography>
+        </View>
       ) : null}
     </>
   );
