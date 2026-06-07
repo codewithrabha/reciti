@@ -1,30 +1,32 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
+import { geohashForLocation } from 'geofire-common';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { geohashForLocation } from 'geofire-common';
-import { useRouter } from 'expo-router';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { Card } from '@/components/ui/Card';
+import { Typography } from '@/components/ui/Typography';
 import { useUser } from '@/hooks/useAuth';
 import { createReport } from '@/lib/db';
 import { uploadImage } from '@/lib/storage';
-import { Typography } from '@/components/ui/Typography';
-import { Card } from '@/components/ui/Card';
-import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { useTheme } from '@/theme';
 
 type Vibe = 'win' | 'fail';
@@ -60,6 +62,7 @@ export default function CaptureScreen() {
   const user = useUser();
   const router = useRouter();
   const { colors, spacing, radii, isDark } = useTheme();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [vibe, setVibe] = useState<Vibe>('fail');
@@ -291,7 +294,10 @@ export default function CaptureScreen() {
   const submitDisabled = loading || imageUris.length === 0 || locStatus === 'fetching';
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
+    >
       {/* Header */}
       <View style={{ paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <Typography variant="h1">New report</Typography>
@@ -300,7 +306,11 @@ export default function CaptureScreen() {
         </Typography>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Anonymous notice */}
         {user?.isAnonymous && (
           <AnimatedButton
@@ -589,9 +599,11 @@ export default function CaptureScreen() {
             {description.length}/{DESCRIPTION_MAX}
           </Typography>
         </View>
+
         <TextInput
           value={description}
           onChangeText={(t) => setDescription(t.slice(0, DESCRIPTION_MAX))}
+          onFocus={() => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300)}
           placeholder="Add context the photo can't show — e.g. 'blocked drain floods when it rains'"
           placeholderTextColor={colors.textMuted}
           multiline
@@ -774,7 +786,7 @@ export default function CaptureScreen() {
           </Card>
         </BlurView>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
