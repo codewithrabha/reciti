@@ -190,7 +190,7 @@ export default function LoginScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.orb}
           >
-            <Ionicons name="planet" size={44} color="#FFFFFF" />
+            <Ionicons name="earth" size={44} color="#FFFFFF" />
           </LinearGradient>
           <Typography
             variant="h1"
