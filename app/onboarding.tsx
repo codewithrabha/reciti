@@ -147,13 +147,13 @@ function TierLadderVisual() {
 
 const SLIDES = [
   {
-    visual: <GradientOrb icon="planet" />,
+    visual: <GradientOrb icon="earth" />,
     headline: 'Welcome to ReCiti',
     body: 'Your city, in your hands. Spot the wins, flag the fails — one photo at a time.',
   },
   {
     visual: <StepsVisual />,
-    headline: 'Report. Verify. Resolve.',
+    headline: 'Spot. Report. Impact.',
     body: 'Capture a civic issue. Neighbours verify it. Track it until it’s fixed.',
   },
   {
@@ -162,7 +162,7 @@ const SLIDES = [
     body: 'Earn Civic Points for every report and verification. The more you care, the higher you climb.',
   },
   {
-    visual: <GradientOrb icon="location" />,
+    visual: <GradientOrb icon="map" />,
     headline: 'Ready to fix your city?',
     body: 'ReCiti uses your location to show reports near you and tag the issues you find.',
   },
@@ -192,18 +192,25 @@ export default function OnboardingScreen() {
     scrollRef.current?.scrollTo({ x: width * i, animated: true });
   };
 
-  const handleGetStarted = async () => {
-    // Pre-primed by slide 4 — ask for location before handing off to sign-in.
-    try {
-      await Location.requestForegroundPermissionsAsync();
-    } catch {
-      // Permission flow failed/declined — continue regardless.
+const handleGetStarted = async () => {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === 'granted') {
+      // Permission granted, proceed to login
+      proceedToLogin();
+    } else {
+      // Permission denied/not yet granted, but still proceed
+      proceedToLogin();
     }
-    // Move to the (unprotected) auth screen first, then flip the guard so the
-    // onboarding screen drops out of the stack cleanly behind us.
-    router.replace('/auth/login');
-    await completeOnboarding();
-  };
+  } catch (error) {
+    proceedToLogin(); // Continue anyway on error
+  }
+};
+
+const proceedToLogin = async () => {
+  router.replace('/auth/login');
+  await completeOnboarding();
+};
 
   const handleExplore = async () => {
     // Completing onboarding flips the route guard, which lands the user in (tabs).
