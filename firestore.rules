@@ -95,13 +95,13 @@ service cloud.firestore {
       }
 
       // Verify: any signed-in user appends own uid to verifiedBy. At the
-      // 10-verifier threshold the status flips pending → verified and
+      // 3-verifier threshold the status flips pending → verified and
       // verifiedAt is set.
       function isVerifyUpdate() {
         let before = resource.data;
         let after  = request.resource.data;
         let nextVerified = before.verifiedBy.concat([request.auth.uid]);
-        let flipping = nextVerified.size() >= 10 && before.status == 'pending';
+        let flipping = nextVerified.size() >= 3 && before.status == 'pending';
         return reportImmutables()
             && before.status == 'pending'
             && !(request.auth.uid in before.verifiedBy)
