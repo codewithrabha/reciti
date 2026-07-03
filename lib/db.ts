@@ -1,20 +1,20 @@
 import { Comment, Notification, NotificationType, Report, Tier, TriviaQuestion, User } from '@/types';
 import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  increment,
-  limit, onSnapshot,
-  orderBy,
-  query,
-  runTransaction,
-  setDoc,
-  Timestamp,
-  updateDoc,
-  where,
-  writeBatch,
+    collection,
+    deleteDoc,
+    doc,
+    getDoc,
+    getDocs,
+    increment,
+    limit, onSnapshot,
+    orderBy,
+    query,
+    runTransaction,
+    setDoc,
+    Timestamp,
+    updateDoc,
+    where,
+    writeBatch,
 } from 'firebase/firestore';
 import { distanceBetween } from 'geofire-common';
 import { db } from './firebase';
@@ -27,7 +27,7 @@ const TRIVIA_COL = collection(db, 'trivia');
 // ─── Report lifecycle constants ──────────────────────────────────────────────
 
 /** A report becomes `verified` once this many neighbours verify it. */
-export const VERIFICATION_THRESHOLD = 10;
+export const VERIFICATION_THRESHOLD = 3;
 
 /** A submitted fix becomes `resolved` once this many verifiers confirm it. */
 export const RESOLUTION_CONFIRMATION_THRESHOLD = 6;
