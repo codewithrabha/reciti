@@ -220,12 +220,39 @@ const pruneExpired = (reports: Report[]): Report[] => {
   return live;
 };
 
+const syncedReportCommentCounts = new Set<string>();
+
+/**
+ * Lazily fetches and backfills comment counts for legacy reports missing `commentCount`.
+ */
+export const ensureReportCommentCounts = async (reports: Report[]): Promise<void> => {
+  const missing = reports.filter(
+    (r) => r.commentCount === undefined && !syncedReportCommentCounts.has(r.reportId),
+  );
+  if (missing.length === 0) return;
+
+  await Promise.all(
+    missing.map(async (r) => {
+      syncedReportCommentCounts.add(r.reportId);
+      try {
+        const snap = await getDocs(query(commentsCol(r.reportId), limit(COMMENT_THREAD_CAP)));
+        const activeCount = snap.docs.filter((d) => !d.data().deletedAt).length;
+        r.commentCount = activeCount;
+        await updateDoc(doc(REPORTS_COL, r.reportId), { commentCount: activeCount });
+      } catch (e) {
+        console.warn('[db] comment count backfill failed for report:', r.reportId, e);
+      }
+    }),
+  );
+};
+
 /** Fetches all reports by a specific user */
 export const getUserReports = async (uid: string): Promise<Report[]> => {
   const q = query(REPORTS_COL, where('reporterId', '==', uid), limit(50));
   const snap = await getDocs(q);
   const reports = pruneExpired(snap.docs.map(d => d.data() as Report));
   reports.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  void ensureReportCommentCounts(reports);
   return reports;
 };
 
@@ -282,6 +309,7 @@ export const subscribeToReport = (
         onUpdate(null);
         return;
       }
+      void ensureReportCommentCounts([report]);
       onUpdate(report);
     },
     onError,
@@ -660,6 +688,7 @@ export const subscribeToExploreReports = (
         return true; // 'all'
       });
     reports.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    void ensureReportCommentCounts(reports);
     onUpdate(reports);
   }, onError);
 };

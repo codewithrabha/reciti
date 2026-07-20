@@ -252,13 +252,15 @@ service cloud.firestore {
             && getCommentCount(after)           == getCommentCount(before);
       }
 
-      // Comment count: increment by +1 or decrement by -1 when comments are added or deleted.
+      // Comment count: increment by +1 or decrement by -1 when comments are added or deleted,
+      // or backfill when commentCount is missing on legacy reports.
       function isCommentCountUpdate() {
         let before = resource.data;
         let after  = request.resource.data;
         let beforeCount = getCommentCount(before);
         let afterCount  = getCommentCount(after);
-        let isValidDelta = afterCount == beforeCount + 1 || (beforeCount > 0 && afterCount == beforeCount - 1);
+        let isLegacyBackfill = !('commentCount' in before) && afterCount >= 0;
+        let isValidDelta = isLegacyBackfill || afterCount == beforeCount + 1 || (beforeCount > 0 && afterCount == beforeCount - 1);
         return reportImmutables()
             && isValidDelta
             && after.status                 == before.status
