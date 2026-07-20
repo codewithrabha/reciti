@@ -75,6 +75,39 @@ service cloud.firestore {
                        && request.time >
                             resource.data.createdAt + duration.value(1, 'h');
 
+      // Helper functions for optional fields on legacy report documents.
+      function getUpvotedBy(d) {
+        return ('upvotedBy' in d && d.upvotedBy is list) ? d.upvotedBy : [];
+      }
+
+      function getCommentCount(d) {
+        return ('commentCount' in d && d.commentCount is number) ? d.commentCount : 0;
+      }
+
+      function getVerifiedAt(d) {
+        return ('verifiedAt' in d) ? d.verifiedAt : null;
+      }
+
+      function getResolvedImageUrl(d) {
+        return ('resolvedImageUrl' in d) ? d.resolvedImageUrl : null;
+      }
+
+      function getResolvedBy(d) {
+        return ('resolvedBy' in d) ? d.resolvedBy : null;
+      }
+
+      function getResolutionSubmittedAt(d) {
+        return ('resolutionSubmittedAt' in d) ? d.resolutionSubmittedAt : null;
+      }
+
+      function getResolutionConfirmedBy(d) {
+        return ('resolutionConfirmedBy' in d && d.resolutionConfirmedBy is list) ? d.resolutionConfirmedBy : [];
+      }
+
+      function getResolvedAt(d) {
+        return ('resolvedAt' in d) ? d.resolvedAt : null;
+      }
+
       // Fields that never change once a report is created. Every update
       // predicate composes this in. `imageUrls` is locked too, and the
       // equality handles old reports (missing the field) and new reports
@@ -111,15 +144,15 @@ service cloud.firestore {
             && after.flaggedBy  == before.flaggedBy
             && (
                  (flipping && after.status == 'verified' && after.verifiedAt is timestamp)
-                 || (!flipping && after.status == before.status && after.verifiedAt == before.verifiedAt)
+                 || (!flipping && after.status == before.status && getVerifiedAt(after) == getVerifiedAt(before))
                )
-            && after.resolvedImageUrl       == before.resolvedImageUrl
-            && after.resolvedBy             == before.resolvedBy
-            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
-            && after.resolutionConfirmedBy  == before.resolutionConfirmedBy
-            && after.resolvedAt             == before.resolvedAt
-            && after.upvotedBy              == before.upvotedBy
-            && after.commentCount           == before.commentCount;
+            && getResolvedImageUrl(after)       == getResolvedImageUrl(before)
+            && getResolvedBy(after)             == getResolvedBy(before)
+            && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
+            && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
+            && getResolvedAt(after)             == getResolvedAt(before)
+            && getUpvotedBy(after)              == getUpvotedBy(before)
+            && getCommentCount(after)           == getCommentCount(before);
       }
 
       // Flag: any signed-in user appends own uid to flaggedBy. At 2 flags
@@ -137,14 +170,14 @@ service cloud.firestore {
                  (flipping && after.status == 'archived')
                  || (!flipping && after.status == before.status)
                )
-            && after.verifiedAt             == before.verifiedAt
-            && after.resolvedImageUrl       == before.resolvedImageUrl
-            && after.resolvedBy             == before.resolvedBy
-            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
-            && after.resolutionConfirmedBy  == before.resolutionConfirmedBy
-            && after.resolvedAt             == before.resolvedAt
-            && after.upvotedBy              == before.upvotedBy
-            && after.commentCount           == before.commentCount;
+            && getVerifiedAt(after)             == getVerifiedAt(before)
+            && getResolvedImageUrl(after)       == getResolvedImageUrl(before)
+            && getResolvedBy(after)             == getResolvedBy(before)
+            && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
+            && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
+            && getResolvedAt(after)             == getResolvedAt(before)
+            && getUpvotedBy(after)              == getUpvotedBy(before)
+            && getCommentCount(after)           == getCommentCount(before);
       }
 
       // Submit fix: only the original reporter. Flips verified → in_progress
@@ -159,13 +192,13 @@ service cloud.firestore {
             && after.resolvedImageUrl is string
             && after.resolvedBy == request.auth.uid
             && after.resolutionSubmittedAt is timestamp
-            && after.resolutionConfirmedBy == []
-            && after.resolvedAt == before.resolvedAt
+            && getResolutionConfirmedBy(after) == []
+            && getResolvedAt(after) == getResolvedAt(before)
             && after.verifiedBy == before.verifiedBy
             && after.flaggedBy  == before.flaggedBy
-            && after.verifiedAt == before.verifiedAt
-            && after.upvotedBy  == before.upvotedBy
-            && after.commentCount == before.commentCount;
+            && getVerifiedAt(after) == getVerifiedAt(before)
+            && getUpvotedBy(after)  == getUpvotedBy(before)
+            && getCommentCount(after) == getCommentCount(before);
       }
 
       // Confirm fix: only neighbours in the original verifiedBy may confirm,
@@ -174,34 +207,35 @@ service cloud.firestore {
       function isConfirmResolution() {
         let before = resource.data;
         let after  = request.resource.data;
-        let nextConfirmed = before.resolutionConfirmedBy.concat([request.auth.uid]);
+        let beforeConfirmed = getResolutionConfirmedBy(before);
+        let nextConfirmed = beforeConfirmed.concat([request.auth.uid]);
         let flipping = nextConfirmed.size() >= 6;
         return reportImmutables()
             && before.status == 'in_progress'
             && (request.auth.uid in before.verifiedBy)
-            && request.auth.uid != before.resolvedBy
-            && !(request.auth.uid in before.resolutionConfirmedBy)
-            && after.resolutionConfirmedBy == nextConfirmed
+            && request.auth.uid != getResolvedBy(before)
+            && !(request.auth.uid in beforeConfirmed)
+            && getResolutionConfirmedBy(after) == nextConfirmed
             && (
                  (flipping && after.status == 'resolved' && after.resolvedAt is timestamp)
-                 || (!flipping && after.status == before.status && after.resolvedAt == before.resolvedAt)
+                 || (!flipping && after.status == before.status && getResolvedAt(after) == getResolvedAt(before))
                )
             && after.verifiedBy             == before.verifiedBy
             && after.flaggedBy              == before.flaggedBy
-            && after.verifiedAt             == before.verifiedAt
-            && after.resolvedImageUrl       == before.resolvedImageUrl
-            && after.resolvedBy             == before.resolvedBy
-            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
-            && after.upvotedBy              == before.upvotedBy
-            && after.commentCount           == before.commentCount;
+            && getVerifiedAt(after)             == getVerifiedAt(before)
+            && getResolvedImageUrl(after)       == getResolvedImageUrl(before)
+            && getResolvedBy(after)             == getResolvedBy(before)
+            && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
+            && getUpvotedBy(after)              == getUpvotedBy(before)
+            && getCommentCount(after)           == getCommentCount(before);
       }
 
       // Upvote: any signed-in user adds or removes own uid from upvotedBy.
       function isUpvoteUpdate() {
         let before = resource.data;
         let after  = request.resource.data;
-        let beforeUpvoted = 'upvotedBy' in before ? before.upvotedBy : [];
-        let afterUpvoted  = 'upvotedBy' in after ? after.upvotedBy : [];
+        let beforeUpvoted = getUpvotedBy(before);
+        let afterUpvoted  = getUpvotedBy(after);
         let isAdding   = !(request.auth.uid in beforeUpvoted) && afterUpvoted == beforeUpvoted.concat([request.auth.uid]);
         let isRemoving = (request.auth.uid in beforeUpvoted) && !(request.auth.uid in afterUpvoted) && afterUpvoted.size() == beforeUpvoted.size() - 1;
         return reportImmutables()
@@ -209,34 +243,34 @@ service cloud.firestore {
             && after.status                 == before.status
             && after.verifiedBy             == before.verifiedBy
             && after.flaggedBy              == before.flaggedBy
-            && after.verifiedAt             == before.verifiedAt
-            && after.resolvedImageUrl       == before.resolvedImageUrl
-            && after.resolvedBy             == before.resolvedBy
-            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
-            && after.resolutionConfirmedBy  == before.resolutionConfirmedBy
-            && after.resolvedAt             == before.resolvedAt
-            && after.commentCount           == before.commentCount;
+            && getVerifiedAt(after)             == getVerifiedAt(before)
+            && getResolvedImageUrl(after)       == getResolvedImageUrl(before)
+            && getResolvedBy(after)             == getResolvedBy(before)
+            && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
+            && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
+            && getResolvedAt(after)             == getResolvedAt(before)
+            && getCommentCount(after)           == getCommentCount(before);
       }
 
       // Comment count: increment by +1 or decrement by -1 when comments are added or deleted.
       function isCommentCountUpdate() {
         let before = resource.data;
         let after  = request.resource.data;
-        let beforeCount = 'commentCount' in before ? before.commentCount : 0;
-        let afterCount  = 'commentCount' in after ? after.commentCount : 0;
+        let beforeCount = getCommentCount(before);
+        let afterCount  = getCommentCount(after);
         let isValidDelta = afterCount == beforeCount + 1 || (beforeCount > 0 && afterCount == beforeCount - 1);
         return reportImmutables()
             && isValidDelta
             && after.status                 == before.status
             && after.verifiedBy             == before.verifiedBy
             && after.flaggedBy              == before.flaggedBy
-            && after.upvotedBy              == before.upvotedBy
-            && after.verifiedAt             == before.verifiedAt
-            && after.resolvedImageUrl       == before.resolvedImageUrl
-            && after.resolvedBy             == before.resolvedBy
-            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
-            && after.resolutionConfirmedBy  == before.resolutionConfirmedBy
-            && after.resolvedAt             == before.resolvedAt;
+            && getUpvotedBy(after)          == getUpvotedBy(before)
+            && getVerifiedAt(after)             == getVerifiedAt(before)
+            && getResolvedImageUrl(after)       == getResolvedImageUrl(before)
+            && getResolvedBy(after)             == getResolvedBy(before)
+            && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
+            && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
+            && getResolvedAt(after)             == getResolvedAt(before);
       }
     }
 
