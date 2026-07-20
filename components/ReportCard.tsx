@@ -163,7 +163,7 @@ export function ReportCard({
             style={styles.actionBtn}
           >
             <Ionicons
-              name={isUpvoted ? 'arrow-up-circle' : 'arrow-up-circle-outline'}
+              name={isUpvoted ? 'thumbs-up' : 'thumbs-up-outline'}
               size={22}
               color={isUpvoted ? colors.primary : colors.textMuted}
             />
