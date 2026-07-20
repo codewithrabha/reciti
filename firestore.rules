@@ -67,7 +67,8 @@ service cloud.firestore {
         isSubmitResolution() ||
         isConfirmResolution() ||
         isUpvoteUpdate() ||
-        isCommentCountUpdate()
+        isCommentCountUpdate() ||
+        isAddPhotoByReporter()
       );
       allow delete: if signedIn()
                        && resource.data.status == 'pending'
@@ -270,6 +271,42 @@ service cloud.firestore {
             && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
             && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
             && getResolvedAt(after)             == getResolvedAt(before);
+      }
+
+      // Add photo: report owner appends a photo URL to imageUrls (max 3 total).
+      function isAddPhotoByReporter() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        let beforeGallery = ('imageUrls' in before && before.imageUrls is list)
+            ? before.imageUrls
+            : [before.imageUrl];
+        let afterGallery = ('imageUrls' in after && after.imageUrls is list)
+            ? after.imageUrls
+            : [];
+        return request.auth.uid == before.reporterId
+            && after.reportId                == before.reportId
+            && after.reporterId              == before.reporterId
+            && after.imageUrl                == before.imageUrl
+            && after.vibe                    == before.vibe
+            && after.category                == before.category
+            && after.latitude                == before.latitude
+            && after.longitude               == before.longitude
+            && after.geohash                 == before.geohash
+            && after.createdAt               == before.createdAt
+            && after.description             == before.description
+            && afterGallery.size() > beforeGallery.size()
+            && afterGallery.size() <= 3
+            && after.status                 == before.status
+            && after.verifiedBy             == before.verifiedBy
+            && after.flaggedBy              == before.flaggedBy
+            && getUpvotedBy(after)          == getUpvotedBy(before)
+            && getVerifiedAt(after)             == getVerifiedAt(before)
+            && getResolvedImageUrl(after)       == getResolvedImageUrl(before)
+            && getResolvedBy(after)             == getResolvedBy(before)
+            && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
+            && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
+            && getResolvedAt(after)             == getResolvedAt(before)
+            && getCommentCount(after)           == getCommentCount(before);
       }
     }
 

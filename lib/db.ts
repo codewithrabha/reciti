@@ -172,6 +172,31 @@ export const toggleUpvoteReport = async (reportId: string, userId: string): Prom
   }
 };
 
+/**
+ * Allows the report owner to append an additional photo URL to their report (up to 3 photos total).
+ */
+export const addReportPhoto = async (
+  reportId: string,
+  userId: string,
+  newPhotoUrl: string,
+): Promise<string[]> => {
+  const reportRef = doc(db, 'reports', reportId);
+  const snap = await getDoc(reportRef);
+  if (!snap.exists()) throw new Error('Report not found');
+  const report = snap.data() as Report;
+  if (report.reporterId !== userId) throw new Error('Only the report owner can add photos');
+
+  const currentGallery = report.imageUrls && report.imageUrls.length > 0
+    ? report.imageUrls
+    : (report.imageUrl ? [report.imageUrl] : []);
+
+  if (currentGallery.length >= 3) throw new Error('Maximum 3 photos allowed per report');
+
+  const updatedImageUrls = [...currentGallery, newPhotoUrl];
+  await updateDoc(reportRef, { imageUrls: updatedImageUrls });
+  return updatedImageUrls;
+};
+
 // ─── Lazy cleanup of unverified reports ──────────────────────────────────────
 
 /** True once a pending report has sat with zero verifications past the grace period. */

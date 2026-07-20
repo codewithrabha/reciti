@@ -22,6 +22,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 import { Report } from '@/types';
 import {
+  addReportPhoto,
   confirmResolution,
   flagReport,
   getUserDoc,
@@ -182,6 +183,85 @@ export default function ReportDetailScreen() {
   const [retryKey, setRetryKey] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handleAddPhoto = () => {
+    if (!user || !report || user.uid !== report.reporterId) return;
+    const gallery = report.imageUrls && report.imageUrls.length > 0
+      ? report.imageUrls
+      : (report.imageUrl ? [report.imageUrl] : []);
+    if (gallery.length >= 3) {
+      Alert.alert('Limit Reached', 'You can upload a maximum of 3 photos per report.');
+      return;
+    }
+
+    Alert.alert(
+      'Add Photo',
+      'Choose how you would like to add a photo to your report:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Camera', onPress: () => pickImage('camera') },
+        { text: 'Photo Library', onPress: () => pickImage('library') },
+      ],
+    );
+  };
+
+  const pickImage = async (mode: 'camera' | 'library') => {
+    if (!user || !report) return;
+    try {
+      let res: ImagePicker.ImagePickerResult;
+      if (mode === 'camera') {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert('Permission needed', 'Camera access is required to take a photo.');
+          return;
+        }
+        res = await ImagePicker.launchCameraAsync({
+          quality: 0.8,
+          allowsEditing: true,
+        });
+      } else {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert('Permission needed', 'Photo library access is required to select a photo.');
+          return;
+        }
+        res = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.8,
+          allowsEditing: true,
+        });
+      }
+
+      if (res.canceled || !res.assets[0]?.uri) return;
+
+      setUploadingPhoto(true);
+      const localUri = res.assets[0].uri;
+
+      // Manipulate & compress image to 1024px
+      const manipulated = await ImageManipulator.manipulate(localUri)
+        .resize({ width: 1024 })
+        .renderAsync();
+      const saveRes = await manipulated.saveAsync({ compress: 0.8, format: SaveFormat.JPEG });
+
+      // Upload to Cloudinary
+      const cloudUrl = await uploadImage(
+        saveRes.uri,
+        `reports/${report.reportId}_photo_${Date.now()}.jpg`,
+      );
+
+      // Update Firestore report document
+      const updatedGallery = await addReportPhoto(report.reportId, user.uid, cloudUrl);
+
+      // Focus newly uploaded photo
+      setActiveImageIdx(updatedGallery.length - 1);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to upload photo';
+      Alert.alert('Upload Failed', msg);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -678,6 +758,9 @@ export default function ReportDetailScreen() {
             : (report.imageUrl ? [report.imageUrl] : []);
           const safeIdx = Math.min(activeImageIdx, Math.max(0, gallery.length - 1));
           const heroUrl = gallery[safeIdx];
+          const isReporter = user?.uid === report.reporterId;
+          const canAddPhoto = isReporter && gallery.length < 3 && report.status !== 'archived';
+          const showThumbStrip = gallery.length > 1 || canAddPhoto;
           return (
             <>
               <View style={styles.hero}>
@@ -699,7 +782,7 @@ export default function ReportDetailScreen() {
                   </Typography>
                 </View>
               </View>
-              {gallery.length > 1 && (
+              {showThumbStrip && (
                 <View style={[styles.thumbStrip, { backgroundColor: colors.background }]}>
                   {gallery.map((url, i) => {
                     const active = i === safeIdx;
@@ -717,6 +800,37 @@ export default function ReportDetailScreen() {
                       </AnimatedButton>
                     );
                   })}
+                  {canAddPhoto && (
+                    <AnimatedButton
+                      onPress={handleAddPhoto}
+                      disabled={uploadingPhoto}
+                      hapticFeedback="medium"
+                      style={[
+                        styles.thumbBtn,
+                        styles.addPhotoBtn,
+                        {
+                          borderColor: colors.primary,
+                          backgroundColor: colors.surface,
+                        },
+                      ]}
+                    >
+                      {uploadingPhoto ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                        <View style={styles.addPhotoIconContent}>
+                          <Ionicons name="camera-outline" size={24} color={colors.primary} />
+                          <Typography
+                            variant="caption"
+                            weight="bold"
+                            color={colors.primary}
+                            style={{ fontSize: 12, marginTop: 2 }}
+                          >
+                            + Photo
+                          </Typography>
+                        </View>
+                      )}
+                    </AnimatedButton>
+                  )}
                 </View>
               )}
             </>
@@ -853,13 +967,22 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   thumbBtn: {
-    flex: 1,
-    aspectRatio: 4 / 3,
+    width: 120,
+    aspectRatio: 4/3,
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 2,
   },
   thumbImg: { width: '100%', height: '100%' },
+  addPhotoBtn: {
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addPhotoIconContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   stickyHeader: {
     position: 'absolute',
     top: 0,
