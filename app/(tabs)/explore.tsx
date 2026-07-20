@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import {
   ExploreFilter,
   flagReport,
   subscribeToExploreReports,
+  toggleUpvoteReport,
   verifyReport,
 } from '@/lib/db';
 import { useUser } from '@/hooks/useAuth';
@@ -192,6 +193,20 @@ export default function ExploreScreen() {
   const handleFlag = async (reportId: string) => {
     if (user) await flagReport(reportId, user.uid);
   };
+  const handleUpvote = async (reportId: string) => {
+    if (!user || user.isAnonymous) {
+      Alert.alert(
+        'Account required',
+        'Sign in to upvote reports and earn Civic Points.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign in', onPress: () => router.push('/auth/login') },
+        ],
+      );
+      return;
+    }
+    await toggleUpvoteReport(reportId, user.uid);
+  };
 
   const nearActive = scope === 'near' && !!coords;
 
@@ -297,12 +312,17 @@ export default function ExploreScreen() {
           renderItem={({ item }) => (
             <ReportCard
               report={item}
+              onVerify={() => handleVerify(item.reportId)}
+              onFlag={() => handleFlag(item.reportId)}
+              onUpvote={() => handleUpvote(item.reportId)}
+              isUpvoted={!!user && (item.upvotedBy?.includes(user.uid) ?? false)}
               onPress={() =>
                 router.push({
                   pathname: '/report/[id]',
                   params: { id: item.reportId },
                 })
               }
+              isRadarView={filter === 'verify'}
             />
           )}
           showsVerticalScrollIndicator={false}

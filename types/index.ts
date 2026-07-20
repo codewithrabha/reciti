@@ -36,6 +36,8 @@ export interface Report {
   geohash: string;
   verifiedBy: string[];
   flaggedBy: string[];
+  upvotedBy?: string[];
+  commentCount?: number;
   createdAt: Timestamp;
 
   // Optional free-text context for when the image alone isn't enough.

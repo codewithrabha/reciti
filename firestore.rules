@@ -65,7 +65,9 @@ service cloud.firestore {
         isVerifyUpdate() ||
         isFlagUpdate() ||
         isSubmitResolution() ||
-        isConfirmResolution()
+        isConfirmResolution() ||
+        isUpvoteUpdate() ||
+        isCommentCountUpdate()
       );
       allow delete: if signedIn()
                        && resource.data.status == 'pending'
@@ -115,7 +117,9 @@ service cloud.firestore {
             && after.resolvedBy             == before.resolvedBy
             && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
             && after.resolutionConfirmedBy  == before.resolutionConfirmedBy
-            && after.resolvedAt             == before.resolvedAt;
+            && after.resolvedAt             == before.resolvedAt
+            && after.upvotedBy              == before.upvotedBy
+            && after.commentCount           == before.commentCount;
       }
 
       // Flag: any signed-in user appends own uid to flaggedBy. At 2 flags
@@ -138,7 +142,9 @@ service cloud.firestore {
             && after.resolvedBy             == before.resolvedBy
             && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
             && after.resolutionConfirmedBy  == before.resolutionConfirmedBy
-            && after.resolvedAt             == before.resolvedAt;
+            && after.resolvedAt             == before.resolvedAt
+            && after.upvotedBy              == before.upvotedBy
+            && after.commentCount           == before.commentCount;
       }
 
       // Submit fix: only the original reporter. Flips verified → in_progress
@@ -157,7 +163,9 @@ service cloud.firestore {
             && after.resolvedAt == before.resolvedAt
             && after.verifiedBy == before.verifiedBy
             && after.flaggedBy  == before.flaggedBy
-            && after.verifiedAt == before.verifiedAt;
+            && after.verifiedAt == before.verifiedAt
+            && after.upvotedBy  == before.upvotedBy
+            && after.commentCount == before.commentCount;
       }
 
       // Confirm fix: only neighbours in the original verifiedBy may confirm,
@@ -183,7 +191,52 @@ service cloud.firestore {
             && after.verifiedAt             == before.verifiedAt
             && after.resolvedImageUrl       == before.resolvedImageUrl
             && after.resolvedBy             == before.resolvedBy
-            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt;
+            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
+            && after.upvotedBy              == before.upvotedBy
+            && after.commentCount           == before.commentCount;
+      }
+
+      // Upvote: any signed-in user adds or removes own uid from upvotedBy.
+      function isUpvoteUpdate() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        let beforeUpvoted = 'upvotedBy' in before ? before.upvotedBy : [];
+        let afterUpvoted  = 'upvotedBy' in after ? after.upvotedBy : [];
+        let isAdding   = !(request.auth.uid in beforeUpvoted) && afterUpvoted == beforeUpvoted.concat([request.auth.uid]);
+        let isRemoving = (request.auth.uid in beforeUpvoted) && !(request.auth.uid in afterUpvoted) && afterUpvoted.size() == beforeUpvoted.size() - 1;
+        return reportImmutables()
+            && (isAdding || isRemoving)
+            && after.status                 == before.status
+            && after.verifiedBy             == before.verifiedBy
+            && after.flaggedBy              == before.flaggedBy
+            && after.verifiedAt             == before.verifiedAt
+            && after.resolvedImageUrl       == before.resolvedImageUrl
+            && after.resolvedBy             == before.resolvedBy
+            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
+            && after.resolutionConfirmedBy  == before.resolutionConfirmedBy
+            && after.resolvedAt             == before.resolvedAt
+            && after.commentCount           == before.commentCount;
+      }
+
+      // Comment count: increment by +1 or decrement by -1 when comments are added or deleted.
+      function isCommentCountUpdate() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        let beforeCount = 'commentCount' in before ? before.commentCount : 0;
+        let afterCount  = 'commentCount' in after ? after.commentCount : 0;
+        let isValidDelta = afterCount == beforeCount + 1 || (beforeCount > 0 && afterCount == beforeCount - 1);
+        return reportImmutables()
+            && isValidDelta
+            && after.status                 == before.status
+            && after.verifiedBy             == before.verifiedBy
+            && after.flaggedBy              == before.flaggedBy
+            && after.upvotedBy              == before.upvotedBy
+            && after.verifiedAt             == before.verifiedAt
+            && after.resolvedImageUrl       == before.resolvedImageUrl
+            && after.resolvedBy             == before.resolvedBy
+            && after.resolutionSubmittedAt  == before.resolutionSubmittedAt
+            && after.resolutionConfirmedBy  == before.resolutionConfirmedBy
+            && after.resolvedAt             == before.resolvedAt;
       }
     }
 

@@ -131,7 +131,7 @@ export default function ProfileScreen() {
     try {
       const [reports, board] = await Promise.all([
         getUserReports(user.uid),
-        getLeaderboard(),
+        getLeaderboard(5),
       ]);
       setMyReports(reports);
       setLeaderboard(board);
@@ -297,7 +297,7 @@ export default function ProfileScreen() {
           </Typography>
           {loading && leaderboard.length === 0 ? (
             <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
-              <LeaderboardRowSkeleton count={6} />
+              <LeaderboardRowSkeleton count={5} />
             </Animated.View>
           ) : leaderboard.length === 0 ? (
             <Card padding="none">

@@ -16,12 +16,14 @@ interface ReportCardProps {
   report: Report;
   onVerify?: () => void;
   onFlag?: () => void;
+  onUpvote?: () => void;
+  isUpvoted?: boolean;
   onPress?: () => void;
   isRadarView?: boolean;
 }
 
 export function ReportCard({
-  report, onVerify, onFlag, onPress, isRadarView = false,
+  report, onVerify, onFlag, onUpvote, isUpvoted = false, onPress, isRadarView = false,
 }: ReportCardProps) {
   const { colors, spacing } = useTheme();
   const isWin = report.vibe === 'win';
@@ -155,9 +157,25 @@ export function ReportCard({
       {/* Engagement footer — shown once the report has cleared verification */}
       {isEngageable && (
         <View style={[styles.actions, { borderTopWidth: 0 }]}>
-          <View style={[styles.actionBtn, { opacity: 0.4 }]}>
-            <Ionicons name="arrow-up-circle-outline" size={22} color={colors.textMuted} />
-          </View>
+          <AnimatedButton
+            onPress={onUpvote}
+            hapticFeedback="light"
+            style={styles.actionBtn}
+          >
+            <Ionicons
+              name={isUpvoted ? 'arrow-up-circle' : 'arrow-up-circle-outline'}
+              size={22}
+              color={isUpvoted ? colors.primary : colors.textMuted}
+            />
+            <Typography
+              variant="caption"
+              weight={isUpvoted ? 'bold' : 'medium'}
+              color={isUpvoted ? colors.primary : colors.textMuted}
+              style={{ marginLeft: spacing.xs }}
+            >
+              {report.upvotedBy?.length ?? 0}
+            </Typography>
+          </AnimatedButton>
 
           <AnimatedButton
             onPress={onPress}
@@ -165,6 +183,14 @@ export function ReportCard({
             style={[styles.actionBtn]}
           >
             <Ionicons name="chatbubble-outline" size={20} color={colors.textMuted} />
+            <Typography
+              variant="caption"
+              weight="medium"
+              color={colors.textMuted}
+              style={{ marginLeft: spacing.xs }}
+            >
+              {report.commentCount ?? 0}
+            </Typography>
           </AnimatedButton>
 
           <AnimatedButton

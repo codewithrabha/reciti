@@ -129,6 +129,8 @@ export const createReport = async (
     status: 'pending',
     verifiedBy: [],
     flaggedBy: [],
+    upvotedBy: [],
+    commentCount: 0,
     createdAt: Timestamp.now(),
     description: reportData.description ?? null,
     city: reportData.city ?? null,
@@ -143,6 +145,31 @@ export const createReport = async (
   // Award points for submitting
   await awardPoints(report.reporterId, 10);
   return report.reportId;
+};
+
+/**
+ * Toggles a user's upvote on a report. If upvoted, adds user to upvotedBy and awards +2 points.
+ * If already upvoted, removes user from upvotedBy and deducts 2 points.
+ */
+export const toggleUpvoteReport = async (reportId: string, userId: string): Promise<boolean> => {
+  const reportRef = doc(db, 'reports', reportId);
+  const snap = await getDoc(reportRef);
+  if (!snap.exists()) return false;
+  const report = snap.data() as Report;
+  const upvotedBy = report.upvotedBy ?? [];
+  const hasUpvoted = upvotedBy.includes(userId);
+
+  if (hasUpvoted) {
+    const nextUpvoted = upvotedBy.filter((uid) => uid !== userId);
+    await updateDoc(reportRef, { upvotedBy: nextUpvoted });
+    await awardPoints(userId, -2);
+    return false;
+  } else {
+    const nextUpvoted = [...upvotedBy, userId];
+    await updateDoc(reportRef, { upvotedBy: nextUpvoted });
+    await awardPoints(userId, 2);
+    return true;
+  }
 };
 
 // ─── Lazy cleanup of unverified reports ──────────────────────────────────────
@@ -395,6 +422,7 @@ export const submitComment = async (
     helpful: false,
   };
   await setDoc(ref, payload);
+  await updateDoc(doc(REPORTS_COL, reportId), { commentCount: increment(1) });
 
   // Notify the report owner (skipped automatically if they wrote it themselves).
   const reportSnap = await getDoc(doc(REPORTS_COL, reportId));
@@ -449,6 +477,7 @@ export const deleteOwnComment = async (
   if (c.authorId !== uid) throw new Error('Not your comment');
   if (c.deletedAt) return;
   await updateDoc(ref, { deletedAt: Timestamp.now() });
+  await updateDoc(doc(REPORTS_COL, reportId), { commentCount: increment(-1) });
 };
 
 /**

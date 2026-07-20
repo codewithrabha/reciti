@@ -27,6 +27,7 @@ import {
   getUserDoc,
   submitResolution,
   subscribeToReport,
+  toggleUpvoteReport,
   verifyReport,
   VERIFICATION_THRESHOLD,
   RESOLUTION_CONFIRMATION_THRESHOLD,
@@ -255,6 +256,23 @@ export default function ReportDetailScreen() {
     if (user && id) runAction(() => confirmResolution(id, user.uid));
   };
 
+  const isUpvoted = !!user && (report?.upvotedBy?.includes(user.uid) ?? false);
+
+  const handleUpvote = () => {
+    if (!user || user.isAnonymous) {
+      Alert.alert(
+        'Account required',
+        'Sign in to upvote reports and earn Civic Points.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign in', onPress: () => router.push('/auth/login') },
+        ],
+      );
+      return;
+    }
+    if (id) runAction(async () => { await toggleUpvoteReport(id, user.uid); });
+  };
+
   const pickAndSubmit = async (fromCamera: boolean) => {
     if (!user || !id) return;
     try {
@@ -363,6 +381,34 @@ export default function ReportDetailScreen() {
       <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
     </AnimatedButton>
   );
+
+  const UpvoteButton = report && report.status !== 'pending' && report.status !== 'archived' ? (
+    <AnimatedButton
+      onPress={handleUpvote}
+      disabled={actionLoading}
+      hapticFeedback="light"
+      style={[
+        styles.iconBtn,
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          paddingHorizontal: 10,
+          borderRadius: 20,
+          backgroundColor: isUpvoted ? colors.primary : 'rgba(0,0,0,0.3)',
+        },
+      ]}
+    >
+      <Ionicons
+        name={isUpvoted ? 'arrow-up-circle' : 'arrow-up-circle-outline'}
+        size={20}
+        color="#FFFFFF"
+      />
+      <Typography variant="caption" weight="bold" color="#FFFFFF">
+        {report.upvotedBy?.length ?? 0}
+      </Typography>
+    </AnimatedButton>
+  ) : null;
 
   const ShareButton = report && report.status !== 'archived' ? (
     <AnimatedButton
@@ -597,7 +643,10 @@ export default function ReportDetailScreen() {
         ]}
       >
         {BackButton}
-        {ShareButton}
+        <View style={styles.headerRightGroup}>
+          {UpvoteButton}
+          {ShareButton}
+        </View>
       </View>
       <ScrollView
         ref={scrollViewRef}
@@ -822,6 +871,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
     zIndex: 10
+  },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   iconBtn: {
     width: 40,
