@@ -160,7 +160,7 @@ export default function LoginScreen() {
     try {
       await signInWithGoogle();
       await refreshUserDoc();
-      router.replace('/(tabs)/profile');
+      router.replace('/(tabs)');
     } catch (err: any) {
       if (err?.code !== 'SIGN_IN_CANCELLED') {
         setFormError(err?.message || 'Google sign-in failed. Please try again.');
