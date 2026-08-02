@@ -97,3 +97,13 @@ export interface Notification {
   createdAt: Timestamp;
   commentPreview?: string | null;
 }
+
+export interface StorySlide {
+  slideId: string;
+  reportId: string;
+  /** Owner-authored update text, capped at 280 chars. */
+  text: string;
+  /** Optional photo URL (Cloudinary CDN). */
+  imageUrl?: string | null;
+  createdAt: Timestamp;
+}

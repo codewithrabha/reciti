@@ -1,4 +1,4 @@
-import { Comment, Notification, NotificationType, Report, Tier, TriviaQuestion, User } from '@/types';
+import { Comment, Notification, NotificationType, Report, StorySlide, Tier, TriviaQuestion, User } from '@/types';
 import {
     collection,
     deleteDoc,
@@ -960,4 +960,91 @@ export const submitFeedback = async (
     appVersion,
     createdAt: Timestamp.now(),
   });
+};
+
+// ─── Story Slides ─────────────────────────────────────────────────────────────
+
+/** Maximum number of story slides per report. */
+export const STORY_SLIDE_MAX = 10;
+
+/** Maximum character length for a single slide's text. */
+export const STORY_SLIDE_TEXT_MAX = 280;
+
+const storySlidesCol = (reportId: string) =>
+  collection(db, 'reports', reportId, 'storySlides');
+
+/**
+ * Real-time subscription to a report's story slides, oldest first.
+ * Capped at STORY_SLIDE_MAX slides.
+ */
+export const subscribeToStorySlides = (
+  reportId: string,
+  onUpdate: (slides: StorySlide[]) => void,
+  onError?: (error: Error) => void,
+) => {
+  const q = query(
+    storySlidesCol(reportId),
+    orderBy('createdAt', 'asc'),
+    limit(STORY_SLIDE_MAX),
+  );
+  return onSnapshot(
+    q,
+    (snap) => onUpdate(snap.docs.map((d) => d.data() as StorySlide)),
+    onError,
+  );
+};
+
+/**
+ * Adds a story slide to a report.
+ * Only the report owner may post a slide.
+ * Enforces the STORY_SLIDE_MAX cap (client-side guard; rules enforce server-side).
+ */
+export const addStorySlide = async (
+  reportId: string,
+  uid: string,
+  text: string,
+  imageUrl?: string | null,
+): Promise<void> => {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) throw new Error('Slide text cannot be empty');
+  if (trimmed.length > STORY_SLIDE_TEXT_MAX) throw new Error('Slide text is too long');
+
+  // Owner check
+  const reportSnap = await getDoc(doc(REPORTS_COL, reportId));
+  if (!reportSnap.exists()) throw new Error('Report not found');
+  const report = reportSnap.data() as Report;
+  if (report.reporterId !== uid) throw new Error('Only the report owner can post updates');
+
+  // Cap check
+  const existing = await getDocs(query(storySlidesCol(reportId), limit(STORY_SLIDE_MAX)));
+  if (existing.size >= STORY_SLIDE_MAX) {
+    throw new Error(`A report can have at most ${STORY_SLIDE_MAX} updates`);
+  }
+
+  const ref = doc(storySlidesCol(reportId));
+  const slide: StorySlide = {
+    slideId: ref.id,
+    reportId,
+    text: trimmed,
+    imageUrl: imageUrl ?? null,
+    createdAt: Timestamp.now(),
+  };
+  await setDoc(ref, slide);
+};
+
+/**
+ * Hard-deletes a story slide. Only the report owner may delete.
+ */
+export const deleteStorySlide = async (
+  reportId: string,
+  uid: string,
+  slideId: string,
+): Promise<void> => {
+  // Owner check
+  const reportSnap = await getDoc(doc(REPORTS_COL, reportId));
+  if (!reportSnap.exists()) throw new Error('Report not found');
+  const report = reportSnap.data() as Report;
+  if (report.reporterId !== uid) throw new Error('Only the report owner can delete updates');
+
+  await deleteDoc(doc(storySlidesCol(reportId), slideId));
 };

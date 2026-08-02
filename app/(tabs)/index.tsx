@@ -31,7 +31,7 @@ import { Typography } from '@/components/ui/Typography';
 import { PulseStatsSkeleton } from '@/components/skeletons';
 import { useTheme } from '@/theme';
 
-const RADIUS_KM = 5;
+const RADIUS_KM = 30;
 
 type Coords = { latitude: number; longitude: number };
 

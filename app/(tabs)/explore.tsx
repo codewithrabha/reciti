@@ -23,7 +23,7 @@ import { Typography } from '@/components/ui/Typography';
 import { ReportCardSkeleton } from '@/components/skeletons';
 import { useTheme } from '@/theme';
 
-const RADIUS_KM = 5;
+const RADIUS_KM = 30;
 
 type Mode = 'feed' | 'map';
 type Scope = 'near' | 'all';

@@ -2,7 +2,7 @@
   "expo": {
     "name": "ReCiti",
     "slug": "reciti",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "reciti",
@@ -23,6 +23,9 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.reciti.android",
       "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
@@ -79,6 +82,12 @@
         "projectId": "a9c711af-7bb5-4428-943d-f4a1a8e66475"
       }
     },
-    "owner": "abhijitrabhadev"
+    "owner": "abhijitrabhadev",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a9c711af-7bb5-4428-943d-f4a1a8e66475"
+    }
   }
 }

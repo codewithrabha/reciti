@@ -310,6 +310,29 @@ service cloud.firestore {
       }
     }
 
+    // ─── storySlides (subcollection of reports) ───────────────────────────
+    // Report owner posts short update slides (≤280 chars, ≤10 per report).
+    // Anyone can read. Only the owning reporter can create or delete.
+    // Slides are immutable once posted — no updates allowed.
+    match /reports/{reportId}/storySlides/{slideId} {
+      allow read: if true;
+
+      allow create: if isRealUser()
+                       && request.auth.uid ==
+                            get(/databases/$(database)/documents/reports/$(reportId)).data.reporterId
+                       && request.resource.data.slideId == slideId
+                       && request.resource.data.reportId == reportId
+                       && request.resource.data.text is string
+                       && request.resource.data.text.size() > 0
+                       && request.resource.data.text.size() <= 280;
+
+      allow delete: if isRealUser()
+                       && request.auth.uid ==
+                            get(/databases/$(database)/documents/reports/$(reportId)).data.reporterId;
+
+      allow update: if false;
+    }
+
     // ─── comments (subcollection of reports) ─────────────────────────────
     // Public to read. Only real accounts can post. Updates are tightly
     // gated: (a) anyone real can append their own uid to flaggedBy, and at

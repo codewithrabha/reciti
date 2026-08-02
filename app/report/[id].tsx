@@ -20,7 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
-import { Report } from '@/types';
+import { Report, StorySlide } from '@/types';
 import {
   addReportPhoto,
   confirmResolution,
@@ -28,10 +28,12 @@ import {
   getUserDoc,
   submitResolution,
   subscribeToReport,
+  subscribeToStorySlides,
   toggleUpvoteReport,
   verifyReport,
   VERIFICATION_THRESHOLD,
   RESOLUTION_CONFIRMATION_THRESHOLD,
+  STORY_SLIDE_MAX,
 } from '@/lib/db';
 import { uploadImage } from '@/lib/storage';
 import { useUser } from '@/hooks/useAuth';
@@ -40,6 +42,8 @@ import { ResolutionTimeline } from '@/components/report/ResolutionTimeline';
 import { BeforeAfter } from '@/components/report/BeforeAfter';
 import { CommentThread } from '@/components/report/CommentThread';
 import { CommentComposer } from '@/components/report/CommentComposer';
+import { StoryViewer } from '@/components/report/StoryViewer';
+import { StoryComposer } from '@/components/report/StoryComposer';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
@@ -167,7 +171,7 @@ export default function ReportDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const user = useUser();
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   const keyboardHeight = useKeyboardHeight();
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollY = useRef(0);
@@ -184,6 +188,11 @@ export default function ReportDetailScreen() {
   const [scrolled, setScrolled] = useState(false);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // Story slides
+  const [slides, setSlides] = useState<StorySlide[]>([]);
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [storyComposerOpen, setStoryComposerOpen] = useState(false);
 
   const handleAddPhoto = () => {
     if (!user || !report || user.uid !== report.reporterId) return;
@@ -268,6 +277,11 @@ export default function ReportDetailScreen() {
     setError(false);
     return subscribeToReport(id, setReport, () => setError(true));
   }, [id, retryKey]);
+
+  useEffect(() => {
+    if (!id) return;
+    return subscribeToStorySlides(id, setSlides);
+  }, [id]);
 
   useEffect(() => {
     const id = scrollAnim.addListener(({ value }) => {
@@ -875,6 +889,87 @@ export default function ReportDetailScreen() {
           <View style={styles.sectionLabel} />
           {renderActions()}
 
+          {/* Owner Updates section — shown above Location */}
+          {(() => {
+            const isOwner = !!user && user.uid === report.reporterId;
+            const hasSlides = slides.length > 0;
+            const canCompose = isOwner && slides.length < STORY_SLIDE_MAX && report.status !== 'archived';
+            // Hide entirely if no slides and not the owner
+            if (!hasSlides && !isOwner) return null;
+            const latestSlide = slides[slides.length - 1];
+            return (
+              <>
+                <Typography
+                  variant="caption"
+                  weight="bold"
+                  color={colors.textMuted}
+                  style={styles.sectionLabel}
+                >
+                  OWNER UPDATES
+                </Typography>
+                <Card padding="lg">
+                  {hasSlides ? (
+                    <>
+                      {/* Latest slide preview */}
+                      <View style={styles.slidePreviewRow}>
+                        <View style={[styles.slidePreviewIcon, { backgroundColor: colors.primaryMuted }]}>
+                          <Ionicons name="megaphone" size={16} color={colors.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Typography variant="body" weight="medium" numberOfLines={2}>
+                            {latestSlide.text}
+                          </Typography>
+                          <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 2 }}>
+                            {formatDistanceToNow(latestSlide.createdAt.toDate(), { addSuffix: true })}
+                            {slides.length > 1 ? ` · ${slides.length} updates` : ' · 1 update'}
+                          </Typography>
+                        </View>
+                      </View>
+                      {/* View all button */}
+                      <AnimatedButton
+                        onPress={() => setStoryViewerOpen(true)}
+                        hapticFeedback="light"
+                        style={[
+                          styles.viewUpdatesBtn,
+                          { borderColor: colors.primary, borderRadius: radii.md },
+                        ]}
+                      >
+                        <Ionicons name="play-circle" size={18} color={colors.primary} />
+                        <Typography variant="body" weight="bold" color={colors.primary}>
+                          View updates
+                        </Typography>
+                      </AnimatedButton>
+                    </>
+                  ) : (
+                    /* No slides yet — owner-only empty state */
+                    <View style={styles.slideEmptyState}>
+                      <Ionicons name="megaphone-outline" size={28} color={colors.textMuted} />
+                      <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 6 }} align="center">
+                        Share progress updates with the community.
+                      </Typography>
+                    </View>
+                  )}
+                  {/* Post update button — owner only */}
+                  {canCompose && (
+                    <AnimatedButton
+                      onPress={() => setStoryComposerOpen(true)}
+                      hapticFeedback="medium"
+                      style={[
+                        styles.postUpdateBtn,
+                        { backgroundColor: colors.primaryMuted, borderRadius: radii.md, marginTop: hasSlides ? 12 : 14 },
+                      ]}
+                    >
+                      <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+                      <Typography variant="body" weight="bold" color={colors.primary}>
+                        Post update
+                      </Typography>
+                    </AnimatedButton>
+                  )}
+                </Card>
+              </>
+            );
+          })()}
+
           {/* Directions */}
           <Typography
             variant="caption"
@@ -950,6 +1045,27 @@ export default function ReportDetailScreen() {
         </View>
       </ScrollView>
       <CommentComposer report={report} />
+
+      {/* Story Viewer */}
+      {storyViewerOpen && slides.length > 0 && (
+        <StoryViewer
+          slides={slides}
+          reportId={report.reportId}
+          ownerUid={report.reporterId}
+          currentUid={user?.uid ?? null}
+          onClose={() => setStoryViewerOpen(false)}
+        />
+      )}
+
+      {/* Story Composer */}
+      {storyComposerOpen && user && !user.isAnonymous && (
+        <StoryComposer
+          reportId={report.reportId}
+          ownerUid={user.uid}
+          onClose={() => setStoryComposerOpen(false)}
+          onPosted={() => setStoryComposerOpen(false)}
+        />
+      )}
     </View>
   );
 }
@@ -1065,5 +1181,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+  },
+  // Story slides
+  slidePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
+  slidePreviewIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewUpdatesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+  },
+  postUpdateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  slideEmptyState: {
+    alignItems: 'center',
+    paddingVertical: 8,
   },
 });
