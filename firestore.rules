@@ -68,7 +68,8 @@ service cloud.firestore {
         isConfirmResolution() ||
         isUpvoteUpdate() ||
         isCommentCountUpdate() ||
-        isAddPhotoByReporter()
+        isAddPhotoByReporter() ||
+        isVolunteerUpdate()
       );
       allow delete: if signedIn()
                        && resource.data.status == 'pending'
@@ -79,6 +80,10 @@ service cloud.firestore {
       // Helper functions for optional fields on legacy report documents.
       function getUpvotedBy(d) {
         return ('upvotedBy' in d && d.upvotedBy is list) ? d.upvotedBy : [];
+      }
+
+      function getVolunteeredBy(d) {
+        return ('volunteeredBy' in d && d.volunteeredBy is list) ? d.volunteeredBy : [];
       }
 
       function getCommentCount(d) {
@@ -153,7 +158,8 @@ service cloud.firestore {
             && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
             && getResolvedAt(after)             == getResolvedAt(before)
             && getUpvotedBy(after)              == getUpvotedBy(before)
-            && getCommentCount(after)           == getCommentCount(before);
+            && getCommentCount(after)           == getCommentCount(before)
+            && getVolunteeredBy(after)          == getVolunteeredBy(before);
       }
 
       // Flag: any signed-in user appends own uid to flaggedBy. At 2 flags
@@ -178,7 +184,8 @@ service cloud.firestore {
             && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
             && getResolvedAt(after)             == getResolvedAt(before)
             && getUpvotedBy(after)              == getUpvotedBy(before)
-            && getCommentCount(after)           == getCommentCount(before);
+            && getCommentCount(after)           == getCommentCount(before)
+            && getVolunteeredBy(after)          == getVolunteeredBy(before);
       }
 
       // Submit fix: only the original reporter. Flips verified → in_progress
@@ -199,7 +206,8 @@ service cloud.firestore {
             && after.flaggedBy  == before.flaggedBy
             && getVerifiedAt(after) == getVerifiedAt(before)
             && getUpvotedBy(after)  == getUpvotedBy(before)
-            && getCommentCount(after) == getCommentCount(before);
+            && getCommentCount(after) == getCommentCount(before)
+            && getVolunteeredBy(after) == getVolunteeredBy(before);
       }
 
       // Confirm fix: only neighbours in the original verifiedBy may confirm,
@@ -228,7 +236,8 @@ service cloud.firestore {
             && getResolvedBy(after)             == getResolvedBy(before)
             && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
             && getUpvotedBy(after)              == getUpvotedBy(before)
-            && getCommentCount(after)           == getCommentCount(before);
+            && getCommentCount(after)           == getCommentCount(before)
+            && getVolunteeredBy(after)          == getVolunteeredBy(before);
       }
 
       // Upvote: any signed-in user adds or removes own uid from upvotedBy.
@@ -250,7 +259,8 @@ service cloud.firestore {
             && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
             && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
             && getResolvedAt(after)             == getResolvedAt(before)
-            && getCommentCount(after)           == getCommentCount(before);
+            && getCommentCount(after)           == getCommentCount(before)
+            && getVolunteeredBy(after)          == getVolunteeredBy(before);
       }
 
       // Comment count: allow non-negative integer updates to commentCount when comments
@@ -270,7 +280,8 @@ service cloud.firestore {
             && getResolvedBy(after)             == getResolvedBy(before)
             && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
             && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
-            && getResolvedAt(after)             == getResolvedAt(before);
+            && getResolvedAt(after)             == getResolvedAt(before)
+            && getVolunteeredBy(after)          == getVolunteeredBy(before);
       }
 
       // Add photo: report owner appends a photo URL to imageUrls (max 3 total).
@@ -306,6 +317,34 @@ service cloud.firestore {
             && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
             && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
             && getResolvedAt(after)             == getResolvedAt(before)
+            && getCommentCount(after)           == getCommentCount(before)
+            && getVolunteeredBy(after)          == getVolunteeredBy(before);
+      }
+
+      // Volunteer: any real user (except the reporter) toggles own uid
+      // in volunteeredBy. Only on fail reports with status verified or in_progress.
+      function isVolunteerUpdate() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        let beforeVol = getVolunteeredBy(before);
+        let afterVol  = getVolunteeredBy(after);
+        let isAdding   = !(request.auth.uid in beforeVol) && afterVol == beforeVol.concat([request.auth.uid]);
+        let isRemoving = (request.auth.uid in beforeVol) && !(request.auth.uid in afterVol) && afterVol.size() == beforeVol.size() - 1;
+        return reportImmutables()
+            && before.vibe == 'fail'
+            && (before.status == 'verified' || before.status == 'in_progress')
+            && request.auth.uid != before.reporterId
+            && (isAdding || isRemoving)
+            && after.status                 == before.status
+            && after.verifiedBy             == before.verifiedBy
+            && after.flaggedBy              == before.flaggedBy
+            && getVerifiedAt(after)             == getVerifiedAt(before)
+            && getResolvedImageUrl(after)       == getResolvedImageUrl(before)
+            && getResolvedBy(after)             == getResolvedBy(before)
+            && getResolutionSubmittedAt(after)  == getResolutionSubmittedAt(before)
+            && getResolutionConfirmedBy(after)  == getResolutionConfirmedBy(before)
+            && getResolvedAt(after)             == getResolvedAt(before)
+            && getUpvotedBy(after)              == getUpvotedBy(before)
             && getCommentCount(after)           == getCommentCount(before);
       }
     }

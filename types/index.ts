@@ -37,6 +37,8 @@ export interface Report {
   verifiedBy: string[];
   flaggedBy: string[];
   upvotedBy?: string[];
+  /** UIDs of users who volunteered to help fix this issue (fail reports only). */
+  volunteeredBy?: string[];
   commentCount?: number;
   createdAt: Timestamp;
 
@@ -83,7 +85,8 @@ export type NotificationType =
   | 'report_verified'
   | 'comment_added'
   | 'fix_submitted'
-  | 'fix_confirmed';
+  | 'fix_confirmed'
+  | 'volunteer_pledged';
 
 export interface Notification {
   notifId: string;

@@ -177,6 +177,24 @@ export function ReportCard({
             </Typography>
           </AnimatedButton>
 
+          {report.vibe === 'fail' && (report.volunteeredBy?.length ?? 0) > 0 && (
+            <AnimatedButton
+              onPress={onPress}
+              hapticFeedback="light"
+              style={styles.actionBtn}
+            >
+              <Ionicons name="hand-left" size={20} color={colors.primary} />
+              <Typography
+                variant="caption"
+                weight="bold"
+                color={colors.primary}
+                style={{ marginLeft: spacing.xs }}
+              >
+                {report.volunteeredBy!.length}
+              </Typography>
+            </AnimatedButton>
+          )}
+
           <AnimatedButton
             onPress={onPress}
             hapticFeedback="light"

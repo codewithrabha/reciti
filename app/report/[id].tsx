@@ -30,6 +30,7 @@ import {
   subscribeToReport,
   subscribeToStorySlides,
   toggleUpvoteReport,
+  toggleVolunteer,
   verifyReport,
   VERIFICATION_THRESHOLD,
   RESOLUTION_CONFIRMATION_THRESHOLD,
@@ -44,6 +45,7 @@ import { CommentThread } from '@/components/report/CommentThread';
 import { CommentComposer } from '@/components/report/CommentComposer';
 import { StoryViewer } from '@/components/report/StoryViewer';
 import { StoryComposer } from '@/components/report/StoryComposer';
+import { VolunteerSection } from '@/components/report/VolunteerSection';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
@@ -365,6 +367,21 @@ export default function ReportDetailScreen() {
       return;
     }
     if (id) runAction(async () => { await toggleUpvoteReport(id, user.uid); });
+  };
+
+  const handleVolunteer = () => {
+    if (!user || user.isAnonymous) {
+      Alert.alert(
+        'Account required',
+        'Sign in to volunteer and earn Civic Points.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign in', onPress: () => router.push('/auth/login') },
+        ],
+      );
+      return;
+    }
+    if (id) runAction(async () => { await toggleVolunteer(id, user.uid); });
   };
 
   const pickAndSubmit = async (fromCamera: boolean) => {
@@ -888,6 +905,27 @@ export default function ReportDetailScreen() {
           {/* Contextual actions */}
           <View style={styles.sectionLabel} />
           {renderActions()}
+
+          {/* Volunteering section */}
+          {report.vibe === 'fail' && (report.status === 'verified' || report.status === 'in_progress') && (
+            <>
+              <Typography
+                variant="caption"
+                weight="bold"
+                color={colors.textMuted}
+                style={styles.sectionLabel}
+              >
+                VOLUNTEERS
+              </Typography>
+              <VolunteerSection
+                report={report}
+                currentUid={user?.uid ?? null}
+                isAnonymous={!user || user.isAnonymous}
+                actionLoading={actionLoading}
+                onToggle={handleVolunteer}
+              />
+            </>
+          )}
 
           {/* Owner Updates section — shown above Location */}
           {(() => {

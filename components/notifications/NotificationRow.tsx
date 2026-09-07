@@ -20,6 +20,7 @@ const ICON_BY_TYPE: Record<NotificationType, IconSpec> = {
   comment_added: { icon: 'chatbubble', tone: 'primary' },
   fix_submitted: { icon: 'construct', tone: 'warning' },
   fix_confirmed: { icon: 'sparkles', tone: 'primary' },
+  volunteer_pledged: { icon: 'hand-left', tone: 'primary' },
 };
 
 function buildTitle(n: Notification): string {
@@ -33,6 +34,8 @@ function buildTitle(n: Notification): string {
       return 'A fix was submitted on a report you verified';
     case 'fix_confirmed':
       return 'Your report has been marked resolved';
+    case 'volunteer_pledged':
+      return `${from} volunteered to help fix your issue`;
   }
 }
 

@@ -58,12 +58,19 @@ function buildStages(report: Report): Stage[] {
   });
 
   if (!isWin) {
+    const volCount = report.volunteeredBy?.length ?? 0;
+    const volNote = volCount > 0 
+      ? `🤝 ${volCount} neighbour${volCount === 1 ? '' : 's'} volunteered to help` 
+      : undefined;
+
     const fState = stateOf(2);
+    const fNoteBase = fState === 'current' ? 'Awaiting an “after” photo' : undefined;
+    
     stages.push({
       label: 'Fix submitted',
       state: fState,
       time: report.resolutionSubmittedAt,
-      note: fState === 'current' ? 'Awaiting an “after” photo' : undefined,
+      note: fNoteBase && volNote ? `${fNoteBase}\n${volNote}` : (fNoteBase || volNote),
     });
 
     const rState = stateOf(3);

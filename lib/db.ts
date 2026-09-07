@@ -51,6 +51,14 @@ export const COMMENT_THREAD_CAP = 100;
  */
 export const REPORT_GRACE_PERIOD_MS = 60 * 60 * 1000; // 1 hour
 
+// ─── Volunteering Constants ──────────────────────────────────────────────────
+
+/** Civic points awarded/deducted when a user volunteers/unvolunteers for an issue. */
+export const VOLUNTEER_POINTS = 3;
+
+/** Bonus civic points awarded to each volunteer when the issue is resolved. */
+export const VOLUNTEER_RESOLVE_BONUS = 100;
+
 // ─── Trivia Constants ──────────────────────────────────────────────────────
 
 /** 24 hours in milliseconds — users can re-answer a trivia after this window. */
@@ -130,6 +138,7 @@ export const createReport = async (
     verifiedBy: [],
     flaggedBy: [],
     upvotedBy: [],
+    volunteeredBy: [],
     commentCount: 0,
     createdAt: Timestamp.now(),
     description: reportData.description ?? null,
@@ -410,6 +419,11 @@ export const confirmResolution = async (reportId: string, userId: string) => {
       reportId,
       ...actor,
     });
+    // Award bonus to all volunteers
+    const volunteers = report.volunteeredBy ?? [];
+    await Promise.all(
+      volunteers.map((volunteerUid) => awardPoints(volunteerUid, VOLUNTEER_RESOLVE_BONUS)),
+    );
   }
   await awardPoints(userId, 5);
 };
@@ -1047,4 +1061,53 @@ export const deleteStorySlide = async (
   if (report.reporterId !== uid) throw new Error('Only the report owner can delete updates');
 
   await deleteDoc(doc(storySlidesCol(reportId), slideId));
+};
+
+// ─── Volunteering ─────────────────────────────────────────────────────────────
+
+/**
+ * Toggles a user's volunteer pledge on a civic issue report.
+ * Only allowed on fail reports with status 'verified' or 'in_progress'.
+ * The report owner cannot volunteer (they can already submit the fix).
+ * Awards +VOLUNTEER_POINTS on pledge, −VOLUNTEER_POINTS on unvolunteer.
+ * Notifies the reporter when a new volunteer pledges.
+ */
+export const toggleVolunteer = async (
+  reportId: string,
+  userId: string,
+): Promise<boolean> => {
+  const reportRef = doc(db, 'reports', reportId);
+  const snap = await getDoc(reportRef);
+  if (!snap.exists()) throw new Error('Report not found');
+  const report = snap.data() as Report;
+
+  if (report.vibe !== 'fail') throw new Error('Volunteering is only for civic issues');
+  if (report.status !== 'verified' && report.status !== 'in_progress') {
+    throw new Error('Volunteering is only available for verified or in-progress issues');
+  }
+  if (report.reporterId === userId) throw new Error('The report owner cannot volunteer');
+
+  const volunteeredBy = report.volunteeredBy ?? [];
+  const hasVolunteered = volunteeredBy.includes(userId);
+
+  if (hasVolunteered) {
+    // Un-volunteer
+    const next = volunteeredBy.filter((uid) => uid !== userId);
+    await updateDoc(reportRef, { volunteeredBy: next });
+    await awardPoints(userId, -VOLUNTEER_POINTS);
+    return false;
+  } else {
+    // Volunteer
+    const next = [...volunteeredBy, userId];
+    await updateDoc(reportRef, { volunteeredBy: next });
+    await awardPoints(userId, VOLUNTEER_POINTS);
+    // Notify the reporter
+    const actor = await resolveActor(userId);
+    await writeNotification(report.reporterId, {
+      type: 'volunteer_pledged',
+      reportId,
+      ...actor,
+    });
+    return true;
+  }
 };
