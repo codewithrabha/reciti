@@ -9,6 +9,7 @@ export interface User {
   photoURL: string | null;
   civicPoints: number;
   tier: Tier;
+  pushToken?: string | null;
   completedDailyTrivia: Record<string, string>;
 }
 

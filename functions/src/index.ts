@@ -42,7 +42,41 @@ const awardKarmaPoints = async (uid: string, points: number): Promise<void> => {
 };
 
 /**
- * Creates an in-app notification in `users/{recipientUid}/notifications`.
+ * Dispatches a push notification via Expo Push API to a registered device token.
+ */
+const sendExpoPushNotification = async (
+  pushToken: string,
+  title: string,
+  body: string,
+  data?: Record<string, any>
+): Promise<void> => {
+  if (!pushToken || !pushToken.startsWith('ExponentPushToken[')) return;
+
+  try {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: pushToken,
+        sound: 'default',
+        title,
+        body,
+        data,
+      }),
+    });
+    const result = await res.json();
+    console.log('[sendExpoPushNotification] Result:', result);
+  } catch (err) {
+    console.error('[sendExpoPushNotification] Error sending push notification:', err);
+  }
+};
+
+/**
+ * Creates an in-app notification in `users/{recipientUid}/notifications` and dispatches Expo Push Notification.
  */
 const sendNotification = async (
   recipientUid: string,
@@ -71,6 +105,19 @@ const sendNotification = async (
       read: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    // Check if recipient has a registered Expo Push Token
+    const userSnap = await db.collection('users').doc(recipientUid).get();
+    const pushToken = userSnap.data()?.pushToken as string | undefined;
+    if (pushToken) {
+      const title = payload.fromName ?? 'ReCiti Alert';
+      const body = payload.message ?? 'You have a new update from ReCiti.';
+      await sendExpoPushNotification(pushToken, title, body, {
+        reportId: payload.reportId,
+        listingId: payload.listingId,
+        type: payload.type,
+      });
+    }
   } catch (err) {
     console.error(`[sendNotification] Failed to send notification to ${recipientUid}:`, err);
   }

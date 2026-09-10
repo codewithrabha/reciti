@@ -14,10 +14,12 @@ import {
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 
+import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initAuthListener } from '@/store/authStore';
 import { OnboardingProvider, useOnboarding } from '@/hooks/useOnboarding';
 import { AppUpdateProvider } from '@/hooks/useAppUpdate';
+import { setupNotificationListeners } from '@/lib/notifications';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -52,6 +54,15 @@ function RootNavigator() {
   useEffect(() => {
     initAuthListener();
   }, []);
+
+  // Listen for notification tap interactions to handle deep-link navigation
+  const router = useRouter();
+  useEffect(() => {
+    const unsubscribe = setupNotificationListeners((route) => {
+      router.push(route as any);
+    });
+    return unsubscribe;
+  }, [router]);
 
   useEffect(() => {
     if (ready) {

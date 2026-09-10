@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { User as FirebaseUser, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { createOrUpdateUserDoc, getUserDoc } from '@/lib/db';
+import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import { User } from '@/types';
 
 /**
@@ -62,6 +63,9 @@ export function initAuthListener(): void {
         // previous signed-in session (e.g. after sign-out → anonymous).
         useAuthStore.setState({ userDoc: null });
       }
+      registerForPushNotificationsAsync(currentUser.uid).catch((err) =>
+        console.error('[authStore] Push registration error:', err)
+      );
       useAuthStore.setState({ loading: false });
     } else {
       // No session — sign in anonymously so browsing-only users can still read.
