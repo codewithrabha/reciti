@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "reciti",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "associatedDomains": ["applinks:reciti.in"]
@@ -20,7 +19,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.reciti.android",
       "intentFilters": [
@@ -97,10 +95,6 @@
       ],
       "@react-native-firebase/app"
     ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    },
     "extra": {
       "router": {},
       "eas": {
