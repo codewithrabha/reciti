@@ -49,6 +49,7 @@ export default function DirectoryDetailScreen() {
   const [business, setBusiness] = useState<BusinessDirectoryItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [existingClaim, setExistingClaim] = useState<ListingClaim | null>(null);
+  const [scrolled, setScrolled] = useState(false);
 
   // Claim Modal state
   const [claimModalVisible, setClaimModalVisible] = useState(false);
@@ -200,11 +201,47 @@ export default function DirectoryDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Sticky Top Header */}
+      <View
+        style={[
+          styles.topBar,
+          { paddingTop: insets.top + 8 },
+          scrolled && {
+            backgroundColor: colors.background,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.border,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          },
+        ]}
+      >
+        <AnimatedButton
+          onPress={() => router.back()}
+          hapticFeedback="light"
+          style={[styles.circleButton, { backgroundColor: scrolled ? colors.surface : colors.surface + 'EE' }]}
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
+        </AnimatedButton>
+        <View style={styles.topBarRight}>
+          <AnimatedButton
+            onPress={handleShare}
+            hapticFeedback="light"
+            style={[styles.circleButton, { backgroundColor: scrolled ? colors.surface : colors.surface + 'EE' }]}
+          >
+            <Ionicons name="share-outline" size={20} color={colors.text} />
+          </AnimatedButton>
+        </View>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+        scrollEventThrottle={16}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y > 24 !== scrolled) setScrolled(y > 24);
+        }}
       >
-        {/* Banner with top buttons */}
+        {/* Banner */}
         <View style={styles.bannerContainer}>
           <Image
             source={{ uri: business.imageUrl }}
@@ -212,23 +249,6 @@ export default function DirectoryDetailScreen() {
             contentFit="cover"
             transition={300}
           />
-          {/* Top Bar Actions */}
-          <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-            <AnimatedButton
-              onPress={() => router.back()}
-              style={[styles.circleButton, { backgroundColor: colors.surface + 'EE' }]}
-            >
-              <Ionicons name="arrow-back" size={20} color={colors.text} />
-            </AnimatedButton>
-            <View style={styles.topBarRight}>
-              <AnimatedButton
-                onPress={handleShare}
-                style={[styles.circleButton, { backgroundColor: colors.surface + 'EE' }]}
-              >
-                <Ionicons name="share-outline" size={20} color={colors.text} />
-              </AnimatedButton>
-            </View>
-          </View>
         </View>
 
         {/* Content Body */}
@@ -557,8 +577,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingBottom: 8,
     zIndex: 10,
   },
   topBarRight: { flexDirection: 'row', gap: 10 },
