@@ -58,14 +58,14 @@ export function initAuthListener(): void {
         });
         const doc = await getUserDoc(currentUser.uid);
         useAuthStore.setState({ userDoc: doc });
+        registerForPushNotificationsAsync(currentUser.uid).catch((err) =>
+          console.error('[authStore] Push registration error:', err)
+        );
       } else {
         // Guests have no Firestore doc — clear any doc left over from a
         // previous signed-in session (e.g. after sign-out → anonymous).
         useAuthStore.setState({ userDoc: null });
       }
-      registerForPushNotificationsAsync(currentUser.uid).catch((err) =>
-        console.error('[authStore] Push registration error:', err)
-      );
       useAuthStore.setState({ loading: false });
     } else {
       // No session — sign in anonymously so browsing-only users can still read.
