@@ -7,6 +7,10 @@ node_modules/
 # Firebase config (contains project keys — provision locally / via CI secrets)
 google-services.json
 GoogleService-Info.plist
+firebase-debug.log
+firebase-debug.*.log
+functions/lib/
+functions/package-lock.json
 
 # Expo
 .expo/
