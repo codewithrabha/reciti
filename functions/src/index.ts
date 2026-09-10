@@ -1,7 +1,11 @@
 import * as admin from 'firebase-admin';
+import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { ListingClaimDoc, ReportDoc, Tier } from './types';
+
+// Co-locate all Cloud Functions in asia-south1 (Mumbai)
+setGlobalOptions({ region: 'asia-south1' });
 
 admin.initializeApp();
 const db = admin.firestore();
