@@ -93,6 +93,13 @@
           "locationWhenInUsePermission": "Allow ReCiti to use your location to tag civic reports on the map."
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-notification.png",
+          "color": "#059669"
+        }
+      ],
       "@react-native-firebase/app"
     ],
     "extra": {

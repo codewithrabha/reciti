@@ -1,4 +1,5 @@
-import * as admin from 'firebase-admin';
+import { initializeApp } from 'firebase-admin/app';
+import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -7,8 +8,8 @@ import { ListingClaimDoc, ReportDoc, Tier } from './types';
 // Co-locate all Cloud Functions in asia-south1 (Mumbai)
 setGlobalOptions({ region: 'asia-south1' });
 
-admin.initializeApp();
-const db = admin.firestore();
+initializeApp();
+const db = getFirestore();
 
 // ─── Tier Calculation ────────────────────────────────────────────────────────
 const getTierForPoints = (points: number): Tier => {
@@ -32,7 +33,7 @@ const awardKarmaPoints = async (uid: string, points: number): Promise<void> => {
       const currentPoints = (snap.data()?.civicPoints ?? 0) as number;
       const nextPoints = currentPoints + points;
       t.update(userRef, {
-        civicPoints: admin.firestore.FieldValue.increment(points),
+        civicPoints: FieldValue.increment(points),
         tier: getTierForPoints(nextPoints),
       });
     });
@@ -42,7 +43,41 @@ const awardKarmaPoints = async (uid: string, points: number): Promise<void> => {
 };
 
 /**
- * Creates an in-app notification in `users/{recipientUid}/notifications`.
+ * Dispatches a push notification via Expo Push API to a registered device token.
+ */
+const sendExpoPushNotification = async (
+  pushToken: string,
+  title: string,
+  body: string,
+  data?: Record<string, any>
+): Promise<void> => {
+  if (!pushToken || !pushToken.startsWith('ExponentPushToken[')) return;
+
+  try {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: pushToken,
+        sound: 'default',
+        title,
+        body,
+        data,
+      }),
+    });
+    const result = await res.json();
+    console.log('[sendExpoPushNotification] Result:', result);
+  } catch (err) {
+    console.error('[sendExpoPushNotification] Error sending push notification:', err);
+  }
+};
+
+/**
+ * Creates an in-app notification in `users/{recipientUid}/notifications` and dispatches Expo Push Notification.
  */
 const sendNotification = async (
   recipientUid: string,
@@ -69,8 +104,21 @@ const sendNotification = async (
       listingId: payload.listingId ?? null,
       message: payload.message ?? null,
       read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
+
+    // Check if recipient has a registered Expo Push Token
+    const userSnap = await db.collection('users').doc(recipientUid).get();
+    const pushToken = userSnap.data()?.pushToken as string | undefined;
+    if (pushToken) {
+      const title = payload.fromName ?? 'ReCiti Alert';
+      const body = payload.message ?? 'You have a new update from ReCiti.';
+      await sendExpoPushNotification(pushToken, title, body, {
+        reportId: payload.reportId,
+        listingId: payload.listingId,
+        type: payload.type,
+      });
+    }
   } catch (err) {
     console.error(`[sendNotification] Failed to send notification to ${recipientUid}:`, err);
   }
@@ -99,7 +147,7 @@ export const onReportUpdated = onDocumentUpdated('reports/{reportId}', async (ev
 
     await reportRef.update({
       status: 'verified',
-      verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+      verifiedAt: FieldValue.serverTimestamp(),
     });
 
     // Award +10 points to the original reporter for filing a community-verified issue
@@ -123,7 +171,7 @@ export const onReportUpdated = onDocumentUpdated('reports/{reportId}', async (ev
 
     await reportRef.update({
       status: 'resolved',
-      resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+      resolvedAt: FieldValue.serverTimestamp(),
     });
 
     // Notify the reporter
@@ -164,7 +212,7 @@ export const onListingClaimUpdated = onDocumentUpdated('listing_claims/{claimId}
         ownerId: claimantUid,
         isClaimed: true,
         claimStatus: 'verified',
-        claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+        claimedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
@@ -200,7 +248,7 @@ export const cleanupExpiredReportsAndNotices = onSchedule('every 24 hours', asyn
   console.log('[cleanupExpiredReportsAndNotices] Starting nightly maintenance cleanup...');
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const oneDayTimestamp = admin.firestore.Timestamp.fromDate(oneDayAgo);
+  const oneDayTimestamp = Timestamp.fromDate(oneDayAgo);
 
   try {
     const expiredSnap = await db
@@ -233,4 +281,3 @@ export const cleanupExpiredReportsAndNotices = onSchedule('every 24 hours', asyn
     console.error('[cleanupExpiredReportsAndNotices] Error running cleanup cron:', err);
   }
 });
-

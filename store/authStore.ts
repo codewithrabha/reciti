@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { User as FirebaseUser, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { createOrUpdateUserDoc, getUserDoc } from '@/lib/db';
+import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import { User } from '@/types';
 
 /**
@@ -57,6 +58,9 @@ export function initAuthListener(): void {
         });
         const doc = await getUserDoc(currentUser.uid);
         useAuthStore.setState({ userDoc: doc });
+        registerForPushNotificationsAsync(currentUser.uid).catch((err) =>
+          console.error('[authStore] Push registration error:', err)
+        );
       } else {
         // Guests have no Firestore doc — clear any doc left over from a
         // previous signed-in session (e.g. after sign-out → anonymous).

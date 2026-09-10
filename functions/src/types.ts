@@ -1,4 +1,4 @@
-import { firestore } from 'firebase-admin';
+import { Timestamp } from 'firebase-admin/firestore';
 
 export type ReportStatus = 'pending' | 'verified' | 'in_progress' | 'resolved' | 'archived';
 
@@ -10,10 +10,10 @@ export interface ReportDoc {
   flaggedBy: string[];
   upvotedBy?: string[];
   volunteeredBy?: string[];
-  createdAt: firestore.Timestamp;
-  verifiedAt?: firestore.Timestamp | null;
-  resolutionSubmittedAt?: firestore.Timestamp | null;
-  resolvedAt?: firestore.Timestamp | null;
+  createdAt: Timestamp;
+  verifiedAt?: Timestamp | null;
+  resolutionSubmittedAt?: Timestamp | null;
+  resolvedAt?: Timestamp | null;
   resolvedImageUrl?: string | null;
   resolvedBy?: string | null;
   resolutionConfirmedBy?: string[];
@@ -34,8 +34,8 @@ export interface ListingClaimDoc {
   claimantEmail?: string;
   claimantPhone?: string;
   status: ClaimStatus;
-  createdAt: firestore.Timestamp;
-  reviewedAt?: firestore.Timestamp | null;
+  createdAt: Timestamp;
+  reviewedAt?: Timestamp | null;
   reviewedBy?: string | null;
 }
 
@@ -62,5 +62,5 @@ export interface NotificationDoc {
   title?: string;
   message?: string;
   read: boolean;
-  createdAt: firestore.Timestamp;
+  createdAt: Timestamp;
 }
