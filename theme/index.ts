@@ -104,15 +104,16 @@ export const Shadows = {
 };
 
 export const useThemeColor = () => {
-  const colorScheme = useColorScheme() ?? 'light';
-  return Colors[colorScheme];
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  return Colors[scheme];
 };
 
 export const useTheme = () => {
-  const colorScheme = useColorScheme() ?? 'light';
+  const rawScheme = useColorScheme();
+  const scheme = rawScheme === 'dark' ? 'dark' : 'light';
   return {
-    colors: Colors[colorScheme],
-    isDark: colorScheme === 'dark',
+    colors: Colors[scheme],
+    isDark: scheme === 'dark',
     typography: Typography,
     spacing: Spacing,
     radii: Radii,

@@ -36,6 +36,7 @@ export default function EventDetailScreen() {
 
   const [event, setEvent] = useState<CityEvent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -105,11 +106,47 @@ export default function EventDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Sticky Top Header */}
+      <View
+        style={[
+          styles.topBar,
+          { paddingTop: insets.top + 8 },
+          scrolled && {
+            backgroundColor: colors.background,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.border,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          },
+        ]}
+      >
+        <AnimatedButton
+          onPress={() => router.back()}
+          hapticFeedback="light"
+          style={[styles.circleButton, { backgroundColor: scrolled ? colors.surface : colors.surface + 'EE' }]}
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
+        </AnimatedButton>
+        <View style={styles.topBarRight}>
+          <AnimatedButton
+            onPress={handleShare}
+            hapticFeedback="light"
+            style={[styles.circleButton, { backgroundColor: scrolled ? colors.surface : colors.surface + 'EE' }]}
+          >
+            <Ionicons name="share-outline" size={20} color={colors.text} />
+          </AnimatedButton>
+        </View>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        scrollEventThrottle={16}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y > 24 !== scrolled) setScrolled(y > 24);
+        }}
       >
-        {/* Banner Image & Top Floating Actions */}
+        {/* Banner Image */}
         <View style={styles.bannerContainer}>
           <Image
             source={{ uri: event.imageUrl }}
@@ -117,22 +154,6 @@ export default function EventDetailScreen() {
             contentFit="cover"
             transition={300}
           />
-          <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-            <AnimatedButton
-              onPress={() => router.back()}
-              style={[styles.circleButton, { backgroundColor: colors.surface + 'EE' }]}
-            >
-              <Ionicons name="arrow-back" size={20} color={colors.text} />
-            </AnimatedButton>
-            <View style={styles.topBarRight}>
-              <AnimatedButton
-                onPress={handleShare}
-                style={[styles.circleButton, { backgroundColor: colors.surface + 'EE' }]}
-              >
-                <Ionicons name="share-outline" size={20} color={colors.text} />
-              </AnimatedButton>
-            </View>
-          </View>
         </View>
 
         {/* Content Body */}
@@ -300,8 +321,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingBottom: 8,
     zIndex: 10,
   },
   topBarRight: { flexDirection: 'row', gap: 10 },
