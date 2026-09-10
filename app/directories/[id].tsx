@@ -227,7 +227,7 @@ export default function DirectoryDetailScreen() {
             hapticFeedback="light"
             style={[styles.circleButton, { backgroundColor: scrolled ? colors.surface : colors.surface + 'EE' }]}
           >
-            <Ionicons name="share-outline" size={20} color={colors.text} />
+            <Ionicons name="share-social-outline" size={20} color={colors.text} />
           </AnimatedButton>
         </View>
       </View>

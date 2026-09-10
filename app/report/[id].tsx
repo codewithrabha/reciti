@@ -746,7 +746,6 @@ export default function ReportDetailScreen() {
       >
         {BackButton}
         <View style={styles.headerRightGroup}>
-          {UpvoteButton}
           {ShareButton}
         </View>
       </View>
