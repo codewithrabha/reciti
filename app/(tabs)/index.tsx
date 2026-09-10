@@ -34,7 +34,7 @@ export default function PulseScreen() {
   const router = useRouter();
   const user = useUser();
   const userDoc = useUserDoc();
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, radii } = useTheme();
 
   const [coords, setCoords] = useState<Coords | null>(null);
   const [cityName, setCityName] = useState<string | null>(null);
@@ -261,12 +261,23 @@ export default function PulseScreen() {
             </View>
 
             {recentReports.length === 0 ? (
-              <StateView
-                compact
-                icon="earth"
-                title="No reports nearby"
-                message="Be the first to capture a civic issue or win in your area."
-              />
+              <View
+                style={[
+                  styles.emptyStateCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    borderRadius: radii.lg,
+                  },
+                ]}
+              >
+                <StateView
+                  compact
+                  icon="earth"
+                  title="No reports nearby"
+                  message="Be the first to capture a civic issue or win in your area."
+                />
+              </View>
             ) : (
               <LegendList
                 horizontal
@@ -315,28 +326,48 @@ export default function PulseScreen() {
               </AnimatedButton>
             </View>
 
-            <LegendList
-              horizontal
-              style={styles.carouselContainer}
-              contentContainerStyle={styles.horizontalCarousel}
-              data={events}
-              keyExtractor={(event) => event.id}
-              estimatedItemSize={252}
-              recycleItems
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item: event }) => (
-                <EventTeaserCard
-                  key={event.id}
-                  event={event}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/events/[id]" as any,
-                      params: { id: event.id },
-                    })
-                  }
+            {events.length === 0 ? (
+              <View
+                style={[
+                  styles.emptyStateCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    borderRadius: radii.lg,
+                  },
+                ]}
+              >
+                <StateView
+                  compact
+                  icon="calendar-outline"
+                  title="No upcoming events"
+                  message="There are no scheduled events right now. Stay tuned for community fairs and gatherings!"
                 />
-              )}
-            />
+              </View>
+            ) : (
+              <LegendList
+                horizontal
+                style={styles.carouselContainer}
+                contentContainerStyle={styles.horizontalCarousel}
+                data={events}
+                keyExtractor={(event) => event.id}
+                estimatedItemSize={252}
+                recycleItems
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item: event }) => (
+                  <EventTeaserCard
+                    key={event.id}
+                    event={event}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/events/[id]" as any,
+                        params: { id: event.id },
+                      })
+                    }
+                  />
+                )}
+              />
+            )}
 
             {/* 3. Local Spots & Findings (Business Directory Teaser) */}
             <View style={[styles.sectionHeaderRow, { marginTop: spacing.lg }]}>
@@ -362,28 +393,48 @@ export default function PulseScreen() {
               </AnimatedButton>
             </View>
 
-            <LegendList
-              horizontal
-              style={styles.carouselContainer}
-              contentContainerStyle={styles.horizontalCarousel}
-              data={businesses}
-              keyExtractor={(biz) => biz.id}
-              estimatedItemSize={252}
-              recycleItems
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item: biz }) => (
-                <BusinessTeaserCard
-                  key={biz.id}
-                  business={biz}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/directories/[id]" as any,
-                      params: { id: biz.id },
-                    })
-                  }
+            {businesses.length === 0 ? (
+              <View
+                style={[
+                  styles.emptyStateCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    borderRadius: radii.lg,
+                  },
+                ]}
+              >
+                <StateView
+                  compact
+                  icon="storefront-outline"
+                  title="No local spots listed yet"
+                  message="Verified local shops, health centers and public services will appear here soon."
                 />
-              )}
-            />
+              </View>
+            ) : (
+              <LegendList
+                horizontal
+                style={styles.carouselContainer}
+                contentContainerStyle={styles.horizontalCarousel}
+                data={businesses}
+                keyExtractor={(biz) => biz.id}
+                estimatedItemSize={252}
+                recycleItems
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item: biz }) => (
+                  <BusinessTeaserCard
+                    key={biz.id}
+                    business={biz}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/directories/[id]" as any,
+                        params: { id: biz.id },
+                      })
+                    }
+                  />
+                )}
+              />
+            )}
           </Animated.View>
         </ScrollView>
       )}
@@ -438,5 +489,11 @@ const styles = StyleSheet.create({
   },
   horizontalCarousel: {
     paddingRight: 8,
+  },
+  emptyStateCard: {
+    borderWidth: 1,
+    marginVertical: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
