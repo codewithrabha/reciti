@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   RefreshControl,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -54,7 +55,7 @@ export default function EventsScreen() {
     <View style={[styles.header, { borderBottomColor: colors.border }]}>
       <Typography variant="h1">Public Events</Typography>
       <Typography variant="body" color={colors.textMuted} style={{ marginTop: 2 }}>
-        Civic cleanups, cultural gatherings, sports, and city fairs
+        Civic events, cultural gatherings, sports, and city fairs and more.
       </Typography>
 
       {/* Search Bar */}
@@ -75,18 +76,16 @@ export default function EventsScreen() {
       </View>
 
       {/* Categories Horizontal Scroll */}
-      <LegendList
+      <ScrollView
         horizontal
-        data={EVENT_CATEGORIES}
-        keyExtractor={(cat) => cat.key}
-        estimatedItemSize={120}
-        recycleItems
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.categoriesScroll}
-        renderItem={({ item: cat }) => {
+      >
+        {EVENT_CATEGORIES.map((cat) => {
           const isSelected = selectedCategory === cat.key;
           return (
             <AnimatedButton
+              key={cat.key}
               onPress={() => setSelectedCategory(cat.key)}
               style={[
                 styles.categoryPill,
@@ -111,8 +110,8 @@ export default function EventsScreen() {
               </Typography>
             </AnimatedButton>
           );
-        }}
-      />
+        })}
+      </ScrollView>
     </View>
   );
 
@@ -126,6 +125,7 @@ export default function EventsScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={listHeader}
+        overScrollMode={'never'}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

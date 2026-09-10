@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   RefreshControl,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -54,7 +55,7 @@ export default function DirectoriesScreen() {
     <View style={[styles.header, { borderBottomColor: colors.border }]}>
       <Typography variant="h1">City Directory</Typography>
       <Typography variant="body" color={colors.textMuted} style={{ marginTop: 2 }}>
-        Discover verified local stores, health centers, and community services
+        Discover local businesses, health centers, and community services and more.
       </Typography>
 
       {/* Search Bar */}
@@ -75,18 +76,16 @@ export default function DirectoriesScreen() {
       </View>
 
       {/* Categories Horizontal Scroll */}
-      <LegendList
+      <ScrollView
         horizontal
-        data={DIRECTORY_CATEGORIES}
-        keyExtractor={(cat) => cat.key}
-        estimatedItemSize={110}
-        recycleItems
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.categoriesScroll}
-        renderItem={({ item: cat }) => {
+      >
+        {DIRECTORY_CATEGORIES.map((cat) => {
           const isSelected = selectedCategory === cat.key;
           return (
             <AnimatedButton
+              key={cat.key}
               onPress={() => setSelectedCategory(cat.key)}
               style={[
                 styles.categoryPill,
@@ -111,8 +110,8 @@ export default function DirectoriesScreen() {
               </Typography>
             </AnimatedButton>
           );
-        }}
-      />
+        })}
+      </ScrollView>
     </View>
   );
 
@@ -126,6 +125,7 @@ export default function DirectoriesScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={listHeader}
+        overScrollMode={'never'}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

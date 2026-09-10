@@ -374,7 +374,7 @@ export default function PulseScreen() {
               <View style={{ width: "70%" }}>
                 <Typography variant="subtitle">Local spots & findings</Typography>
                 <Typography variant="caption" color={colors.textMuted}>
-                  Explore verified local stores, health centers & services.
+                  Explore businesses,  health centers, institutes and etc.
                 </Typography>
               </View>
 

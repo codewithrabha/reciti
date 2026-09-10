@@ -347,7 +347,7 @@ export default function ProfileScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={{ paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+      <View style={{ paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <View style={styles.header}>
           {user.photoURL ? (
             <Image source={{ uri: user.photoURL }} style={styles.avatar} />
