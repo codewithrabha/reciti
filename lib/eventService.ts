@@ -165,12 +165,7 @@ export async function getUpcomingEvents(
       }));
     }
   } catch (err) {
-    console.warn('[eventService] Firestore query error, falling back to mock events:', err);
-  }
-
-  // If collection is empty or unreachable, fall back to mock data
-  if (items.length === 0) {
-    items = [...MOCK_EVENTS];
+    console.warn('[eventService] Firestore query error:', err);
   }
 
   // Filter by city
@@ -211,11 +206,10 @@ export async function getEventById(id: string): Promise<CityEvent | null> {
       };
     }
   } catch (err) {
-    console.warn('[eventService] Firestore get error, checking mock list:', err);
+    console.warn('[eventService] Firestore get error:', err);
   }
 
-  const found = MOCK_EVENTS.find((e) => e.id === id);
-  return found ?? null;
+  return null;
 }
 
 /**

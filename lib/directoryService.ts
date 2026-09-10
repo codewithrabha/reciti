@@ -185,12 +185,7 @@ export async function getDirectoryItems(
       }));
     }
   } catch (err) {
-    console.warn('[directoryService] Firestore query error, falling back to mock data:', err);
-  }
-
-  // If collection is empty or unreachable, fall back to mock data
-  if (items.length === 0) {
-    items = [...MOCK_BUSINESSES];
+    console.warn('[directoryService] Firestore query error:', err);
   }
 
   // Filter by city
@@ -231,11 +226,10 @@ export async function getDirectoryItemById(id: string): Promise<BusinessDirector
       };
     }
   } catch (err) {
-    console.warn('[directoryService] Firestore get error, checking mock list:', err);
+    console.warn('[directoryService] Firestore get error:', err);
   }
 
-  const found = MOCK_BUSINESSES.find((b) => b.id === id);
-  return found ?? null;
+  return null;
 }
 
 /**

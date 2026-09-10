@@ -1,8 +1,10 @@
 import * as admin from 'firebase-admin';
 import { setGlobalOptions } from 'firebase-functions/v2';
+import { onRequest } from 'firebase-functions/v2/https';
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { ListingClaimDoc, ReportDoc, Tier } from './types';
+import { BONGAIGAON_DIRECTORY_SEED } from './bongaigaonData';
 
 // Co-locate all Cloud Functions in asia-south1 (Mumbai)
 setGlobalOptions({ region: 'asia-south1' });
@@ -233,3 +235,27 @@ export const cleanupExpiredReportsAndNotices = onSchedule('every 24 hours', asyn
     console.error('[cleanupExpiredReportsAndNotices] Error running cleanup cron:', err);
   }
 });
+
+// ─── One-Time Seed Utility: seedBongaigaonDirectories ───────────────────────
+/**
+ * Seeds authentic Bongaigaon businesses and institutions into the directories collection.
+ */
+export const seedBongaigaonDirectories = onRequest(async (req, res) => {
+  try {
+    const batch = db.batch();
+    for (const item of BONGAIGAON_DIRECTORY_SEED) {
+      const docRef = db.collection('directories').doc(item.id);
+      batch.set(docRef, item, { merge: true });
+    }
+    await batch.commit();
+    res.json({
+      success: true,
+      count: BONGAIGAON_DIRECTORY_SEED.length,
+      message: `Successfully seeded ${BONGAIGAON_DIRECTORY_SEED.length} authentic Bongaigaon listings into Firestore!`,
+    });
+  } catch (err: any) {
+    console.error('[seedBongaigaonDirectories] Error seeding data:', err);
+    res.status(500).json({ success: false, error: err?.message ?? 'Seeding failed' });
+  }
+});
+
