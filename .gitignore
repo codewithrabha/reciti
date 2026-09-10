@@ -5,6 +5,7 @@ node_modules/
 .env
 
 # Firebase config (contains project keys — provision locally / via CI secrets)
+.firebase/
 google-services.json
 GoogleService-Info.plist
 firebase-debug.log
