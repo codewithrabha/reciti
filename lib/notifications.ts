@@ -7,7 +7,6 @@ import { createOrUpdateUserDoc } from './db';
 // Configure foreground notification behavior for SDK 55
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
     shouldShowBanner: true,
