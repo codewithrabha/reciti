@@ -117,7 +117,7 @@ export default function LearnScreen() {
         color={colors.textMuted}
         style={styles.sectionLabel}
       >
-        TODAY'S TRIVIA
+        {"TODAY'S TRIVIA"}
       </Typography>
 
       {todayError ? (
