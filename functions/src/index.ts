@@ -1,4 +1,5 @@
-import * as admin from 'firebase-admin';
+import { initializeApp } from 'firebase-admin/app';
+import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -7,8 +8,8 @@ import { ListingClaimDoc, ReportDoc, Tier } from './types';
 // Co-locate all Cloud Functions in asia-south1 (Mumbai)
 setGlobalOptions({ region: 'asia-south1' });
 
-admin.initializeApp();
-const db = admin.firestore();
+initializeApp();
+const db = getFirestore();
 
 // ─── Tier Calculation ────────────────────────────────────────────────────────
 const getTierForPoints = (points: number): Tier => {
@@ -32,7 +33,7 @@ const awardKarmaPoints = async (uid: string, points: number): Promise<void> => {
       const currentPoints = (snap.data()?.civicPoints ?? 0) as number;
       const nextPoints = currentPoints + points;
       t.update(userRef, {
-        civicPoints: admin.firestore.FieldValue.increment(points),
+        civicPoints: FieldValue.increment(points),
         tier: getTierForPoints(nextPoints),
       });
     });
@@ -103,7 +104,7 @@ const sendNotification = async (
       listingId: payload.listingId ?? null,
       message: payload.message ?? null,
       read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
 
     // Check if recipient has a registered Expo Push Token
@@ -146,7 +147,7 @@ export const onReportUpdated = onDocumentUpdated('reports/{reportId}', async (ev
 
     await reportRef.update({
       status: 'verified',
-      verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+      verifiedAt: FieldValue.serverTimestamp(),
     });
 
     // Award +10 points to the original reporter for filing a community-verified issue
@@ -170,7 +171,7 @@ export const onReportUpdated = onDocumentUpdated('reports/{reportId}', async (ev
 
     await reportRef.update({
       status: 'resolved',
-      resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+      resolvedAt: FieldValue.serverTimestamp(),
     });
 
     // Notify the reporter
@@ -211,7 +212,7 @@ export const onListingClaimUpdated = onDocumentUpdated('listing_claims/{claimId}
         ownerId: claimantUid,
         isClaimed: true,
         claimStatus: 'verified',
-        claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+        claimedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
@@ -247,7 +248,7 @@ export const cleanupExpiredReportsAndNotices = onSchedule('every 24 hours', asyn
   console.log('[cleanupExpiredReportsAndNotices] Starting nightly maintenance cleanup...');
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const oneDayTimestamp = admin.firestore.Timestamp.fromDate(oneDayAgo);
+  const oneDayTimestamp = Timestamp.fromDate(oneDayAgo);
 
   try {
     const expiredSnap = await db
@@ -280,4 +281,3 @@ export const cleanupExpiredReportsAndNotices = onSchedule('every 24 hours', asyn
     console.error('[cleanupExpiredReportsAndNotices] Error running cleanup cron:', err);
   }
 });
-
