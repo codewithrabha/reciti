@@ -1,46 +1,33 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
+import React, { useCallback, useEffect, useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import * as Location from "expo-location";
+import { LegendList } from "@legendapp/list";
 
-import { Report } from '@/types';
-import {
-  PulseStats,
-  flagReport,
-  subscribeToPulseStats,
-  subscribeToVerificationQueue,
-  verifyReport,
-} from '@/lib/db';
-import { useUser, useUserDoc } from '@/hooks/useAuth';
-import { ReportCard } from '@/components/ReportCard';
-import { PulseHero } from '@/components/pulse/PulseHero';
-import { StatCard } from '@/components/pulse/StatCard';
-import { TierProgress } from '@/components/pulse/TierProgress';
-import { AnimatedButton } from '@/components/ui/AnimatedButton';
-import { NotificationBell } from '@/components/ui/NotificationBell';
-import { StateView } from '@/components/ui/StateView';
-import { Typography } from '@/components/ui/Typography';
-import { PulseStatsSkeleton } from '@/components/skeletons';
-import { useTheme } from '@/theme';
+import { BusinessDirectoryItem, CityEvent, CityNotice, Report } from "@/types";
+import { subscribeToExploreReports } from "@/lib/db";
+import { getDirectoryItems } from "@/lib/directoryService";
+import { getUpcomingEvents } from "@/lib/eventService";
+import { getCityNotices } from "@/lib/noticeService";
+import { useUser, useUserDoc } from "@/hooks/useAuth";
+import { CivicPulseCard } from "@/components/pulse/CivicPulseCard";
+import { EventTeaserCard } from "@/components/pulse/EventTeaserCard";
+import { BusinessTeaserCard } from "@/components/pulse/BusinessTeaserCard";
+import { NoticeBoardCarousel } from "@/components/home/NoticeBoardCarousel";
+import { AnimatedButton } from "@/components/ui/AnimatedButton";
+import { NotificationBell } from "@/components/ui/NotificationBell";
+import { StateView } from "@/components/ui/StateView";
+import { Typography } from "@/components/ui/Typography";
+import { PulseStatsSkeleton } from "@/components/skeletons";
+import { useTheme } from "@/theme";
 
 const RADIUS_KM = 30;
 
 type Coords = { latitude: number; longitude: number };
-
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
 
 export default function PulseScreen() {
   const insets = useSafeAreaInsets();
@@ -50,10 +37,13 @@ export default function PulseScreen() {
   const { colors, spacing } = useTheme();
 
   const [coords, setCoords] = useState<Coords | null>(null);
+  const [cityName, setCityName] = useState<string | null>(null);
   const [locationGranted, setLocationGranted] = useState(false);
   const [locationResolved, setLocationResolved] = useState(false);
-  const [stats, setStats] = useState<PulseStats | null>(null);
-  const [pending, setPending] = useState<Report[]>([]);
+  const [recentReports, setRecentReports] = useState<Report[] | null>(null);
+  const [events, setEvents] = useState<CityEvent[]>([]);
+  const [businesses, setBusinesses] = useState<BusinessDirectoryItem[]>([]);
+  const [notices, setNotices] = useState<CityNotice[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
@@ -61,20 +51,28 @@ export default function PulseScreen() {
   const fetchLocation = useCallback(async () => {
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
-      setLocationGranted(status === 'granted');
-      if (status !== 'granted') {
+      setLocationGranted(status === "granted");
+      if (status !== "granted") {
         setCoords(null);
+        setCityName(null);
         return;
       }
       const pos = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      setCoords({
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      });
+      const { latitude, longitude } = pos.coords;
+      setCoords({ latitude, longitude });
+
+      try {
+        const results = await Location.reverseGeocodeAsync({ latitude, longitude });
+        const resolved = results[0]?.city ?? results[0]?.subregion ?? results[0]?.district ?? null;
+        setCityName(resolved);
+      } catch {
+        // reverse geocoding fallback
+      }
     } catch {
       setCoords(null);
+      setCityName(null);
     } finally {
       setLocationResolved(true);
     }
@@ -84,64 +82,69 @@ export default function PulseScreen() {
     fetchLocation();
   }, [fetchLocation]);
 
-  // Real-time pulse stats — re-subscribes when the area changes or on retry.
-  // Waits for location resolution so we subscribe once with the right area,
-  // instead of loading unscoped data then reloading once coords arrive.
-  useEffect(() => {
-    if (!locationResolved) return;
-    setStats(null);
-    setError(false);
-    const opts = coords ? { center: coords, radiusKm: RADIUS_KM } : {};
-    return subscribeToPulseStats(setStats, opts, () => setError(true));
-  }, [coords, retryKey, locationResolved]);
+  // Load events, businesses & notices for the home screen, filtered by current city
+  const loadTeasers = useCallback(async (currentCity?: string | null) => {
+    try {
+      const city = currentCity ?? undefined;
+      const [evts, biz, cityNotices] = await Promise.all([
+        getUpcomingEvents('all', undefined, city),
+        getDirectoryItems('all', undefined, city),
+        getCityNotices(city),
+      ]);
 
-  // Real-time verification queue — top 3 pending reports, excluding the user's own.
+      // If city has matching items, show them; otherwise fallback to all upcoming/directories
+      // so carousels don't appear empty if a city has no mock data yet.
+      const finalEvts = evts.length > 0 ? evts : await getUpcomingEvents();
+      const finalBiz = biz.length > 0 ? biz : await getDirectoryItems();
+
+      setEvents(finalEvts.slice(0, 5));
+      setBusinesses(finalBiz.slice(0, 5));
+      setNotices(cityNotices);
+    } catch (e) {
+      console.warn("[PulseScreen] Error loading teasers:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTeasers(cityName);
+  }, [loadTeasers, cityName, retryKey]);
+
+  // Real-time recent reports (max 6 cards of civic issues & wins)
   useEffect(() => {
     if (!locationResolved) return;
-    return subscribeToVerificationQueue(
-      setPending,
-      {
-        excludeUid: user?.uid,
-        max: 3,
-        ...(coords ? { center: coords, radiusKm: RADIUS_KM } : {}),
-      },
+    setRecentReports(null);
+    setError(false);
+    const opts = {
+      ...(coords ? { center: coords, radiusKm: RADIUS_KM } : {}),
+      filter: "all" as const,
+    };
+    return subscribeToExploreReports(
+      (reports) => setRecentReports(reports.slice(0, 6)),
+      opts,
       () => setError(true),
     );
-  }, [coords, user?.uid, retryKey, locationResolved]);
+  }, [coords, retryKey, locationResolved]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchLocation();
+    await Promise.all([fetchLocation(), loadTeasers(cityName)]);
     setRefreshing(false);
-  }, [fetchLocation]);
+  }, [fetchLocation, loadTeasers, cityName]);
 
   const retry = () => setRetryKey((k) => k + 1);
 
   const enableLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
+      if (status === "granted") {
         await fetchLocation();
       } else {
         setLocationGranted(false);
       }
     } catch {
-      // Permission flow failed — leave the area unscoped.
+      // Permission flow failed
     }
   };
-
-  const handleVerify = async (reportId: string) => {
-    if (!user) return;
-    await verifyReport(reportId, user.uid);
-  };
-
-  const handleFlag = async (reportId: string) => {
-    if (!user) return;
-    await flagReport(reportId, user.uid);
-  };
-
-  const name = userDoc?.displayName?.split(' ')[0] ?? 'there';
-  const activeCount = stats ? stats.openIssues + stats.wins : 0;
 
   return (
     <View
@@ -150,149 +153,240 @@ export default function PulseScreen() {
         { backgroundColor: colors.background, paddingTop: insets.top },
       ]}
     >
-
       {/* Header */}
-      <View style={{ paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+      <View
+        style={{
+          paddingHorizontal: 16,
+          paddingBottom: 10,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        }}
+      >
         <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Typography variant="body" color={colors.textMuted}>
-              {getGreeting()},
+          {/* Logo with "ReCiti" Brand Text */}
+          <View style={styles.brandRow}>
+            <Image
+              source={require("@/assets/images/icon.png")}
+              style={styles.logo}
+              contentFit="cover"
+            />
+            <Typography variant="h1" style={styles.brandTitle}>
+              ReCiti
             </Typography>
-            <Typography variant="h1">{name}</Typography>
           </View>
           <NotificationBell />
         </View>
 
-        <View style={{ height: spacing.sm }} />
+        <View style={{ height: spacing.xs }} />
 
+        {/* City Location Chip */}
         <AnimatedButton
           onPress={locationGranted ? undefined : enableLocation}
           disabled={locationGranted}
-          hapticFeedback={locationGranted ? 'none' : 'light'}
+          hapticFeedback={locationGranted ? "none" : "light"}
           style={styles.locationChip}
         >
           <Ionicons
-            name={coords ? 'location' : 'location-outline'}
+            name={cityName ? "map" : "map-outline"}
             size={14}
-            color={coords ? colors.primary : colors.textMuted}
+            color={cityName ? colors.primary : colors.textMuted}
           />
           <Typography
             variant="caption"
             weight="semiBold"
-            color={coords ? colors.primary : colors.textMuted}
+            color={cityName ? colors.primary : colors.textMuted}
           >
-            {coords
-              ? `Within ${RADIUS_KM} km of you`
-              : 'Enable location for your area'}
+            {cityName ?? (coords ? "Nearby" : "Enable location for your city")}
           </Typography>
         </AnimatedButton>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-        overScrollMode='never'
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-      >
-
-        {error ? (
-          <StateView
-            icon="cloud-offline"
-            tone="error"
-            title="Couldn’t load your pulse"
-            message="Something went wrong reading reports nearby. Check your connection and try again."
-            actionLabel="Retry"
-            onAction={retry}
-          />
-        ) : stats === null ? (
-          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
-            <PulseStatsSkeleton />
-          </Animated.View>
-        ) : (
+      {error ? (
+        <StateView
+          icon="cloud-offline"
+          tone="error"
+          title="Couldn’t load your city pulse"
+          message="Something went wrong connecting nearby. Check your connection and try again."
+          actionLabel="Retry"
+          onAction={retry}
+        />
+      ) : recentReports === null ? (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(200)}
+          style={{ paddingHorizontal: 16, paddingTop: 16 }}
+        >
+          <PulseStatsSkeleton />
+        </Animated.View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        >
           <Animated.View entering={FadeIn.duration(200)}>
-            <View style={{ marginTop: spacing.md }}>
-              <PulseHero activeCount={activeCount} />
+            {/* Dynamic City Notice Board Hero Carousel */}
+            <NoticeBoardCarousel notices={notices} cityName={cityName} />
+
+            {/* 1. Civic Health: Horizontal Scroll (Max 6 cards) */}
+            <View style={[styles.sectionHeaderRow, { marginTop: spacing.md }]}>
+              <View style={{ width: "70%" }}>
+                <Typography variant="subtitle">Civic Health</Typography>
+                <Typography variant="caption" color={colors.textMuted}>
+                  Serious city issues & wins nearby.
+                </Typography>
+              </View>
+
+              <AnimatedButton
+                onPress={() => router.push("/reports" as any)}
+                style={styles.seeAllBtn}
+              >
+                <Typography
+                  variant="caption"
+                  weight="bold"
+                  color={colors.primary}
+                >
+                  See all
+                </Typography>
+                <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+              </AnimatedButton>
+
             </View>
 
-            {/* Honest raw stats */}
-            <View style={[styles.statRow, { marginTop: spacing.md }]}>
-              <StatCard icon="leaf" value={stats.wins} label="Civic wins" tint="primary" />
-              <StatCard
-                icon="warning"
-                value={stats.openIssues}
-                label="Open issues"
-                tint="danger"
-              />
-            </View>
-            <View style={styles.statRow}>
-              <StatCard
-                icon="trending-up"
-                value={stats.thisWeek}
-                label="New this week"
-                tint="primary"
-              />
-              <StatCard
-                icon="eye"
-                value={stats.pendingVerification}
-                label="Need verifying"
-                tint="warning"
-              />
-            </View>
-
-            {/* Tier ladder */}
-            <Typography
-              variant="caption"
-              weight="bold"
-              color={colors.textMuted}
-              style={styles.sectionLabel}
-            >
-              YOUR CLIMB
-            </Typography>
-            <TierProgress userDoc={userDoc} />
-
-            {/* Verification bridge */}
-            <Typography
-              variant="caption"
-              weight="bold"
-              color={colors.textMuted}
-              style={styles.sectionLabel}
-            >
-              REPORTS THAT NEED YOU
-            </Typography>
-            {pending.length === 0 ? (
+            {recentReports.length === 0 ? (
               <StateView
                 compact
-                icon="checkmark-done-circle"
-                title="All clear nearby"
-                message="No reports are waiting for verification in your area."
+                icon="earth"
+                title="No reports nearby"
+                message="Be the first to capture a civic issue or win in your area."
               />
             ) : (
-              pending.map((report) => (
-                <ReportCard
-                  key={report.reportId}
-                  report={report}
-                  isRadarView
+              <LegendList
+                horizontal
+                style={styles.carouselContainer}
+                contentContainerStyle={styles.horizontalCarousel}
+                data={recentReports}
+                keyExtractor={(report) => report.reportId}
+                estimatedItemSize={252}
+                recycleItems
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item: report }) => (
+                  <CivicPulseCard
+                    key={report.reportId}
+                    report={report}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/report/[id]",
+                        params: { id: report.reportId },
+                      })
+                    }
+                  />
+                )}
+              />
+            )}
+
+            {/* 2. Happening Around You (Events Carousel) */}
+            <View style={[styles.sectionHeaderRow, { marginTop: spacing.lg }]}>
+              <View style={{ width: "70%" }}>
+                <Typography variant="subtitle">Happening around you</Typography>
+                <Typography variant="caption" color={colors.textMuted}>
+                  Civic events, cultural fairs, sports & more.
+                </Typography>
+              </View>
+              <AnimatedButton
+                onPress={() => router.push("/events" as any)}
+                style={styles.seeAllBtn}
+              >
+                <Typography
+                  variant="caption"
+                  weight="bold"
+                  color={colors.primary}
+                >
+                  See all
+                </Typography>
+                <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+              </AnimatedButton>
+            </View>
+
+            <LegendList
+              horizontal
+              style={styles.carouselContainer}
+              contentContainerStyle={styles.horizontalCarousel}
+              data={events}
+              keyExtractor={(event) => event.id}
+              estimatedItemSize={252}
+              recycleItems
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item: event }) => (
+                <EventTeaserCard
+                  key={event.id}
+                  event={event}
                   onPress={() =>
                     router.push({
-                      pathname: '/report/[id]',
-                      params: { id: report.reportId },
+                      pathname: "/events/[id]" as any,
+                      params: { id: event.id },
                     })
                   }
-                  onVerify={() => handleVerify(report.reportId)}
-                  onFlag={() => handleFlag(report.reportId)}
                 />
-              ))
-            )}
+              )}
+            />
+
+            {/* 3. Local Spots & Findings (Business Directory Teaser) */}
+            <View style={[styles.sectionHeaderRow, { marginTop: spacing.lg }]}>
+              <View style={{ width: "70%" }}>
+                <Typography variant="subtitle">Local spots & findings</Typography>
+                <Typography variant="caption" color={colors.textMuted}>
+                  Explore verified local stores, health centers & services.
+                </Typography>
+              </View>
+
+              <AnimatedButton
+                onPress={() => router.push("/directories" as any)}
+                style={styles.seeAllBtn}
+              >
+                <Typography
+                  variant="caption"
+                  weight="bold"
+                  color={colors.primary}
+                >
+                  See all
+                </Typography>
+                <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+              </AnimatedButton>
+            </View>
+
+            <LegendList
+              horizontal
+              style={styles.carouselContainer}
+              contentContainerStyle={styles.horizontalCarousel}
+              data={businesses}
+              keyExtractor={(biz) => biz.id}
+              estimatedItemSize={252}
+              recycleItems
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item: biz }) => (
+                <BusinessTeaserCard
+                  key={biz.id}
+                  business={biz}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/directories/[id]" as any,
+                      params: { id: biz.id },
+                    })
+                  }
+                />
+              )}
+            />
           </Animated.View>
-        )}
-      </ScrollView>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -300,15 +394,49 @@ export default function PulseScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingBottom: 120 },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  logo: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+  },
+  brandTitle: {
+    fontSize: 22,
+    letterSpacing: -0.4,
+  },
   locationChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     paddingVertical: 2,
   },
-  loading: { paddingVertical: 80, alignItems: 'center' },
-  statRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  sectionLabel: { letterSpacing: 1, marginTop: 20, marginBottom: 10 },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  seeAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  carouselContainer: {
+    height: 245,
+  },
+  horizontalCarousel: {
+    paddingRight: 8,
+  },
 });

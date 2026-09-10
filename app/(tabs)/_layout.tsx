@@ -42,7 +42,7 @@ export default function TabLayout() {
           title: "Pulse",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={30}
+              size={28}
               name={focused ? "earth" : "earth-outline"}
               color={color}
             />
@@ -50,12 +50,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="directories"
         options={{
-          title: "Explore",
+          title: "Directories",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={30}
+              size={26}
               name={focused ? "map" : "map-outline"}
               color={color}
             />
@@ -73,19 +73,19 @@ export default function TabLayout() {
                 { backgroundColor: colors.primary },
               ]}
             >
-              <Ionicons size={30} name="camera" color={colors.white} />
+              <Ionicons size={30} name="add" color={colors.white} />
             </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="learn"
+        name="events"
         options={{
-          title: "Learn",
+          title: "Events",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={30}
-              name={focused ? "school" : "school-outline"}
+              size={26}
+              name={focused ? "sparkles" : "sparkles-outline"}
               color={color}
             />
           ),
@@ -97,11 +97,23 @@ export default function TabLayout() {
           title: "Profile",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={30}
+              size={28}
               name={focused ? "person" : "person-outline"}
               color={color}
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="learn"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

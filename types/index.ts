@@ -110,3 +110,96 @@ export interface StorySlide {
   imageUrl?: string | null;
   createdAt: Timestamp;
 }
+
+// ─── Business Directory & Services ──────────────────────────────────────────
+
+export type DirectoryCategory =
+  | 'shops'
+  | 'local_stores'
+  | 'hotels'
+  | 'institutions'
+  | 'healthcare'
+  | 'markets'
+  | 'services'
+  | 'other';
+
+export interface BusinessDirectoryItem {
+  id: string;
+  name: string;
+  category: DirectoryCategory;
+  description: string;
+  address: string;
+  city?: string;
+  latitude: number;
+  longitude: number;
+  phone?: string;
+  website?: string;
+  imageUrl: string;
+  imageUrls?: string[];
+  rating?: number;
+  reviewCount?: number;
+  isVerified?: boolean;
+  isSponsored?: boolean;
+  openingHours?: string;
+}
+
+// ─── Public & City Events ───────────────────────────────────────────────────
+
+export type EventCategory =
+  | 'cultural'
+  | 'civic'
+  | 'sports'
+  | 'concerts'
+  | 'fairs'
+  | 'workshops';
+
+export interface CityEvent {
+  id: string;
+  title: string;
+  category: EventCategory;
+  description: string;
+  date: string; // e.g. '2026-09-12' or 'Tomorrow, 10:00 AM'
+  time: string;
+  endDate?: string;
+  locationName: string;
+  address: string;
+  city?: string;
+  latitude: number;
+  longitude: number;
+  imageUrl: string;
+  price: string; // 'Free' or '₹150' / '$10'
+  organizerName: string;
+  isSponsored?: boolean;
+  civicPointsReward?: number;
+}
+
+// ─── Digital Notice Board & Civic Bulletins ─────────────────────────────────
+
+export type NoticeCategory =
+  | 'alert'
+  | 'announcement'
+  | 'spotlight'
+  | 'advisory'
+  | 'app_update'
+  | 'banner';
+
+export type NoticePriority = 'urgent' | 'high' | 'normal';
+export type NoticeDisplayType = 'standard' | 'image_banner' | 'feature_update';
+
+export interface CityNotice {
+  id: string;
+  title: string;
+  description: string;
+  category: NoticeCategory;
+  priority: NoticePriority;
+  city: string; // e.g., 'Bongaigaon', 'Bengaluru', or 'all'
+  badgeText: string; // e.g., 'WATER SUPPLY', 'ROADWORK', 'NEW FEATURE', 'WHAT'S NEW'
+  issuedBy: string; // e.g., 'Municipal Board', 'ReCiti Team'
+  date: string; // e.g., 'Today, 8:00 AM' or 'v2.1 Update'
+  displayType?: NoticeDisplayType;
+  imageUrl?: string;
+  actionLabel?: string; // e.g., 'Try Now', 'Call Helpline', 'View Circular'
+  actionUrl?: string; // Tel URI, external link, or internal route e.g. '/explore'
+  actionType?: 'phone' | 'link' | 'route' | 'modal' | 'none';
+  isPinned?: boolean;
+}
