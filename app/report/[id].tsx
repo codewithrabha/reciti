@@ -43,6 +43,7 @@ import { ResolutionTimeline } from '@/components/report/ResolutionTimeline';
 import { BeforeAfter } from '@/components/report/BeforeAfter';
 import { CommentThread } from '@/components/report/CommentThread';
 import { CommentComposer } from '@/components/report/CommentComposer';
+import { shareReport } from '@/lib/shareService';
 import { StoryViewer } from '@/components/report/StoryViewer';
 import { StoryComposer } from '@/components/report/StoryComposer';
 import { VolunteerSection } from '@/components/report/VolunteerSection';
@@ -448,17 +449,7 @@ export default function ReportDetailScreen() {
 
   const handleShare = async () => {
     if (!report) return;
-    const url = Linking.createURL(`/report/${report.reportId}`);
-    const noun = `civic ${report.vibe === 'win' ? 'win' : 'issue'}`;
-    const message =
-      report.status === 'pending'
-        ? `Spotted a ${noun} on ReCiti — can you verify it? It needs ${VERIFICATION_THRESHOLD} neighbours to confirm.\n\n${url}`
-        : `Spotted a ${noun} on ReCiti — take a look.\n\n${url}`;
-    try {
-      await Share.share({ message, url });
-    } catch {
-      Alert.alert('Share failed', 'Could not open the share sheet. Please try again.');
-    }
+    await shareReport(report);
   };
 
   const promptMarkFixed = () => {

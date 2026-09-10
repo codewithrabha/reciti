@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReCiti — Empowering Citizens, Transforming Cities</title>
+  <meta name="description" content="Report local civic issues, verify community fixes, earn Civic Coins (C-Coins), and explore verified local businesses across your city.">
+  <meta property="og:title" content="ReCiti — Civic Action & City Directory Network">
+  <meta property="og:description" content="Spot, report, and resolve neighborhood issues with your community.">
+  <meta property="og:url" content="https://reciti.in">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="https://img.icons8.com/color/96/city-buildings.png" type="image/png">
+  
+  <style>
+    :root {
+      --primary: #2563EB;
+      --primary-gradient: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%);
+      --bg: #0B1120;
+      --surface: #1E293B;
+      --border: rgba(255, 255, 255, 0.1);
+      --text: #F8FAFC;
+      --text-muted: #94A3B8;
+      --accent: #10B981;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 800;
+      font-size: 1.4rem;
+      letter-spacing: -0.5px;
+    }
+    .brand-badge {
+      background: var(--primary-gradient);
+      color: #fff;
+      padding: 0.35rem 0.65rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .hero {
+      max-width: 900px;
+      margin: 4rem auto 2rem auto;
+      padding: 0 1.5rem;
+      text-align: center;
+      flex: 1;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(37, 99, 235, 0.15);
+      border: 1px solid rgba(37, 99, 235, 0.3);
+      color: #60A5FA;
+      padding: 0.35rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+    h1 {
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      margin-bottom: 1.25rem;
+      background: linear-gradient(180deg, #FFFFFF 0%, #CBD5E1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p.lead {
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+      color: var(--text-muted);
+      max-width: 650px;
+      margin: 0 auto 2.5rem auto;
+    }
+    .cta-group {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.85rem 1.6rem;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--primary-gradient);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.45);
+    }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      max-width: 1000px;
+      margin: 4rem auto;
+      padding: 0 1.5rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      text-align: left;
+    }
+    .card-icon {
+      font-size: 1.8rem;
+      margin-bottom: 0.75rem;
+    }
+    .card h3 {
+      font-size: 1.15rem;
+      margin-bottom: 0.5rem;
+      color: #F1F5F9;
+    }
+    .card p {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    #deepLinkNotice {
+      display: none;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34D399;
+      padding: 1rem;
+      border-radius: 12px;
+      max-width: 600px;
+      margin: 0 auto 2rem auto;
+      font-size: 0.95rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="/" class="brand">
+      <span class="brand-badge">ReCiti</span>
+      <span>reciti.in</span>
+    </a>
+  </header>
+
+  <main class="hero">
+    <div id="deepLinkNotice">
+      Opening content in the <strong>ReCiti</strong> App...
+    </div>
+
+    <div class="pill">
+      <span>✨ Community Civic Network & Local Hub</span>
+    </div>
+
+    <h1>Empowering Citizens.<br>Transforming Our Cities.</h1>
+
+    <p class="lead">
+      Spot local civic issues, earn Civic Coins (C-Coins) for verifying neighborhood fixes, and discover verified businesses, clinics, and official city bulletins.
+    </p>
+
+    <div class="cta-group">
+      <a href="https://play.google.com/store/apps/details?id=com.reciti.android" class="btn btn-primary" id="openAppBtn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3.609 1.814L13.793 12 3.61 22.186a1.986 1.986 0 0 1-.61-1.42V3.234c0-.54.225-1.043.609-1.42zm11.246 11.247l2.253 2.253-12.015 6.94 9.762-9.193zm0-2.122L5.093 1.746l12.015 6.94-2.253 2.253zm1.414 1.061l3.525 2.036c1.085.626 1.085 1.646 0 2.272l-3.525 2.036-1.782-1.782a.75.75 0 0 1 0-1.06l1.782-1.502z"/>
+        </svg>
+        <span>Download on Google Play</span>
+      </a>
+    </div>
+
+    <section class="features">
+      <div class="card">
+        <div class="card-icon">📸</div>
+        <h3>Spot & Report</h3>
+        <p>Snap a photo of potholes, trash dumps, or water leakages. Geolocation is automatically attached to mobilize city authorities.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🪙</div>
+        <h3>Earn Civic Coins</h3>
+        <p>Verify reports and confirm neighbor fixes to earn C-Coins, climb the community ranks, and gain civic recognition.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📍</div>
+        <h3>Verified Directory</h3>
+        <p>Discover trusted neighborhood healthcare centers, stores, open markets, and municipal announcements across Bongaigaon.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 ReCiti. Built for citizens, powered by community verification.</p>
+  </footer>
+
+  <script>
+    // Handle App Link Routing
+    const path = window.location.pathname;
+    if (path.startsWith('/report/') || path.startsWith('/directories/') || path.startsWith('/events/')) {
+      const notice = document.getElementById('deepLinkNotice');
+      notice.style.display = 'block';
+      
+      const appSchemeUrl = 'reciti:/' + path;
+      // Try opening app protocol
+      window.location.href = appSchemeUrl;
+
+      // Update button text to emphasize app
+      const btn = document.getElementById('openAppBtn');
+      btn.innerHTML = '<span>Open in ReCiti App</span>';
+      btn.href = appSchemeUrl;
+    }
+  </script>
+</body>
+</html>

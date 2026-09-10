@@ -26,6 +26,7 @@ import {
   getUserListingClaim,
   submitListingClaim,
 } from '@/lib/directoryService';
+import { shareDirectory } from '@/lib/shareService';
 import { useUser, useUserDoc } from '@/store/authStore';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
@@ -79,14 +80,7 @@ export default function DirectoryDetailScreen() {
 
   const handleShare = async () => {
     if (!business) return;
-    try {
-      await Share.share({
-        title: business.name,
-        message: `Check out ${business.name} on ReCiti: ${business.description}`,
-      });
-    } catch {
-      // dismissed
-    }
+    await shareDirectory(business);
   };
 
   const handleCall = () => {

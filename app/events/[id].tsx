@@ -17,6 +17,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { CityEvent } from '@/types';
 import { getEventById } from '@/lib/eventService';
+import { shareEvent } from '@/lib/shareService';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
@@ -53,14 +54,7 @@ export default function EventDetailScreen() {
 
   const handleShare = async () => {
     if (!event) return;
-    try {
-      await Share.share({
-        title: event.title,
-        message: `Check out ${event.title} happening on ${event.date} at ${event.locationName}! More details on ReCiti.`,
-      });
-    } catch {
-      // dismissed
-    }
+    await shareEvent(event);
   };
 
   const handleDirections = () => {

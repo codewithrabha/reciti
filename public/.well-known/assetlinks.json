@@ -1,0 +1,16 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.reciti.android",
+      "sha256_cert_fingerprints": [
+        "F1:19:93:05:FF:71:D5:87:FA:D0:E2:A9:4D:B2:8A:25:35:67:F8:BA",
+        "F9:F0:0D:5D:03:F5:49:90:11:3F:B4:65:26:08:10:A2:DB:84:4D:E6",
+        "5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25"
+      ]
+    }
+  }
+]

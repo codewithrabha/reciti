@@ -11,6 +11,7 @@ import { useTheme } from "@/theme";
 import { Typography } from "@/components/ui/Typography";
 import { Badge } from "@/components/ui/Badge";
 import { AnimatedButton } from "@/components/ui/AnimatedButton";
+import { shareReport } from "@/lib/shareService";
 
 interface CivicPulseCardProps {
   report: Report;
@@ -58,18 +59,7 @@ export function CivicPulseCard({
   };
 
   const handleShare = async () => {
-    try {
-      const headline = `${isWin ? "Civic win" : "Civic issue"} in ${report.city ?? "our community"}`;
-      const body = report.description
-        ? `${headline}: "${report.description}"`
-        : headline;
-      await Share.share({
-        title: headline,
-        message: `${body}\n\nCheck it out on ReCiti!`,
-      });
-    } catch {
-      // dismissed
-    }
+    await shareReport(report);
   };
 
   return (
