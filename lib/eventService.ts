@@ -1,3 +1,11 @@
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+} from 'firebase/firestore';
+import { db } from './firebase';
 import { CityEvent, EventCategory } from '@/types';
 
 export const EVENT_CATEGORIES: { key: EventCategory | 'all'; label: string; icon: string }[] = [
@@ -26,8 +34,11 @@ export const MOCK_EVENTS: CityEvent[] = [
     imageUrl: 'https://images.unsplash.com/photo-1618477461853-cf6ed80faba5?w=800&auto=format&fit=crop&q=80',
     price: 'Free',
     organizerName: 'ReCiti Volunteer Guild & Eco Watch',
+    organizerType: 'municipal',
+    isVerifiedOrganizer: true,
     isSponsored: true,
     civicPointsReward: 75,
+    status: 'active',
   },
   {
     id: 'evt-2',
@@ -44,8 +55,11 @@ export const MOCK_EVENTS: CityEvent[] = [
     imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=80',
     price: '₹250',
     organizerName: 'City Vibes Collective',
+    organizerType: 'business',
+    isVerifiedOrganizer: true,
     isSponsored: true,
     civicPointsReward: 10,
+    status: 'active',
   },
   {
     id: 'evt-3',
@@ -62,8 +76,11 @@ export const MOCK_EVENTS: CityEvent[] = [
     imageUrl: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&auto=format&fit=crop&q=80',
     price: 'Free',
     organizerName: 'Regional Crafts Council',
+    organizerType: 'ngo',
+    isVerifiedOrganizer: true,
     isSponsored: false,
     civicPointsReward: 20,
+    status: 'active',
   },
   {
     id: 'evt-4',
@@ -80,8 +97,11 @@ export const MOCK_EVENTS: CityEvent[] = [
     imageUrl: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&auto=format&fit=crop&q=80',
     price: '₹400',
     organizerName: 'City Runners Guild',
+    organizerType: 'ngo',
+    isVerifiedOrganizer: true,
     isSponsored: true,
     civicPointsReward: 40,
+    status: 'active',
   },
   {
     id: 'evt-5',
@@ -98,8 +118,11 @@ export const MOCK_EVENTS: CityEvent[] = [
     imageUrl: 'https://images.unsplash.com/photo-1499781350541-7783f6c6a0c8?w=800&auto=format&fit=crop&q=80',
     price: '₹150',
     organizerName: 'Public Canvas Initiative',
+    organizerType: 'citizen',
+    isVerifiedOrganizer: false,
     isSponsored: false,
     civicPointsReward: 15,
+    status: 'active',
   },
   {
     id: 'evt-6',
@@ -116,24 +139,52 @@ export const MOCK_EVENTS: CityEvent[] = [
     imageUrl: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=800&auto=format&fit=crop&q=80',
     price: 'Free',
     organizerName: 'ReCiti Green Living Lab',
+    organizerType: 'municipal',
+    isVerifiedOrganizer: true,
     isSponsored: false,
     civicPointsReward: 35,
+    status: 'active',
   },
 ];
+
+const EVENTS_COL = collection(db, 'city_events');
 
 export async function getUpcomingEvents(
   category?: EventCategory | 'all',
   search?: string,
   city?: string
 ): Promise<CityEvent[]> {
-  let items = [...MOCK_EVENTS];
+  let items: CityEvent[] = [];
+
+  try {
+    const snap = await getDocs(EVENTS_COL);
+    if (!snap.empty) {
+      items = snap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Omit<CityEvent, 'id'>),
+      }));
+    }
+  } catch (err) {
+    console.warn('[eventService] Firestore query error, falling back to mock events:', err);
+  }
+
+  // If collection is empty or unreachable, fall back to mock data
+  if (items.length === 0) {
+    items = [...MOCK_EVENTS];
+  }
+
+  // Filter by city
   if (city && city.trim().length > 0) {
     const c = city.trim().toLowerCase();
     items = items.filter((e) => e.city && e.city.toLowerCase() === c);
   }
+
+  // Filter by category
   if (category && category !== 'all') {
     items = items.filter((e) => e.category === category);
   }
+
+  // Filter by search query
   if (search && search.trim().length > 0) {
     const q = search.trim().toLowerCase();
     items = items.filter(
@@ -145,10 +196,48 @@ export async function getUpcomingEvents(
         e.category.toLowerCase().includes(q)
     );
   }
+
   return items;
 }
 
 export async function getEventById(id: string): Promise<CityEvent | null> {
+  try {
+    const docRef = doc(EVENTS_COL, id);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return {
+        id: snap.id,
+        ...(snap.data() as Omit<CityEvent, 'id'>),
+      };
+    }
+  } catch (err) {
+    console.warn('[eventService] Firestore get error, checking mock list:', err);
+  }
+
   const found = MOCK_EVENTS.find((e) => e.id === id);
   return found ?? null;
+}
+
+/**
+ * Creates a new community or civic event hosted by a verified citizen, organizer, or municipal body.
+ */
+export async function createCityEvent(
+  eventData: Omit<CityEvent, 'id'>,
+  organizerUid: string
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const eventDocRef = doc(EVENTS_COL);
+    const payload: CityEvent = {
+      ...eventData,
+      id: eventDocRef.id,
+      organizerId: organizerUid,
+      status: 'active',
+    };
+
+    await setDoc(eventDocRef, payload);
+    return { success: true, id: eventDocRef.id };
+  } catch (err: any) {
+    console.error('[eventService] createCityEvent error:', err);
+    return { success: false, error: err?.message ?? 'Failed to publish event' };
+  }
 }

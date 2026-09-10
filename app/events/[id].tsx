@@ -76,6 +76,16 @@ export default function EventDetailScreen() {
     if (url) Linking.openURL(url);
   };
 
+  const handleCallOrganizer = () => {
+    if (!event?.contactPhone) return;
+    Linking.openURL(`tel:${event.contactPhone}`);
+  };
+
+  const handleEmailOrganizer = () => {
+    if (!event?.contactEmail) return;
+    Linking.openURL(`mailto:${event.contactEmail}`);
+  };
+
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
@@ -143,6 +153,12 @@ export default function EventDetailScreen() {
               label={event.price === 'Free' ? 'FREE ENTRY' : event.price}
               variant={event.price === 'Free' ? 'primary' : 'warning'}
             />
+            {event.isVerifiedOrganizer && (
+              <Badge
+                label="VERIFIED ORGANIZER"
+                variant="primary"
+              />
+            )}
             {event.isSponsored && (
               <Badge
                 label="PARTNER EVENT"
@@ -157,9 +173,16 @@ export default function EventDetailScreen() {
           </Typography>
 
           {/* Organizer */}
-          <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 4 }}>
-            Organized by <Typography variant="caption" weight="bold" color={colors.text}>{event.organizerName}</Typography>
-          </Typography>
+          <View style={styles.organizerRow}>
+            <Ionicons name="people-circle-outline" size={18} color={colors.primary} />
+            <Typography variant="caption" color={colors.textMuted} style={{ marginLeft: 6 }}>
+              Organized by{' '}
+              <Typography variant="caption" weight="bold" color={colors.text}>
+                {event.organizerName}
+              </Typography>
+              {event.organizerType && ` • ${event.organizerType.toUpperCase()}`}
+            </Typography>
+          </View>
 
           {/* Date & Time Block */}
           <View style={[styles.infoBlock, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -186,7 +209,7 @@ export default function EventDetailScreen() {
                   {event.locationName}
                 </Typography>
                 <Typography variant="caption" color={colors.textMuted}>
-                  {event.address}
+                  {event.address}{event.city ? `, ${event.city}` : ''}
                 </Typography>
               </View>
               <AnimatedButton
@@ -200,6 +223,34 @@ export default function EventDetailScreen() {
               </AnimatedButton>
             </View>
           </View>
+
+          {/* Organizer Contact Action Strip (if available) */}
+          {(event.contactPhone || event.contactEmail) && (
+            <View style={styles.contactRow}>
+              {event.contactPhone && (
+                <AnimatedButton
+                  onPress={handleCallOrganizer}
+                  style={[styles.contactBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                >
+                  <Ionicons name="call-outline" size={16} color={colors.primary} />
+                  <Typography variant="caption" weight="semiBold" style={{ marginLeft: 6 }}>
+                    Contact Organizer
+                  </Typography>
+                </AnimatedButton>
+              )}
+              {event.contactEmail && (
+                <AnimatedButton
+                  onPress={handleEmailOrganizer}
+                  style={[styles.contactBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                >
+                  <Ionicons name="mail-outline" size={16} color={colors.primary} />
+                  <Typography variant="caption" weight="semiBold" style={{ marginLeft: 6 }}>
+                    Email Info
+                  </Typography>
+                </AnimatedButton>
+              )}
+            </View>
+          )}
 
           {/* Civic Points Bonus (if civic cleanup or community drive) */}
           {event.civicPointsReward && event.civicPointsReward > 0 && (
@@ -217,13 +268,12 @@ export default function EventDetailScreen() {
                     CIVIC IMPACT REWARD
                   </Typography>
                   <Typography variant="body" weight="semiBold" color={colors.text}>
-                    Earn +{event.civicPointsReward} Civic Karma points by checking in
+                    Earn +{event.civicPointsReward} Civic Karma points by participating
                   </Typography>
                 </View>
               </View>
             </Card>
           )}
-
 
           {/* Description Section */}
           <Typography variant="h2" style={{ marginTop: spacing.lg, marginBottom: spacing.xs }}>
@@ -234,7 +284,6 @@ export default function EventDetailScreen() {
           </Typography>
         </Animated.View>
       </ScrollView>
-
     </View>
   );
 }
@@ -283,6 +332,11 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: 'center',
   },
+  organizerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
   infoBlock: {
     marginTop: 16,
     padding: 14,
@@ -306,6 +360,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
+    borderWidth: 1,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  contactBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 1,
   },
   civicCard: {

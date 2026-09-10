@@ -1,3 +1,5 @@
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
 import { CityNotice } from '@/types';
 
 export const MOCK_NOTICES: CityNotice[] = [
@@ -152,8 +154,27 @@ export const MOCK_NOTICES: CityNotice[] = [
   },
 ];
 
+const NOTICES_COL = collection(db, 'city_notices');
+
 export async function getCityNotices(city?: string | null): Promise<CityNotice[]> {
-  let list = [...MOCK_NOTICES];
+  let list: CityNotice[] = [];
+
+  try {
+    const snap = await getDocs(NOTICES_COL);
+    if (!snap.empty) {
+      list = snap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Omit<CityNotice, 'id'>),
+      }));
+    }
+  } catch (err) {
+    console.warn('[noticeService] Firestore query error, falling back to mock notices:', err);
+  }
+
+  // If collection is empty or unreachable, fall back to mock notices
+  if (list.length === 0) {
+    list = [...MOCK_NOTICES];
+  }
 
   if (city && city.trim().length > 0) {
     const query = city.trim().toLowerCase();

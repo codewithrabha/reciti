@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   Share,
   StyleSheet,
+  TextInput,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -15,8 +20,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { BusinessDirectoryItem } from '@/types';
-import { getDirectoryItemById } from '@/lib/directoryService';
+import { BusinessDirectoryItem, ListingClaim } from '@/types';
+import {
+  getDirectoryItemById,
+  getUserListingClaim,
+  submitListingClaim,
+} from '@/lib/directoryService';
+import { useUser, useUserDoc } from '@/store/authStore';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
@@ -32,8 +42,20 @@ export default function DirectoryDetailScreen() {
   const insets = useSafeAreaInsets();
   const { colors, spacing, radii } = useTheme();
 
+  const user = useUser();
+  const userDoc = useUserDoc();
+
   const [business, setBusiness] = useState<BusinessDirectoryItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [existingClaim, setExistingClaim] = useState<ListingClaim | null>(null);
+
+  // Claim Modal state
+  const [claimModalVisible, setClaimModalVisible] = useState(false);
+  const [claimantName, setClaimantName] = useState('');
+  const [claimantPhone, setClaimantPhone] = useState('');
+  const [claimantRole, setClaimantRole] = useState('');
+  const [claimNotes, setClaimNotes] = useState('');
+  const [submittingClaim, setSubmittingClaim] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -42,13 +64,18 @@ export default function DirectoryDetailScreen() {
       try {
         const item = await getDirectoryItemById(id);
         setBusiness(item);
+
+        if (user && item) {
+          const claim = await getUserListingClaim(item.id, user.uid);
+          setExistingClaim(claim);
+        }
       } catch (err) {
         console.error('[DirectoryDetail] Fetch error:', err);
       } finally {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, user]);
 
   const handleShare = async () => {
     if (!business) return;
@@ -85,6 +112,73 @@ export default function DirectoryDetailScreen() {
     Linking.openURL(business.website);
   };
 
+  const handleOpenClaimModal = () => {
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in with your citizen account to claim and manage this business listing.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => router.push('/auth/login') },
+        ]
+      );
+      return;
+    }
+    setClaimantName(userDoc?.displayName ?? user.displayName ?? '');
+    setClaimModalVisible(true);
+  };
+
+  const handleSubmitClaim = async () => {
+    if (!business || !user) return;
+    if (!claimantName.trim()) {
+      Alert.alert('Required Field', 'Please enter your name.');
+      return;
+    }
+    if (!claimantPhone.trim()) {
+      Alert.alert('Required Field', 'Please provide a valid contact phone number.');
+      return;
+    }
+
+    setSubmittingClaim(true);
+    const notesSummary = [
+      claimantRole.trim() ? `Role: ${claimantRole.trim()}` : null,
+      claimNotes.trim() ? `Notes: ${claimNotes.trim()}` : null,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
+    const res = await submitListingClaim({
+      listingId: business.id,
+      listingName: business.name,
+      claimantUid: user.uid,
+      claimantName: claimantName.trim(),
+      claimantEmail: user.email ?? undefined,
+      claimantPhone: claimantPhone.trim(),
+      notes: notesSummary,
+    });
+
+    setSubmittingClaim(false);
+
+    if (res.success) {
+      setClaimModalVisible(false);
+      setExistingClaim({
+        claimId: res.claimId ?? 'new',
+        listingId: business.id,
+        listingName: business.name,
+        claimantUid: user.uid,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      });
+      Alert.alert(
+        'Claim Submitted',
+        'Your verification request has been received! Our municipal directory team will verify ownership within 24-48 hours.',
+        [{ text: 'OK' }]
+      );
+    } else {
+      Alert.alert('Submission Error', res.error ?? 'Could not submit claim. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
@@ -108,6 +202,7 @@ export default function DirectoryDetailScreen() {
     );
   }
 
+  const isOwner = Boolean(user && business.ownerId && user.uid === business.ownerId);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -115,7 +210,7 @@ export default function DirectoryDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
       >
-        {/* Banner with gradient overlay & top buttons */}
+        {/* Banner with top buttons */}
         <View style={styles.bannerContainer}>
           <Image
             source={{ uri: business.imageUrl }}
@@ -150,9 +245,9 @@ export default function DirectoryDetailScreen() {
               label={business.category.replace('_', ' ').toUpperCase()}
               variant="default"
             />
-            {business.isVerified && (
+            {business.isClaimed && (
               <Badge
-                label="VERIFIED CITIZEN PARTNER"
+                label="VERIFIED OWNER MANAGED"
                 variant="primary"
               />
             )}
@@ -160,6 +255,12 @@ export default function DirectoryDetailScreen() {
               <Badge
                 label="FEATURED"
                 variant="warning"
+              />
+            )}
+            {isOwner && (
+              <Badge
+                label="YOU OWN THIS"
+                variant="primary"
               />
             )}
           </View>
@@ -200,7 +301,6 @@ export default function DirectoryDetailScreen() {
             )}
           </View>
 
-
           {/* Quick Action Buttons */}
           <View style={styles.actionsGrid}>
             {business.phone && (
@@ -236,6 +336,44 @@ export default function DirectoryDetailScreen() {
             )}
           </View>
 
+          {/* Ownership & Claim Section */}
+          {!business.isClaimed && (
+            <View
+              style={[
+                styles.claimCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.claimHeaderRow}>
+                <View style={[styles.claimIconWrap, { backgroundColor: colors.primaryMuted }]}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                  <Typography variant="body" weight="bold">
+                    {existingClaim ? 'Claim Submitted (Under Review)' : 'Own or Manage this Place?'}
+                  </Typography>
+                  <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 2 }}>
+                    {existingClaim
+                      ? 'Your ownership verification request is in review by the municipal directory team.'
+                      : 'Claim this listing to keep hours, services, and contact info up to date for citizens.'}
+                  </Typography>
+                </View>
+              </View>
+
+              {!existingClaim && (
+                <AnimatedButton
+                  onPress={handleOpenClaimModal}
+                  style={[styles.claimActionBtn, { backgroundColor: colors.primary }]}
+                >
+                  <Ionicons name="key-outline" size={16} color="#FFFFFF" />
+                  <Typography variant="caption" weight="bold" color="#FFFFFF" style={{ marginLeft: 6 }}>
+                    Claim This Listing
+                  </Typography>
+                </AnimatedButton>
+              )}
+            </View>
+          )}
+
           {/* About Section */}
           <Typography variant="h2" style={{ marginTop: spacing.lg, marginBottom: spacing.xs }}>
             About
@@ -245,6 +383,164 @@ export default function DirectoryDetailScreen() {
           </Typography>
         </Animated.View>
       </ScrollView>
+
+      {/* Claim Modal */}
+      <Modal
+        visible={claimModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setClaimModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setClaimModalVisible(false)}
+          />
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: colors.surface, paddingBottom: insets.bottom + 20 },
+            ]}
+          >
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View>
+                <Typography variant="h2">Claim Listing</Typography>
+                <Typography variant="caption" color={colors.textMuted}>
+                  {business.name}
+                </Typography>
+              </View>
+              <Pressable
+                onPress={() => setClaimModalVisible(false)}
+                hitSlop={8}
+                style={[styles.modalCloseBtn, { backgroundColor: colors.background }]}
+              >
+                <Ionicons name="close" size={20} color={colors.text} />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingTop: 16 }}
+            >
+              {/* Claimant Full Name */}
+              <Typography variant="caption" weight="semiBold" color={colors.textMuted}>
+                YOUR FULL NAME *
+              </Typography>
+              <TextInput
+                value={claimantName}
+                onChangeText={setClaimantName}
+                placeholder="e.g., Rajesh Sharma"
+                placeholderTextColor={colors.textMuted}
+                style={[
+                  styles.input,
+                  {
+                    color: colors.text,
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+              />
+
+              {/* Claimant Contact Phone */}
+              <Typography
+                variant="caption"
+                weight="semiBold"
+                color={colors.textMuted}
+                style={{ marginTop: 12 }}
+              >
+                PHONE NUMBER *
+              </Typography>
+              <TextInput
+                value={claimantPhone}
+                onChangeText={setClaimantPhone}
+                placeholder="+91 98765 43210"
+                keyboardType="phone-pad"
+                placeholderTextColor={colors.textMuted}
+                style={[
+                  styles.input,
+                  {
+                    color: colors.text,
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+              />
+
+              {/* Role */}
+              <Typography
+                variant="caption"
+                weight="semiBold"
+                color={colors.textMuted}
+                style={{ marginTop: 12 }}
+              >
+                YOUR ROLE OR TITLE
+              </Typography>
+              <TextInput
+                value={claimantRole}
+                onChangeText={setClaimantRole}
+                placeholder="e.g., Proprietor / Store Manager / Director"
+                placeholderTextColor={colors.textMuted}
+                style={[
+                  styles.input,
+                  {
+                    color: colors.text,
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+              />
+
+              {/* Notes / Verification details */}
+              <Typography
+                variant="caption"
+                weight="semiBold"
+                color={colors.textMuted}
+                style={{ marginTop: 12 }}
+              >
+                VERIFICATION NOTES
+              </Typography>
+              <TextInput
+                value={claimNotes}
+                onChangeText={setClaimNotes}
+                placeholder="Any links, license numbers, or details to expedite verification..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={3}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  {
+                    color: colors.text,
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+              />
+
+              <AnimatedButton
+                onPress={handleSubmitClaim}
+                disabled={submittingClaim}
+                style={[
+                  styles.submitBtn,
+                  { backgroundColor: colors.primary, opacity: submittingClaim ? 0.7 : 1 },
+                ]}
+              >
+                {submittingClaim ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Typography variant="body" weight="bold" color="#FFFFFF">
+                    Submit Verification Request
+                  </Typography>
+                )}
+              </AnimatedButton>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -320,5 +616,80 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 12,
     borderWidth: 1,
+  },
+  claimCard: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  claimHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  claimIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  claimActionBtn: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#8883',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  input: {
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginTop: 6,
+    fontSize: 14,
+  },
+  textArea: {
+    height: 80,
+    paddingTop: 10,
+    textAlignVertical: 'top',
+  },
+  submitBtn: {
+    marginTop: 20,
+    height: 48,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

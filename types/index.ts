@@ -141,6 +141,32 @@ export interface BusinessDirectoryItem {
   isVerified?: boolean;
   isSponsored?: boolean;
   openingHours?: string;
+
+  // ─── Ownership & Verification ─────────────────────────────────────────────
+  ownerId?: string | null;
+  isClaimed?: boolean;
+  claimStatus?: 'unclaimed' | 'pending' | 'verified';
+  claimedAt?: Timestamp | string | null;
+}
+
+// ─── Listing Claim Verification ─────────────────────────────────────────────
+
+export type ClaimStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ListingClaim {
+  claimId: string;
+  listingId: string;
+  listingName: string;
+  claimantUid: string;
+  claimantName?: string;
+  claimantEmail?: string;
+  claimantPhone?: string;
+  businessProofUrl?: string | null;
+  notes?: string;
+  status: ClaimStatus;
+  createdAt: Timestamp | string;
+  reviewedAt?: Timestamp | string | null;
+  reviewedBy?: string | null;
 }
 
 // ─── Public & City Events ───────────────────────────────────────────────────
@@ -171,6 +197,14 @@ export interface CityEvent {
   organizerName: string;
   isSponsored?: boolean;
   civicPointsReward?: number;
+
+  // ─── Organizer Ownership & Verification ───────────────────────────────────
+  organizerId?: string | null;
+  organizerType?: 'citizen' | 'ngo' | 'business' | 'municipal' | 'admin';
+  isVerifiedOrganizer?: boolean;
+  contactEmail?: string;
+  contactPhone?: string;
+  status?: 'active' | 'cancelled' | 'completed';
 }
 
 // ─── Digital Notice Board & Civic Bulletins ─────────────────────────────────

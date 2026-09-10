@@ -518,6 +518,54 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
+    // ─── directories ──────────────────────────────────────────────────────
+    // Public to read. Real users can register listings.
+    // Only the verified owner or an admin can update the listing.
+    match /directories/{directoryId} {
+      allow read:   if true;
+      allow create: if isRealUser();
+      allow update: if isRealUser() && (
+        resource.data.ownerId == request.auth.uid ||
+        request.auth.token.role == 'admin'
+      );
+      allow delete: if request.auth != null && request.auth.token.role == 'admin';
+    }
+
+    // ─── listing_claims ───────────────────────────────────────────────────
+    // A signed-in user may submit a claim for a directory listing as themselves.
+    // They can read their own claim. Admins review and update status.
+    match /listing_claims/{claimId} {
+      allow read:   if isRealUser() && (
+        resource.data.claimantUid == request.auth.uid ||
+        request.auth.token.role == 'admin'
+      );
+      allow create: if isRealUser()
+                       && request.resource.data.claimantUid == request.auth.uid
+                       && request.resource.data.status == 'pending';
+      allow update: if request.auth != null && request.auth.token.role == 'admin';
+      allow delete: if request.auth != null && request.auth.token.role == 'admin';
+    }
+
+    // ─── city_events ──────────────────────────────────────────────────────
+    // Public to read. Real users or organizers can create events.
+    // Only the organizer or an admin can update or delete the event.
+    match /city_events/{eventId} {
+      allow read:   if true;
+      allow create: if isRealUser()
+                       && request.resource.data.organizerId == request.auth.uid;
+      allow update, delete: if isRealUser() && (
+        resource.data.organizerId == request.auth.uid ||
+        request.auth.token.role == 'admin'
+      );
+    }
+
+    // ─── city_notices ─────────────────────────────────────────────────────
+    // Public to read. Only admins or authorized authorities can publish/edit notices.
+    match /city_notices/{noticeId} {
+      allow read:  if true;
+      allow write: if request.auth != null && request.auth.token.role == 'admin';
+    }
+
     // Everything else is denied by default.
   }
 }
