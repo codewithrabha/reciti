@@ -20,6 +20,19 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
+    // Admin role check: checks custom auth claims OR users/{uid} document.
+    function isAdmin() {
+      return isRealUser() && (
+        request.auth.token.role == 'admin' ||
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+          )
+        )
+      );
+    }
+
     // ─── users ───────────────────────────────────────────────────────────
     // Profiles power the leaderboard and report attribution. They contain an
     // email, so reads require a session. A user may write their OWN profile,
@@ -62,6 +75,7 @@ service cloud.firestore {
       allow create: if isRealUser()
                        && request.resource.data.reporterId == request.auth.uid;
       allow update: if signedIn() && (
+        isAdmin() ||
         isVerifyUpdate() ||
         isFlagUpdate() ||
         isSubmitResolution() ||
@@ -71,11 +85,14 @@ service cloud.firestore {
         isAddPhotoByReporter() ||
         isVolunteerUpdate()
       );
-      allow delete: if signedIn()
-                       && resource.data.status == 'pending'
-                       && resource.data.verifiedBy.size() == 0
-                       && request.time >
-                            resource.data.createdAt + duration.value(1, 'h');
+      allow delete: if signedIn() && (
+        isAdmin() ||
+        (
+          resource.data.status == 'pending'
+          && resource.data.verifiedBy.size() == 0
+          && request.time > resource.data.createdAt + duration.value(1, 'h')
+        )
+      );
 
       // Helper functions for optional fields on legacy report documents.
       function getUpvotedBy(d) {
@@ -526,24 +543,25 @@ service cloud.firestore {
       allow create: if isRealUser();
       allow update: if isRealUser() && (
         resource.data.ownerId == request.auth.uid ||
-        request.auth.token.role == 'admin'
+        isAdmin()
       );
-      allow delete: if request.auth != null && request.auth.token.role == 'admin';
+      allow delete: if isAdmin();
     }
 
     // ─── listing_claims ───────────────────────────────────────────────────
     // A signed-in user may submit a claim for a directory listing as themselves.
     // They can read their own claim. Admins review and update status.
     match /listing_claims/{claimId} {
-      allow read:   if isRealUser() && (
+      allow list:   if isAdmin();
+      allow get:    if isRealUser() && (
         resource.data.claimantUid == request.auth.uid ||
-        request.auth.token.role == 'admin'
+        isAdmin()
       );
       allow create: if isRealUser()
                        && request.resource.data.claimantUid == request.auth.uid
                        && request.resource.data.status == 'pending';
-      allow update: if request.auth != null && request.auth.token.role == 'admin';
-      allow delete: if request.auth != null && request.auth.token.role == 'admin';
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // ─── city_events ──────────────────────────────────────────────────────
@@ -555,7 +573,7 @@ service cloud.firestore {
                        && request.resource.data.organizerId == request.auth.uid;
       allow update, delete: if isRealUser() && (
         resource.data.organizerId == request.auth.uid ||
-        request.auth.token.role == 'admin'
+        isAdmin()
       );
     }
 
@@ -563,7 +581,7 @@ service cloud.firestore {
     // Public to read. Only admins or authorized authorities can publish/edit notices.
     match /city_notices/{noticeId} {
       allow read:  if true;
-      allow write: if request.auth != null && request.auth.token.role == 'admin';
+      allow write: if isAdmin();
     }
 
     // Everything else is denied by default.
