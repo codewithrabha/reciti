@@ -13,6 +13,7 @@ import { LegendList } from '@legendapp/list';
 
 import { BusinessDirectoryItem, DirectoryCategory } from '@/types';
 import { DIRECTORY_CATEGORIES, getDirectoryItems } from '@/lib/directoryService';
+import { useLocationStore } from '@/store/locationStore';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
@@ -24,6 +25,7 @@ export default function DirectoriesScreen() {
   const router = useRouter();
   const { colors, spacing } = useTheme();
 
+  const cityName = useLocationStore((s) => s.cityName);
   const [selectedCategory, setSelectedCategory] = useState<DirectoryCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<BusinessDirectoryItem[]>([]);
@@ -32,7 +34,7 @@ export default function DirectoriesScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const data = await getDirectoryItems(selectedCategory, searchQuery);
+      const data = await getDirectoryItems(selectedCategory, searchQuery, cityName ?? undefined);
       setItems(data);
     } catch (err) {
       console.error('[Directories] Error loading items:', err);
@@ -40,7 +42,7 @@ export default function DirectoriesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, cityName]);
 
   useEffect(() => {
     loadData();
@@ -139,7 +141,11 @@ export default function DirectoriesScreen() {
             <StateView
               icon="search"
               title="No Listings Found"
-              message="Try searching for another service or select a different category."
+              message={
+                cityName
+                  ? `No local spots listed in ${cityName} matching your search.`
+                  : "Try searching for another service or select a different category."
+              }
             />
           ) : null
         }

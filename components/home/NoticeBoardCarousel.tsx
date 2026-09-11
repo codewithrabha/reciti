@@ -156,7 +156,7 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
         <View style={styles.headerLeft}>
           <View style={[styles.pulseDot, { backgroundColor: colors.danger }]} />
           <Typography variant="caption" weight="bold" color={colors.text} style={{ letterSpacing: 0.6 }}>
-            {cityName ? `${cityName.toUpperCase()} BROADCASTS` : 'OFFICIAL BROADCASTS'}
+            {cityName ? `${cityName} Broadcasts` : 'Official Broadcasts'}
           </Typography>
         </View>
         <Typography variant="caption" color={colors.textMuted}>

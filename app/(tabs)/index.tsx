@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import * as Location from "expo-location";
 import { LegendList } from "@legendapp/list";
 
 import { BusinessDirectoryItem, CityEvent, CityNotice, Report } from "@/types";
@@ -14,6 +13,7 @@ import { getDirectoryItems } from "@/lib/directoryService";
 import { getUpcomingEvents } from "@/lib/eventService";
 import { getCityNotices } from "@/lib/noticeService";
 import { useUser, useUserDoc } from "@/hooks/useAuth";
+import { useLocationStore } from "@/store/locationStore";
 import { CivicPulseCard } from "@/components/pulse/CivicPulseCard";
 import { EventTeaserCard } from "@/components/pulse/EventTeaserCard";
 import { BusinessTeaserCard } from "@/components/pulse/BusinessTeaserCard";
@@ -27,8 +27,6 @@ import { useTheme } from "@/theme";
 
 const RADIUS_KM = 30;
 
-type Coords = { latitude: number; longitude: number };
-
 export default function PulseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -36,10 +34,13 @@ export default function PulseScreen() {
   const userDoc = useUserDoc();
   const { colors, spacing, radii } = useTheme();
 
-  const [coords, setCoords] = useState<Coords | null>(null);
-  const [cityName, setCityName] = useState<string | null>(null);
-  const [locationGranted, setLocationGranted] = useState(false);
-  const [locationResolved, setLocationResolved] = useState(false);
+  const coords = useLocationStore((s) => s.coords);
+  const cityName = useLocationStore((s) => s.cityName);
+  const locationGranted = useLocationStore((s) => s.locationGranted);
+  const locationResolved = useLocationStore((s) => s.locationResolved);
+  const fetchLocation = useLocationStore((s) => s.fetchLocation);
+  const requestPermissionAndFetch = useLocationStore((s) => s.requestPermissionAndFetch);
+
   const [recentReports, setRecentReports] = useState<Report[] | null>(null);
   const [events, setEvents] = useState<CityEvent[]>([]);
   const [businesses, setBusinesses] = useState<BusinessDirectoryItem[]>([]);
@@ -47,36 +48,6 @@ export default function PulseScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-
-  const fetchLocation = useCallback(async () => {
-    try {
-      const { status } = await Location.getForegroundPermissionsAsync();
-      setLocationGranted(status === "granted");
-      if (status !== "granted") {
-        setCoords(null);
-        setCityName(null);
-        return;
-      }
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const { latitude, longitude } = pos.coords;
-      setCoords({ latitude, longitude });
-
-      try {
-        const results = await Location.reverseGeocodeAsync({ latitude, longitude });
-        const resolved = results[0]?.city ?? results[0]?.subregion ?? results[0]?.district ?? null;
-        setCityName(resolved);
-      } catch {
-        // reverse geocoding fallback
-      }
-    } catch {
-      setCoords(null);
-      setCityName(null);
-    } finally {
-      setLocationResolved(true);
-    }
-  }, []);
 
   useEffect(() => {
     fetchLocation();
@@ -127,23 +98,14 @@ export default function PulseScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchLocation(), loadTeasers(cityName)]);
+    await Promise.all([fetchLocation(true), loadTeasers(cityName)]);
     setRefreshing(false);
   }, [fetchLocation, loadTeasers, cityName]);
 
   const retry = () => setRetryKey((k) => k + 1);
 
   const enableLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === "granted") {
-        await fetchLocation();
-      } else {
-        setLocationGranted(false);
-      }
-    } catch {
-      // Permission flow failed
-    }
+    await requestPermissionAndFetch();
   };
 
   return (

@@ -13,6 +13,7 @@ import { LegendList } from '@legendapp/list';
 
 import { CityEvent, EventCategory } from '@/types';
 import { EVENT_CATEGORIES, getUpcomingEvents } from '@/lib/eventService';
+import { useLocationStore } from '@/store/locationStore';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
@@ -24,6 +25,7 @@ export default function EventsScreen() {
   const router = useRouter();
   const { colors, spacing } = useTheme();
 
+  const cityName = useLocationStore((s) => s.cityName);
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [events, setEvents] = useState<CityEvent[]>([]);
@@ -32,7 +34,7 @@ export default function EventsScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const data = await getUpcomingEvents(selectedCategory, searchQuery);
+      const data = await getUpcomingEvents(selectedCategory, searchQuery, cityName ?? undefined);
       setEvents(data);
     } catch (err) {
       console.error('[Events] Error loading items:', err);
@@ -40,7 +42,7 @@ export default function EventsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, cityName]);
 
   useEffect(() => {
     loadData();
@@ -139,7 +141,11 @@ export default function EventsScreen() {
             <StateView
               icon="calendar"
               title="No Events Found"
-              message="No upcoming events match your search or filter."
+              message={
+                cityName
+                  ? `No upcoming events in ${cityName} matching your search or filter.`
+                  : "No upcoming events match your search or filter."
+              }
             />
           ) : null
         }
