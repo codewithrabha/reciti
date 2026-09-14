@@ -31,19 +31,20 @@ export const signUpWithEmail = async (
     const credential = EmailAuthProvider.credential(email, password);
     const linked = await linkWithCredential(currentUser, credential);
     await updateProfile(linked.user, { displayName });
-    await createOrUpdateUserDoc(linked.user.uid, { displayName, email });
+    await createOrUpdateUserDoc(linked.user.uid, { displayName, email, provider: 'email' });
     return linked.user;
   }
 
   const { user } = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(user, { displayName });
-  await createOrUpdateUserDoc(user.uid, { displayName, email });
+  await createOrUpdateUserDoc(user.uid, { displayName, email, provider: 'email' });
   return user;
 };
 
 /** Sign in with email & password */
 export const signInWithEmail = async (email: string, password: string) => {
   const { user } = await signInWithEmailAndPassword(auth, email, password);
+  await createOrUpdateUserDoc(user.uid, { provider: 'email' });
   return user;
 };
 
@@ -72,6 +73,7 @@ export const signInWithGoogle = async () => {
         displayName: linked.user.displayName,
         email: linked.user.email,
         photoURL: linked.user.photoURL,
+        provider: 'google',
       });
       return linked.user;
     } catch (err: any) {
@@ -87,6 +89,7 @@ export const signInWithGoogle = async () => {
     displayName: user.displayName,
     email: user.email,
     photoURL: user.photoURL,
+    provider: 'google',
   });
   return user;
 };

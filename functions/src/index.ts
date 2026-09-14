@@ -1,9 +1,9 @@
 import { initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { setGlobalOptions } from 'firebase-functions/v2';
-import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { ListingClaimDoc, ReportDoc, Tier } from './types';
+import { BroadcastNotificationDoc, ListingClaimDoc, ReportDoc, Tier } from './types';
 
 // Co-locate all Cloud Functions in asia-south1 (Mumbai)
 setGlobalOptions({ region: 'asia-south1' });
@@ -279,5 +279,192 @@ export const cleanupExpiredReportsAndNotices = onSchedule('every 24 hours', asyn
     }
   } catch (err) {
     console.error('[cleanupExpiredReportsAndNotices] Error running cleanup cron:', err);
+  }
+});
+
+// ─── Trigger 3: onBroadcastNotificationCreated ───────────────────────────────
+/**
+ * Automatically processes queued broadcast notifications written from the Admin Panel.
+ * Batches tokens (max 100 per request) and dispatches Expo Push Notifications & In-App records.
+ */
+export const onBroadcastNotificationCreated = onDocumentCreated('broadcast_notifications/{broadcastId}', async (event) => {
+  const snap = event.data;
+  if (!snap) return;
+
+  const broadcastId = event.params.broadcastId;
+  const broadcastData = snap.data() as BroadcastNotificationDoc | undefined;
+  if (!broadcastData || broadcastData.status !== 'pending') return;
+
+  const broadcastRef = db.collection('broadcast_notifications').doc(broadcastId);
+
+  // Mark job as processing
+  await broadcastRef.update({
+    status: 'processing',
+  });
+
+  const {
+    title,
+    body,
+    imageUrl,
+    targetAudience,
+    targetTier,
+    targetUid,
+    deepLinkType,
+    targetId,
+    createdAdminUid,
+    createdAdminName,
+  } = broadcastData;
+
+  try {
+    // 1. Fetch targeted users
+    let usersQuery: FirebaseFirestore.Query = db.collection('users');
+    if (targetAudience === 'tier' && targetTier) {
+      usersQuery = usersQuery.where('tier', '==', targetTier);
+    } else if (targetAudience === 'user' && targetUid) {
+      usersQuery = usersQuery.where('uid', '==', targetUid);
+    }
+
+    const usersSnap = await usersQuery.get();
+    if (usersSnap.empty) {
+      console.log(`[onBroadcastNotificationCreated] No users found matching filter (audience: ${targetAudience}).`);
+      await broadcastRef.update({
+        status: 'completed',
+        stats: { totalTokens: 0, successCount: 0, failureCount: 0 },
+        completedAt: FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    // 2. Build push messages & write in-app notification records
+    const pushMessages: Array<{
+      to: string;
+      sound: string;
+      title: string;
+      body: string;
+      data: Record<string, any>;
+      attachments?: Array<{ url: string }>;
+    }> = [];
+
+    const deepLinkData: Record<string, any> = {
+      deepLinkType,
+      targetId: targetId ?? null,
+      imageUrl: imageUrl ?? null,
+    };
+    if (deepLinkType === 'report' && targetId) deepLinkData.reportId = targetId;
+    if (deepLinkType === 'event' && targetId) deepLinkData.eventId = targetId;
+    if (deepLinkType === 'notice' && targetId) deepLinkData.noticeId = targetId;
+    if (deepLinkType === 'directory' && targetId) deepLinkData.listingId = targetId;
+
+    let writeBatch = db.batch();
+    let batchOperationCount = 0;
+
+    for (const docSnap of usersSnap.docs) {
+      const userData = docSnap.data();
+      const uid = docSnap.id;
+
+      // Check push token
+      const token = userData.pushToken as string | undefined;
+      if (token && token.startsWith('ExponentPushToken[')) {
+        const msgPayload: any = {
+          to: token,
+          sound: 'default',
+          title: title,
+          body: body,
+          data: deepLinkData,
+        };
+        if (imageUrl) {
+          msgPayload.attachments = [{ url: imageUrl }];
+        }
+        pushMessages.push(msgPayload);
+      }
+
+      // Create in-app notification document under users/{uid}/notifications
+      const notifRef = db.collection(`users/${uid}/notifications`).doc();
+      writeBatch.set(notifRef, {
+        notifId: notifRef.id,
+        recipientUid: uid,
+        fromUid: createdAdminUid || 'admin',
+        fromName: createdAdminName || 'ReCiti Administration',
+        fromPhotoURL: null,
+        type: 'broadcast_announcement',
+        title: title,
+        message: body,
+        imageUrl: imageUrl ?? null,
+        reportId: deepLinkType === 'report' ? targetId ?? null : null,
+        listingId: deepLinkType === 'directory' ? targetId ?? null : null,
+        read: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      batchOperationCount++;
+      if (batchOperationCount >= 450) {
+        await writeBatch.commit();
+        writeBatch = db.batch();
+        batchOperationCount = 0;
+      }
+    }
+
+    if (batchOperationCount > 0) {
+      await writeBatch.commit();
+    }
+
+    // 3. Batch send push notifications via Expo API (chunks of 100)
+    let successCount = 0;
+    let failureCount = 0;
+
+    const chunkSize = 100;
+    for (let i = 0; i < pushMessages.length; i += chunkSize) {
+      const chunk = pushMessages.slice(i, i + chunkSize);
+      try {
+        const res = await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Accept-encoding': 'gzip, deflate',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(chunk),
+        });
+
+        const resData = await res.json();
+        if (resData?.data && Array.isArray(resData.data)) {
+          for (const item of resData.data) {
+            if (item.status === 'ok') {
+              successCount++;
+            } else {
+              failureCount++;
+              console.warn('[onBroadcastNotificationCreated] Expo push error item:', item);
+            }
+          }
+        } else {
+          failureCount += chunk.length;
+        }
+      } catch (postErr) {
+        console.error('[onBroadcastNotificationCreated] Error dispatching push chunk:', postErr);
+        failureCount += chunk.length;
+      }
+    }
+
+    // 4. Update broadcast document status to completed
+    await broadcastRef.update({
+      status: 'completed',
+      stats: {
+        totalTokens: pushMessages.length,
+        successCount,
+        failureCount,
+      },
+      completedAt: FieldValue.serverTimestamp(),
+    });
+
+    console.log(
+      `[onBroadcastNotificationCreated] Successfully dispatched broadcast ${broadcastId}: ` +
+        `${pushMessages.length} push tokens targeted (${successCount} succeeded, ${failureCount} failed).`
+    );
+  } catch (err) {
+    console.error(`[onBroadcastNotificationCreated] Failed processing broadcast ${broadcastId}:`, err);
+    await broadcastRef.update({
+      status: 'failed',
+      completedAt: FieldValue.serverTimestamp(),
+    });
   }
 });

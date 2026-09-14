@@ -10,6 +10,7 @@ import {
     orderBy,
     query,
     runTransaction,
+    serverTimestamp,
     setDoc,
     Timestamp,
     updateDoc,
@@ -94,9 +95,15 @@ export const createOrUpdateUserDoc = async (uid: string, partial: Partial<User>)
       civicPoints: 0,
       tier: 'Tourist' as Tier,
       completedDailyTrivia: {},
+      createdAt: serverTimestamp(),
     });
   } else {
-    await updateDoc(userRef, partial as Record<string, unknown>);
+    const updateData: Record<string, unknown> = { ...partial };
+    const data = snap.data();
+    if (!data.createdAt && !data.joinedAt) {
+      updateData.createdAt = serverTimestamp();
+    }
+    await updateDoc(userRef, updateData);
   }
 };
 

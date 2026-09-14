@@ -11,6 +11,9 @@ export interface User {
   tier: Tier;
   pushToken?: string | null;
   completedDailyTrivia: Record<string, string>;
+  createdAt?: any;
+  joinedAt?: any;
+  provider?: 'google' | 'email' | string;
 }
 
 export type ReportStatus =

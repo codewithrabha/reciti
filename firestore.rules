@@ -584,6 +584,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ─── broadcast_notifications ──────────────────────────────────────────
+    // Admin push broadcast campaigns. Only admins can read and queue broadcasts.
+    match /broadcast_notifications/{broadcastId} {
+      allow read, write: if isAdmin();
+    }
+
     // Everything else is denied by default.
   }
 }

@@ -61,6 +61,33 @@ export interface NotificationDoc {
   listingId?: string;
   title?: string;
   message?: string;
+  imageUrl?: string | null;
   read: boolean;
   createdAt: Timestamp;
+}
+
+export type TargetAudience = 'all' | 'tier' | 'user';
+export type DeepLinkType = 'none' | 'notice' | 'event' | 'report' | 'directory';
+
+export interface BroadcastNotificationDoc {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl?: string | null;
+  targetAudience: TargetAudience;
+  targetTier?: Tier;
+  targetUid?: string;
+  targetName?: string;
+  deepLinkType: DeepLinkType;
+  targetId?: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  stats?: {
+    totalTokens: number;
+    successCount: number;
+    failureCount: number;
+  };
+  createdAdminUid: string;
+  createdAdminName?: string;
+  createdAt: Timestamp;
+  completedAt?: Timestamp | null;
 }
