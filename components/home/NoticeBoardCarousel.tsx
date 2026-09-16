@@ -177,11 +177,11 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
         onScrollBeginDrag={handleScrollBeginDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
         renderItem={({ item: notice }) => {
-          // ── Case A: Full Image Banner Card ────────────────────────────────
+          // ── Case A: Full Image Banner Card (Image Only) ──────────────────
           if (notice.displayType === 'image_banner' && notice.imageUrl) {
             return (
               <AnimatedButton
-                onPress={() => setSelectedNotice(notice)}
+                onPress={() => handleAction(notice)}
                 scaleTo={0.99}
                 style={[
                   styles.imageBannerCard,
@@ -194,29 +194,6 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
                   contentFit="cover"
                   transition={250}
                 />
-                <View style={styles.bannerTopOverlay}>
-                  <Badge label={notice.badgeText} variant="default" />
-                </View>
-
-                {/* Dark gradient backing for title */}
-                <View style={styles.bannerBottomOverlay}>
-                  <Typography variant="body" weight="bold" color="#FFFFFF" numberOfLines={1}>
-                    {notice.title}
-                  </Typography>
-                  <View style={styles.bannerSubRow}>
-                    <Typography
-                      variant="caption"
-                      color="rgba(255,255,255,0.85)"
-                      numberOfLines={1}
-                      style={{ flex: 1, fontSize: 11 }}
-                    >
-                      {notice.issuedBy} • {notice.date}
-                    </Typography>
-                    <Typography variant="caption" weight="bold" color="#FFFFFF" style={{ fontSize: 11 }}>
-                      View →
-                    </Typography>
-                  </View>
-                </View>
               </AnimatedButton>
             );
           }
@@ -510,27 +487,6 @@ const styles = StyleSheet.create({
   bannerImage: {
     width: '100%',
     height: '100%',
-  },
-  bannerTopOverlay: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    zIndex: 2,
-  },
-  bannerBottomOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.68)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  bannerSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
   },
   cardHeader: {
     flexDirection: 'row',

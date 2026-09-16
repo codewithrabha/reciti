@@ -118,19 +118,62 @@ export interface StorySlide {
 // ─── Business Directory & Services ──────────────────────────────────────────
 
 export type DirectoryCategory =
+  | 'food_dining'
+  | 'accommodation'
+  | 'healthcare'
+  | 'shopping_retail'
+  | 'education'
+  | 'recreation_entertainment'
+  | 'public_services'
+  | 'other'
+  // Legacy categories for backward compatibility
   | 'shops'
   | 'local_stores'
   | 'hotels'
   | 'institutions'
-  | 'healthcare'
   | 'markets'
-  | 'services'
-  | 'other';
+  | 'services';
+
+export type DirectorySubcategory =
+  // Food & Dining
+  | 'restaurants_cafes'
+  | 'bakeries_confectioneries'
+  | 'street_food'
+  // Accommodation & Stay
+  | 'hotels_resorts'
+  | 'lodges_guesthouses'
+  | 'homestays'
+  // Healthcare & Medical Services
+  | 'hospitals_nursing'
+  | 'clinics_doctors'
+  | 'pharmacies'
+  | 'diagnostics_labs'
+  // Shopping & Retail
+  | 'grocery_essentials'
+  | 'apparel_fashion'
+  | 'electronics_mobile'
+  | 'automotive'
+  | 'furniture_decor'
+  // Education & Institutions
+  | 'schools_colleges'
+  | 'coaching_training'
+  | 'libraries_study'
+  // Recreation & Entertainment
+  | 'parks_playgrounds'
+  | 'sports_clubs'
+  | 'cinemas_entertainment'
+  // Public Services & Utilities
+  | 'government_offices'
+  | 'banking_finance'
+  | 'transportation_transit'
+  // Other
+  | 'general_services';
 
 export interface BusinessDirectoryItem {
   id: string;
   name: string;
   category: DirectoryCategory;
+  subcategory?: DirectorySubcategory | string;
   description: string;
   address: string;
   city?: string;

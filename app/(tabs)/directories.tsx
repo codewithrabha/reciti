@@ -9,16 +9,25 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LegendList } from '@legendapp/list';
+import { LegendList } from '@legendapp/list/react-native';
 
-import { BusinessDirectoryItem, DirectoryCategory } from '@/types';
-import { DIRECTORY_CATEGORIES, getDirectoryItems } from '@/lib/directoryService';
+import { BusinessDirectoryItem, DirectoryCategory, DirectorySubcategory } from '@/types';
+import {
+  getCategoryLabel,
+  getDirectoryCategories,
+  getDirectoryItems,
+  getSubcategoriesForCategory,
+  normalizeCategory,
+  subscribeDynamicCategories,
+} from '@/lib/directoryService';
 import { useLocationStore } from '@/store/locationStore';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { StateView } from '@/components/ui/StateView';
 import { DirectoryCard } from '@/components/directories/DirectoryCard';
+import { CategoryShelf, CategoryShelfData } from '@/components/directories/CategoryShelf';
+import { CategoryFilterModal } from '@/components/directories/CategoryFilterModal';
 
 export default function DirectoriesScreen() {
   const insets = useSafeAreaInsets();
@@ -26,15 +35,41 @@ export default function DirectoriesScreen() {
   const { colors, spacing } = useTheme();
 
   const cityName = useLocationStore((s) => s.cityName);
+  const [categoryOptions, setCategoryOptions] = useState(() => getDirectoryCategories());
   const [selectedCategory, setSelectedCategory] = useState<DirectoryCategory | 'all'>('all');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<DirectorySubcategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<BusinessDirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+  // Subscribe to real-time dynamic taxonomy changes from Admin
+  useEffect(() => {
+    const unsub = subscribeDynamicCategories(() => {
+      setCategoryOptions(getDirectoryCategories());
+    });
+    return () => unsub();
+  }, []);
+
+  const activeSubcategories = React.useMemo(() => {
+    if (selectedCategory === 'all') return [];
+    return getSubcategoriesForCategory(selectedCategory);
+  }, [selectedCategory, categoryOptions]);
+
+  const handleSelectCategory = (catKey: DirectoryCategory | 'all') => {
+    setSelectedCategory(catKey);
+    setSelectedSubcategory('all');
+  };
 
   const loadData = useCallback(async () => {
     try {
-      const data = await getDirectoryItems(selectedCategory, searchQuery, cityName ?? undefined);
+      const data = await getDirectoryItems(
+        selectedCategory,
+        searchQuery,
+        cityName ?? undefined,
+        selectedSubcategory
+      );
       setItems(data);
     } catch (err) {
       console.error('[Directories] Error loading items:', err);
@@ -42,7 +77,7 @@ export default function DirectoriesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCategory, searchQuery, cityName]);
+  }, [selectedCategory, selectedSubcategory, searchQuery, cityName]);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,115 +90,301 @@ export default function DirectoriesScreen() {
     await loadData();
   };
 
-  const listHeader = (
-    <View style={[styles.header, { borderBottomColor: colors.border }]}>
-      <Typography variant="h1">City Directory</Typography>
-      <Typography variant="body" color={colors.textMuted} style={{ marginTop: 2 }}>
-        Discover local businesses, health centers, and community services and more.
-      </Typography>
+  const currentCategoryLabel = getCategoryLabel(selectedCategory);
+  const isDiscoveryMode = selectedCategory === 'all' && searchQuery.trim().length === 0;
 
-      {/* Search Bar */}
-      <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: spacing.sm }]}>
-        <Ionicons name="search" size={18} color={colors.textMuted} />
-        <TextInput
-          placeholder="Search stores, healthcare, markets..."
-          placeholderTextColor={colors.textMuted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          style={[styles.searchInput, { color: colors.text }]}
-        />
-        {searchQuery.length > 0 && (
-          <AnimatedButton onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+  // Group listings into master category shelves for Discovery Mode
+  const categoryShelves = React.useMemo<CategoryShelfData[]>(() => {
+    if (!isDiscoveryMode) return [];
+
+    const grouped: Record<string, BusinessDirectoryItem[]> = {};
+    for (const item of items) {
+      const normCat = normalizeCategory(item.category);
+      if (!grouped[normCat]) grouped[normCat] = [];
+      grouped[normCat].push(item);
+    }
+
+    const shelves: CategoryShelfData[] = [];
+    const addedKeys = new Set<string>();
+
+    // Add shelves based on defined category options order
+    for (const opt of categoryOptions) {
+      if (opt.key === 'all') continue;
+      const catItems = grouped[opt.key] || [];
+      if (catItems.length > 0) {
+        shelves.push({
+          key: opt.key as DirectoryCategory,
+          label: opt.label,
+          icon: opt.icon,
+          items: catItems,
+        });
+        addedKeys.add(opt.key);
+      }
+    }
+
+    // Add any remaining categories that have items but weren't in categoryOptions
+    for (const [key, catItems] of Object.entries(grouped)) {
+      if (!addedKeys.has(key) && catItems.length > 0) {
+        shelves.push({
+          key: key as DirectoryCategory,
+          label: getCategoryLabel(key),
+          icon: 'grid-outline',
+          items: catItems,
+        });
+      }
+    }
+
+    return shelves;
+  }, [isDiscoveryMode, items, categoryOptions]);
+
+  const listHeader = (
+    <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+      <View style={{ paddingHorizontal: 16 }}>
+        <Typography variant="h1">City Directory</Typography>
+        <Typography variant="body" color={colors.textMuted} style={{ marginTop: 2 }}>
+          {cityName
+            ? `Discover local services, eateries, and spots in ${cityName}.`
+            : 'Discover local businesses, health centers, and community services.'}
+        </Typography>
+
+        {/* Search & Filter Row */}
+        <View style={styles.searchRow}>
+          {/* Search Bar */}
+          <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Ionicons name="search" size={18} color={colors.textMuted} />
+            <TextInput
+              placeholder="Search stores, healthcare, markets..."
+              placeholderTextColor={colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={[styles.searchInput, { color: colors.text }]}
+            />
+            {searchQuery.length > 0 && (
+              <AnimatedButton onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </AnimatedButton>
+            )}
+          </View>
+
+          {/* Filter Button */}
+          <AnimatedButton
+            onPress={() => setFilterModalVisible(true)}
+            style={[
+              styles.filterButton,
+              {
+                backgroundColor: selectedCategory !== 'all' ? colors.primary : colors.surface,
+                borderColor: selectedCategory !== 'all' ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Ionicons
+              name={selectedCategory !== 'all' ? 'funnel' : 'options-outline'}
+              size={18}
+              color={selectedCategory !== 'all' ? colors.white : colors.text}
+            />
+            {selectedCategory !== 'all' && (
+              <View style={[styles.filterIndicator, { backgroundColor: colors.white }]} />
+            )}
           </AnimatedButton>
-        )}
+        </View>
       </View>
 
-      {/* Categories Horizontal Scroll */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesScroll}
-      >
-        {DIRECTORY_CATEGORIES.map((cat) => {
-          const isSelected = selectedCategory === cat.key;
-          return (
-            <AnimatedButton
-              key={cat.key}
-              onPress={() => setSelectedCategory(cat.key)}
-              style={[
-                styles.categoryPill,
-                {
-                  backgroundColor: isSelected ? colors.primary : colors.surface,
-                  borderColor: isSelected ? colors.primary : colors.border,
-                },
-              ]}
+      {/* Secondary Subcategories Horizontal Scroll (when a category is selected) */}
+      {activeSubcategories.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.subcategoriesScroll}
+        >
+          <AnimatedButton
+            onPress={() => setSelectedSubcategory('all')}
+            style={[
+              styles.subcategoryPill,
+              {
+                backgroundColor: selectedSubcategory === 'all' ? colors.primary + '1A' : colors.surface,
+                borderColor: selectedSubcategory === 'all' ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Typography
+              variant="caption"
+              weight={selectedSubcategory === 'all' ? 'bold' : 'regular'}
+              color={selectedSubcategory === 'all' ? colors.primary : colors.textMuted}
             >
-              <Ionicons
-                name={cat.icon as any}
-                size={15}
-                color={isSelected ? colors.white : colors.textMuted}
-              />
-              <Typography
-                variant="caption"
-                weight="bold"
-                color={isSelected ? colors.white : colors.text}
-                style={{ marginLeft: 6 }}
+              All {currentCategoryLabel}
+            </Typography>
+          </AnimatedButton>
+
+          {activeSubcategories.map((sub) => {
+            const isSubSelected = selectedSubcategory === sub.key;
+            return (
+              <AnimatedButton
+                key={sub.key}
+                onPress={() => setSelectedSubcategory(sub.key)}
+                style={[
+                  styles.subcategoryPill,
+                  {
+                    backgroundColor: isSubSelected ? colors.primary + '1A' : colors.surface,
+                    borderColor: isSubSelected ? colors.primary : colors.border,
+                  },
+                ]}
               >
-                {cat.label}
-              </Typography>
-            </AnimatedButton>
-          );
-        })}
-      </ScrollView>
+                <Ionicons
+                  name={sub.icon as any}
+                  size={13}
+                  color={isSubSelected ? colors.primary : colors.textMuted}
+                  style={{ marginRight: 5 }}
+                />
+                <Typography
+                  variant="caption"
+                  weight={isSubSelected ? 'bold' : 'regular'}
+                  color={isSubSelected ? colors.primary : colors.text}
+                >
+                  {sub.label}
+                </Typography>
+              </AnimatedButton>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {/* Filter Mode Breadcrumb Header */}
+      {!isDiscoveryMode && (
+        <View style={styles.filterMetaRow}>
+          <Typography variant="caption" color={colors.textMuted} weight="medium">
+            Showing {items.length} {items.length === 1 ? 'spot' : 'spots'}{' '}
+            {selectedCategory !== 'all' ? `in ${currentCategoryLabel}` : ''}
+            {searchQuery ? ` matching "${searchQuery}"` : ''}
+          </Typography>
+          <AnimatedButton onPress={() => handleSelectCategory('all')}>
+            <Typography variant="caption" color={colors.primary} weight="bold">
+              Show All
+            </Typography>
+          </AnimatedButton>
+        </View>
+      )}
     </View>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <LegendList
-        data={items}
-        keyExtractor={(item) => item.id}
-        estimatedItemSize={290}
-        recycleItems
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={listHeader}
-        overScrollMode={'never'}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-        ListEmptyComponent={
-          !loading ? (
-            <StateView
-              icon="search"
-              title="No Listings Found"
-              message={
-                cityName
-                  ? `No local spots listed in ${cityName} matching your search.`
-                  : "Try searching for another service or select a different category."
-              }
+      {/* Sticky Header */}
+      {listHeader}
+
+      {isDiscoveryMode ? (
+        /* Discovery Mode: Master Categories with Horizontal Card Shelves */
+        <LegendList
+          style={{ flex: 1 }}
+          data={categoryShelves}
+          keyExtractor={(shelf) => shelf.key}
+          estimatedItemSize={180}
+          recycleItems
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          overScrollMode={'never'}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
-          ) : null
-        }
-        renderItem={({ item }) => (
-          <View style={{ marginBottom: 16 }}>
-            <DirectoryCard
-              item={item}
-              onPress={() =>
+          }
+          ListEmptyComponent={
+            !loading ? (
+              <View style={{ paddingHorizontal: 16 }}>
+                <StateView
+                  icon="business"
+                  title="No Listings Found"
+                  message={
+                    cityName
+                      ? `No local spots currently listed in ${cityName}. Check back soon!`
+                      : 'Try selecting a different category or search term.'
+                  }
+                />
+              </View>
+            ) : null
+          }
+          renderItem={({ item: shelf }) => (
+            <CategoryShelf
+              shelf={shelf}
+              onSeeAll={(catKey) => handleSelectCategory(catKey)}
+              onCardPress={(item) =>
                 router.push({
                   pathname: '/directories/[id]' as any,
                   params: { id: item.id },
                 })
               }
             />
-          </View>
-        )}
+          )}
+        />
+      ) : (
+        /* Filtered / Search Mode: Focused Vertical List with Subcategories */
+        <LegendList
+          style={{ flex: 1 }}
+          data={items}
+          keyExtractor={(item) => item.id}
+          estimatedItemSize={220}
+          recycleItems
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          overScrollMode={'never'}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+          ListEmptyComponent={
+            !loading ? (
+              <View style={{ paddingHorizontal: 16 }}>
+                <StateView
+                  icon="search"
+                  title="No Listings Found"
+                  message={
+                    cityName
+                      ? `No local spots listed in ${cityName} matching your filter.`
+                      : 'Try searching for another service or select a different category.'
+                  }
+                />
+              </View>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+              <DirectoryCard
+                item={item}
+                onPress={() =>
+                  router.push({
+                    pathname: '/directories/[id]' as any,
+                    params: { id: item.id },
+                  })
+                }
+              />
+            </View>
+          )}
+        />
+      )}
+
+      {/* Category Filter Bottom Sheet Modal */}
+      <CategoryFilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        categoryOptions={categoryOptions}
+        selectedCategory={selectedCategory}
+        onSelectCategory={(cat) => {
+          handleSelectCategory(cat);
+        }}
+        subcategories={activeSubcategories}
+        selectedSubcategory={selectedSubcategory}
+        onSelectSubcategory={(sub) => {
+          setSelectedSubcategory(sub);
+        }}
+        onClearFilter={() => {
+          handleSelectCategory('all');
+        }}
       />
     </View>
   );
@@ -172,15 +393,23 @@ export default function DirectoriesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingBottom: 14,
-    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    zIndex: 10,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
   },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     height: 44,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
   },
   searchInput: {
@@ -189,22 +418,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: 0,
   },
-  categoriesScroll: {
-    paddingTop: 12,
-    paddingBottom: 4,
-    gap: 8,
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  categoryPill: {
+  filterIndicator: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  subcategoriesScroll: {
+    paddingTop: 10,
+    paddingBottom: 4,
+    paddingHorizontal: 16,
+  },
+  subcategoryPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
     borderWidth: 1,
-    marginRight: 8,
+    marginRight: 6,
+  },
+  filterMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 100,
   },
 });

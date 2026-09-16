@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LegendList } from '@legendapp/list';
+import { LegendList } from '@legendapp/list/react-native';
 import { format } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';

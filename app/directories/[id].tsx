@@ -22,7 +22,9 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { BusinessDirectoryItem, ListingClaim } from '@/types';
 import {
+  getCategoryLabel,
   getDirectoryItemById,
+  getSubcategoryLabel,
   getUserListingClaim,
   submitListingClaim,
 } from '@/lib/directoryService';
@@ -258,9 +260,15 @@ export default function DirectoryDetailScreen() {
           {/* Badges & Meta */}
           <View style={styles.metaRow}>
             <Badge
-              label={business.category.replace('_', ' ').toUpperCase()}
+              label={getCategoryLabel(business.category).toUpperCase()}
               variant="default"
             />
+            {Boolean(business.subcategory) && (
+              <Badge
+                label={getSubcategoryLabel(business.subcategory)?.toUpperCase() ?? ''}
+                variant="primary"
+              />
+            )}
             {business.isClaimed && (
               <Badge
                 label="VERIFIED OWNER MANAGED"

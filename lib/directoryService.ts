@@ -3,31 +3,254 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
+  orderBy,
   query,
   setDoc,
   Timestamp,
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { BusinessDirectoryItem, DirectoryCategory, ListingClaim } from '@/types';
+import { BusinessDirectoryItem, DirectoryCategory, DirectorySubcategory, ListingClaim } from '@/types';
 
-export const DIRECTORY_CATEGORIES: { key: DirectoryCategory | 'all'; label: string; icon: string }[] = [
-  { key: 'all', label: 'All', icon: 'apps-outline' },
-  { key: 'shops', label: 'Shops', icon: 'bag-handle-outline' },
-  { key: 'local_stores', label: 'Local Stores', icon: 'basket-outline' },
-  { key: 'markets', label: 'Open Markets', icon: 'cart-outline' },
-  { key: 'healthcare', label: 'Hospitals & Care', icon: 'medkit-outline' },
-  { key: 'hotels', label: 'Hotels', icon: 'bed-outline' },
-  { key: 'institutions', label: 'Institutions', icon: 'business-outline' },
-  { key: 'services', label: 'Services', icon: 'construct-outline' },
+export interface SubcategoryMeta {
+  key: DirectorySubcategory;
+  label: string;
+  icon: string;
+}
+
+export interface CategoryMeta {
+  key: DirectoryCategory | 'all';
+  label: string;
+  icon: string;
+  subcategories: SubcategoryMeta[];
+}
+
+export const DIRECTORY_SECTORS: CategoryMeta[] = [
+  {
+    key: 'all',
+    label: 'All',
+    icon: 'apps-outline',
+    subcategories: [],
+  },
+  {
+    key: 'food_dining',
+    label: 'Food & Dining',
+    icon: 'restaurant-outline',
+    subcategories: [
+      { key: 'restaurants_cafes', label: 'Restaurants & Cafes', icon: 'cafe-outline' },
+      { key: 'bakeries_confectioneries', label: 'Bakeries & Sweets', icon: 'pizza-outline' },
+      { key: 'street_food', label: 'Street Food & Snacks', icon: 'fast-food-outline' },
+    ],
+  },
+  {
+    key: 'accommodation',
+    label: 'Accommodation & Stay',
+    icon: 'bed-outline',
+    subcategories: [
+      { key: 'hotels_resorts', label: 'Hotels & Resorts', icon: 'business-outline' },
+      { key: 'lodges_guesthouses', label: 'Lodges & Guesthouses', icon: 'home-outline' },
+      { key: 'homestays', label: 'Homestays', icon: 'shield-checkmark-outline' },
+    ],
+  },
+  {
+    key: 'healthcare',
+    label: 'Healthcare & Medical',
+    icon: 'medkit-outline',
+    subcategories: [
+      { key: 'hospitals_nursing', label: 'Hospitals & Nursing', icon: 'bandage-outline' },
+      { key: 'clinics_doctors', label: 'Clinics & Doctors', icon: 'fitness-outline' },
+      { key: 'pharmacies', label: 'Pharmacies & Chemists', icon: 'medical-outline' },
+      { key: 'diagnostics_labs', label: 'Diagnostics & Labs', icon: 'flask-outline' },
+    ],
+  },
+  {
+    key: 'shopping_retail',
+    label: 'Shopping & Retail',
+    icon: 'bag-handle-outline',
+    subcategories: [
+      { key: 'grocery_essentials', label: 'Grocery & Essentials', icon: 'basket-outline' },
+      { key: 'apparel_fashion', label: 'Apparel & Fashion', icon: 'shirt-outline' },
+      { key: 'electronics_mobile', label: 'Electronics & Mobile', icon: 'phone-portrait-outline' },
+      { key: 'automotive', label: 'Automotive & Bike Care', icon: 'car-outline' },
+      { key: 'furniture_decor', label: 'Furniture & Decor', icon: 'easel-outline' },
+    ],
+  },
+  {
+    key: 'education',
+    label: 'Education & Institutions',
+    icon: 'school-outline',
+    subcategories: [
+      { key: 'schools_colleges', label: 'Schools & Colleges', icon: 'school-outline' },
+      { key: 'coaching_training', label: 'Coaching & Training', icon: 'book-outline' },
+      { key: 'libraries_study', label: 'Libraries & Study Centers', icon: 'library-outline' },
+    ],
+  },
+  {
+    key: 'recreation_entertainment',
+    label: 'Recreation & Sports',
+    icon: 'game-controller-outline',
+    subcategories: [
+      { key: 'parks_playgrounds', label: 'Parks & Playgrounds', icon: 'leaf-outline' },
+      { key: 'sports_clubs', label: 'Sports & Fitness', icon: 'football-outline' },
+      { key: 'cinemas_entertainment', label: 'Cinemas & Entertainment', icon: 'film-outline' },
+    ],
+  },
+  {
+    key: 'public_services',
+    label: 'Public Services & Utilities',
+    icon: 'trail-sign-outline',
+    subcategories: [
+      { key: 'government_offices', label: 'Government & Civic Offices', icon: 'business-outline' },
+      { key: 'banking_finance', label: 'Banking & ATMs', icon: 'cash-outline' },
+      { key: 'transportation_transit', label: 'Transportation & Transit', icon: 'bus-outline' },
+    ],
+  },
+  {
+    key: 'other',
+    label: 'Other Services',
+    icon: 'grid-outline',
+    subcategories: [
+      { key: 'general_services', label: 'General Services', icon: 'construct-outline' },
+    ],
+  },
 ];
+
+let dynamicSectors: CategoryMeta[] = [...DIRECTORY_SECTORS];
+
+export function subscribeDynamicCategories(
+  onUpdate?: (sectors: CategoryMeta[]) => void
+): () => void {
+  try {
+    const q = query(collection(db, 'directory_categories'), orderBy('order', 'asc'));
+    return onSnapshot(
+      q,
+      (snap) => {
+        if (!snap.empty) {
+          const loaded: CategoryMeta[] = [
+            { key: 'all', label: 'All', icon: 'apps-outline', subcategories: [] },
+          ];
+          snap.docs.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.isActive !== false) {
+              loaded.push({
+                key: (data.id || docSnap.id) as DirectoryCategory,
+                label: data.label || docSnap.id,
+                icon: data.icon || 'grid-outline',
+                subcategories: (data.subcategories || [])
+                  .filter((s: any) => s.isActive !== false)
+                  .map((s: any) => ({
+                    key: s.id as DirectorySubcategory,
+                    label: s.label,
+                    icon: s.icon || 'apps-outline',
+                  })),
+              });
+            }
+          });
+          dynamicSectors = loaded;
+          if (onUpdate) onUpdate(dynamicSectors);
+        }
+      },
+      (err) => {
+        console.warn('[directoryService] subscribeDynamicCategories error (using fallbacks):', err);
+      }
+    );
+  } catch (err) {
+    console.warn('[directoryService] Failed to set up dynamic categories listener:', err);
+    return () => {};
+  }
+}
+
+export function getDirectoryCategories(): { key: DirectoryCategory | 'all'; label: string; icon: string }[] {
+  return dynamicSectors.map((s) => ({
+    key: s.key,
+    label: s.label,
+    icon: s.icon,
+  }));
+}
+
+export const DIRECTORY_CATEGORIES: { key: DirectoryCategory | 'all'; label: string; icon: string }[] =
+  DIRECTORY_SECTORS.map((s) => ({
+    key: s.key,
+    label: s.label,
+    icon: s.icon,
+  }));
+
+export const LEGACY_CATEGORY_MAP: Record<string, { category: DirectoryCategory; subcategory?: DirectorySubcategory }> = {
+  shops: { category: 'shopping_retail', subcategory: 'grocery_essentials' },
+  local_stores: { category: 'shopping_retail', subcategory: 'grocery_essentials' },
+  markets: { category: 'shopping_retail', subcategory: 'grocery_essentials' },
+  hotels: { category: 'accommodation', subcategory: 'hotels_resorts' },
+  institutions: { category: 'education', subcategory: 'schools_colleges' },
+  services: { category: 'public_services', subcategory: 'general_services' },
+  healthcare: { category: 'healthcare', subcategory: 'clinics_doctors' },
+  other: { category: 'other', subcategory: 'general_services' },
+};
+
+/**
+ * Normalizes legacy category values to the new taxonomy.
+ */
+export function normalizeCategory(category: string): DirectoryCategory {
+  if (LEGACY_CATEGORY_MAP[category]) {
+    return LEGACY_CATEGORY_MAP[category].category;
+  }
+  return category as DirectoryCategory;
+}
+
+/**
+ * Returns human-friendly label for any category key (including dynamic & legacy keys).
+ */
+export function getCategoryLabel(category: string): string {
+  const dynamic = dynamicSectors.find((s) => s.key === category);
+  if (dynamic) return dynamic.label;
+  const meta = DIRECTORY_SECTORS.find((s) => s.key === category);
+  if (meta) return meta.label;
+  const legacy = LEGACY_CATEGORY_MAP[category];
+  if (legacy) {
+    const parent =
+      dynamicSectors.find((s) => s.key === legacy.category) ||
+      DIRECTORY_SECTORS.find((s) => s.key === legacy.category);
+    if (parent) return parent.label;
+  }
+  return category.replace(/_/g, ' ').toUpperCase();
+}
+
+/**
+ * Returns human-friendly label for any subcategory key.
+ */
+export function getSubcategoryLabel(subcat?: string | null): string | null {
+  if (!subcat) return null;
+  for (const sector of dynamicSectors) {
+    const found = sector.subcategories.find((s) => s.key === subcat);
+    if (found) return found.label;
+  }
+  for (const sector of DIRECTORY_SECTORS) {
+    const found = sector.subcategories.find((s) => s.key === subcat);
+    if (found) return found.label;
+  }
+  return subcat.replace(/_/g, ' ');
+}
+
+/**
+ * Returns the subcategories configured for a primary category.
+ */
+export function getSubcategoriesForCategory(category: DirectoryCategory | 'all'): SubcategoryMeta[] {
+  if (category === 'all') return [];
+  const normalized = normalizeCategory(category);
+  const sector =
+    dynamicSectors.find((s) => s.key === normalized) ||
+    DIRECTORY_SECTORS.find((s) => s.key === normalized);
+  return sector ? sector.subcategories : [];
+}
+
 const DIRECTORIES_COL = collection(db, 'directories');
 const CLAIMS_COL = collection(db, 'listing_claims');
 
 export async function getDirectoryItems(
   category?: DirectoryCategory | 'all',
   search?: string,
-  city?: string
+  city?: string,
+  subcategory?: DirectorySubcategory | 'all'
 ): Promise<BusinessDirectoryItem[]> {
   let items: BusinessDirectoryItem[] = [];
 
@@ -49,22 +272,42 @@ export async function getDirectoryItems(
     items = items.filter((b) => b.city && b.city.toLowerCase() === c);
   }
 
-  // Filter by category
+  // Filter by category (with legacy category normalization)
   if (category && category !== 'all') {
-    items = items.filter((b) => b.category === category);
+    items = items.filter((b) => {
+      const normalized = normalizeCategory(b.category);
+      return b.category === category || normalized === category;
+    });
+  }
+
+  // Filter by subcategory
+  if (subcategory && subcategory !== 'all') {
+    items = items.filter((b) => {
+      if (b.subcategory) {
+        return b.subcategory === subcategory;
+      }
+      const legacySub = LEGACY_CATEGORY_MAP[b.category]?.subcategory;
+      return legacySub === subcategory;
+    });
   }
 
   // Filter by search query
   if (search && search.trim().length > 0) {
     const q = search.trim().toLowerCase();
-    items = items.filter(
-      (b) =>
+    items = items.filter((b) => {
+      const catLabel = getCategoryLabel(b.category).toLowerCase();
+      const subLabel = (b.subcategory ? getSubcategoryLabel(b.subcategory) ?? '' : '').toLowerCase();
+      return (
         b.name.toLowerCase().includes(q) ||
         b.description.toLowerCase().includes(q) ||
         b.address.toLowerCase().includes(q) ||
         (b.city && b.city.toLowerCase().includes(q)) ||
-        b.category.toLowerCase().includes(q)
-    );
+        b.category.toLowerCase().includes(q) ||
+        (b.subcategory && b.subcategory.toLowerCase().includes(q)) ||
+        catLabel.includes(q) ||
+        subLabel.includes(q)
+      );
+    });
   }
 
   return items;

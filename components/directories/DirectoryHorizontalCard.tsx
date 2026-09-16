@@ -10,12 +10,17 @@ import { Typography } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 
-interface DirectoryCardProps {
+interface DirectoryHorizontalCardProps {
   item: BusinessDirectoryItem;
   onPress?: () => void;
+  width?: number;
 }
 
-export function DirectoryCard({ item, onPress }: DirectoryCardProps) {
+export function DirectoryHorizontalCard({
+  item,
+  onPress,
+  width = 250,
+}: DirectoryHorizontalCardProps) {
   const { colors, spacing } = useTheme();
   const categoryLabel = getCategoryLabel(item.category);
   const subcategoryLabel = getSubcategoryLabel(item.subcategory);
@@ -26,7 +31,11 @@ export function DirectoryCard({ item, onPress }: DirectoryCardProps) {
       onPress={onPress}
       style={[
         styles.cardWrapper,
-        { backgroundColor: colors.surface, borderColor: colors.border },
+        {
+          width,
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
       ]}
     >
       {/* Top Cover Banner */}
@@ -38,10 +47,7 @@ export function DirectoryCard({ item, onPress }: DirectoryCardProps) {
           transition={200}
         />
         <View style={styles.categoryBadgeOverlay}>
-          <Badge
-            label={badgeLabel}
-            variant="default"
-          />
+          <Badge label={badgeLabel} variant="default" />
         </View>
         {item.isSponsored && (
           <View style={styles.sponsoredBadgeOverlay}>
@@ -51,40 +57,29 @@ export function DirectoryCard({ item, onPress }: DirectoryCardProps) {
       </View>
 
       {/* Content Details */}
-      <View style={[styles.cardContent, { padding: spacing.md }]}>
+      <View style={[styles.cardContent, { padding: spacing.sm + 2 }]}>
         <View style={styles.titleRow}>
-          <Typography variant="h3" numberOfLines={1} style={{ flex: 1 }}>
+          <Typography variant="h3" numberOfLines={1} style={{ flex: 1, fontSize: 15 }}>
             {item.name}
           </Typography>
           {item.isVerified && (
             <Ionicons
               name="checkmark-circle"
-              size={18}
+              size={16}
               color={colors.primary}
               style={{ marginLeft: 4 }}
             />
           )}
         </View>
 
-        {/* Category & Subcategory breadcrumb */}
-        <Typography
-          variant="caption"
-          color={colors.primary}
-          weight="medium"
-          numberOfLines={1}
-          style={{ marginTop: 2 }}
-        >
-          {categoryLabel}{subcategoryLabel ? `  •  ${subcategoryLabel}` : ''}
-        </Typography>
-
         {/* Address */}
         <View style={[styles.metaRow, { marginTop: 4 }]}>
-          <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+          <Ionicons name="location-outline" size={13} color={colors.textMuted} />
           <Typography
             variant="caption"
             color={colors.textMuted}
             numberOfLines={1}
-            style={{ marginLeft: 4, flex: 1 }}
+            style={{ marginLeft: 3, flex: 1, fontSize: 12 }}
           >
             {item.address}
           </Typography>
@@ -92,19 +87,29 @@ export function DirectoryCard({ item, onPress }: DirectoryCardProps) {
 
         {/* Rating and Hours */}
         <View style={[styles.statsRow, { marginTop: 6 }]}>
-          {Boolean(item.rating && item.rating > 0 && item.reviewCount && item.reviewCount > 0) && (
+          {Boolean(item.rating && item.rating > 0 && item.reviewCount && item.reviewCount > 0) ? (
             <View style={styles.ratingBadge}>
-              <Ionicons name="star" size={13} color="#F59E0B" />
-              <Typography variant="caption" weight="bold" style={{ marginLeft: 3 }}>
+              <Ionicons name="star" size={12} color="#F59E0B" />
+              <Typography variant="caption" weight="bold" style={{ marginLeft: 3, fontSize: 12 }}>
                 {item.rating!.toFixed(1)}
               </Typography>
-              <Typography variant="caption" color={colors.textMuted} style={{ marginLeft: 2 }}>
+              <Typography variant="caption" color={colors.textMuted} style={{ marginLeft: 2, fontSize: 11 }}>
                 ({item.reviewCount})
               </Typography>
             </View>
+          ) : (
+            <Typography variant="caption" color={colors.textMuted} style={{ fontSize: 11 }}>
+              {subcategoryLabel || categoryLabel}
+            </Typography>
           )}
+
           {item.openingHours && (
-            <Typography variant="caption" color={colors.textMuted} style={{ marginLeft: 'auto' }}>
+            <Typography
+              variant="caption"
+              color={colors.textMuted}
+              numberOfLines={1}
+              style={{ marginLeft: 'auto', fontSize: 11, maxWidth: 100 }}
+            >
               {item.openingHours}
             </Typography>
           )}
@@ -121,7 +126,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   imageContainer: {
-    height: 150,
+    height: 130,
     width: '100%',
     position: 'relative',
   },
@@ -131,15 +136,17 @@ const styles = StyleSheet.create({
   },
   categoryBadgeOverlay: {
     position: 'absolute',
-    top: 10,
-    left: 10,
+    top: 8,
+    left: 8,
   },
   sponsoredBadgeOverlay: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 8,
+    right: 8,
   },
-  cardContent: {},
+  cardContent: {
+    justifyContent: 'space-between',
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',

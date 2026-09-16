@@ -9,7 +9,7 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LegendList } from '@legendapp/list';
+import { LegendList } from '@legendapp/list/react-native';
 
 import { CityEvent, EventCategory } from '@/types';
 import { EVENT_CATEGORIES, getUpcomingEvents } from '@/lib/eventService';

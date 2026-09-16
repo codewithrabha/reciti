@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BusinessDirectoryItem } from '@/types';
+import { getCategoryLabel, getSubcategoryLabel } from '@/lib/directoryService';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
@@ -16,6 +17,7 @@ interface BusinessTeaserCardProps {
 
 export function BusinessTeaserCard({ business, onPress }: BusinessTeaserCardProps) {
   const { colors, spacing } = useTheme();
+  const badgeLabel = (getSubcategoryLabel(business.subcategory) || getCategoryLabel(business.category)).toUpperCase();
 
   return (
     <AnimatedButton
@@ -36,7 +38,7 @@ export function BusinessTeaserCard({ business, onPress }: BusinessTeaserCardProp
         {/* Category Badge */}
         <View style={styles.categoryBadge}>
           <Badge
-            label={business.category.replace('_', ' ').toUpperCase()}
+            label={badgeLabel}
             variant="default"
           />
         </View>
