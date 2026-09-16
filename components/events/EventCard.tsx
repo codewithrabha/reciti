@@ -104,9 +104,21 @@ export function EventCard({ item, onPress }: EventCardProps) {
 
         {/* Footer / Event details link */}
         <View style={[styles.footerRow, { marginTop: spacing.sm }]}>
-          <Typography variant="caption" color={colors.textMuted}>
-            Public Community Event
-          </Typography>
+          {item.rating && item.rating > 0 ? (
+            <View style={styles.ratingBadge}>
+              <Ionicons name="star" size={13} color="#F59E0B" />
+              <Typography variant="caption" weight="bold" style={{ marginLeft: 3 }}>
+                {item.rating.toFixed(1)}
+              </Typography>
+              <Typography variant="caption" color={colors.textMuted} style={{ marginLeft: 3 }}>
+                ({item.reviewCount ?? 0})
+              </Typography>
+            </View>
+          ) : (
+            <Typography variant="caption" color={colors.textMuted}>
+              Public Community Event
+            </Typography>
+          )}
           <Typography variant="caption" weight="bold" color={colors.primary}>
             View Details →
           </Typography>
@@ -160,6 +172,10 @@ const styles = StyleSheet.create({
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  ratingBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
 });

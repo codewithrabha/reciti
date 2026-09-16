@@ -41,11 +41,11 @@ export function BusinessTeaserCard({ business, onPress }: BusinessTeaserCardProp
           />
         </View>
         {/* Rating Badge */}
-        {business.rating && (
+        {Boolean(business.rating && business.rating > 0 && business.reviewCount && business.reviewCount > 0) && (
           <View style={[styles.ratingBadge, { backgroundColor: colors.surface + 'EE' }]}>
             <Ionicons name="star" size={11} color="#F59E0B" />
             <Typography variant="caption" weight="bold" style={{ marginLeft: 2, fontSize: 11 }}>
-              {business.rating.toFixed(1)}
+              {business.rating!.toFixed(1)}
             </Typography>
           </View>
         )}

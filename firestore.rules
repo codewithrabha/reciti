@@ -537,15 +537,29 @@ service cloud.firestore {
 
     // ─── directories ──────────────────────────────────────────────────────
     // Public to read. Real users can register listings.
-    // Only the verified owner or an admin can update the listing.
+    // Only the verified owner or an admin can update the listing, or real users sync rating.
     match /directories/{directoryId} {
       allow read:   if true;
       allow create: if isRealUser();
       allow update: if isRealUser() && (
         resource.data.ownerId == request.auth.uid ||
-        isAdmin()
+        isAdmin() ||
+        isRatingSync()
       );
       allow delete: if isAdmin();
+
+      function isRatingSync() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        return after.id == before.id
+            && after.name == before.name
+            && after.category == before.category
+            && after.address == before.address
+            && after.latitude == before.latitude
+            && after.longitude == before.longitude
+            && after.rating is number
+            && after.reviewCount is number;
+      }
     }
 
     // ─── listing_claims ───────────────────────────────────────────────────
@@ -566,15 +580,63 @@ service cloud.firestore {
 
     // ─── city_events ──────────────────────────────────────────────────────
     // Public to read. Real users or organizers can create events.
-    // Only the organizer or an admin can update or delete the event.
+    // Only the organizer or an admin can update or delete the event, or real users sync rating.
     match /city_events/{eventId} {
       allow read:   if true;
       allow create: if isRealUser()
                        && request.resource.data.organizerId == request.auth.uid;
-      allow update, delete: if isRealUser() && (
+      allow update: if isRealUser() && (
+        resource.data.organizerId == request.auth.uid ||
+        isAdmin() ||
+        isEventRatingSync()
+      );
+      allow delete: if isRealUser() && (
         resource.data.organizerId == request.auth.uid ||
         isAdmin()
       );
+
+      function isEventRatingSync() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        return after.id == before.id
+            && after.title == before.title
+            && after.category == before.category
+            && after.locationName == before.locationName
+            && after.rating is number
+            && after.reviewCount is number;
+      }
+    }
+
+    // ─── reviews ──────────────────────────────────────────────────────────
+    // Public to read. Real users create ratings & reviews (rating 1-5).
+    // Authors can edit rating/comment/tags or delete their review.
+    // Real users can toggle likes (helpful votes).
+    match /reviews/{reviewId} {
+      allow read:   if true;
+      allow create: if isRealUser()
+                       && request.resource.data.userId == request.auth.uid
+                       && request.resource.data.rating >= 1
+                       && request.resource.data.rating <= 5;
+      allow update: if isRealUser() && (
+        (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid) ||
+        isHelpfulVote()
+      );
+      allow delete: if isRealUser() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+
+      function isHelpfulVote() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        return after.reviewId == before.reviewId
+            && after.targetId == before.targetId
+            && after.targetType == before.targetType
+            && after.userId == before.userId
+            && after.rating == before.rating
+            && after.comment == before.comment
+            && after.createdAt == before.createdAt;
+      }
     }
 
     // ─── city_notices ─────────────────────────────────────────────────────

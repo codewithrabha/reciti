@@ -77,11 +77,11 @@ export function DirectoryCard({ item, onPress }: DirectoryCardProps) {
 
         {/* Rating and Hours */}
         <View style={[styles.statsRow, { marginTop: 6 }]}>
-          {item.rating && (
+          {Boolean(item.rating && item.rating > 0 && item.reviewCount && item.reviewCount > 0) && (
             <View style={styles.ratingBadge}>
               <Ionicons name="star" size={13} color="#F59E0B" />
               <Typography variant="caption" weight="bold" style={{ marginLeft: 3 }}>
-                {item.rating.toFixed(1)}
+                {item.rating!.toFixed(1)}
               </Typography>
               <Typography variant="caption" color={colors.textMuted} style={{ marginLeft: 2 }}>
                 ({item.reviewCount})

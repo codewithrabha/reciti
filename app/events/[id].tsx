@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { StateView } from '@/components/ui/StateView';
+import { ReviewsSection } from '@/components/reviews/ReviewsSection';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_HEIGHT = 260;
@@ -141,6 +142,7 @@ export default function EventDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
         scrollEventThrottle={16}
+        overScrollMode="never"
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset.y;
           if (y > 24 !== scrolled) setScrolled(y > 24);
@@ -186,6 +188,19 @@ export default function EventDetailScreen() {
           <Typography variant="h1" style={{ marginTop: spacing.sm }}>
             {event.title}
           </Typography>
+
+          {/* Rating & Reviews Header Badge */}
+          {Boolean(event.rating && event.rating > 0) && (
+            <View style={styles.ratingRow}>
+              <Ionicons name="star" size={16} color="#F59E0B" />
+              <Typography variant="body" weight="bold" style={{ marginLeft: 4 }}>
+                {event.rating!.toFixed(1)}
+              </Typography>
+              <Typography variant="caption" color={colors.textMuted} style={{ marginLeft: 6 }}>
+                ({event.reviewCount ?? 0} {event.reviewCount === 1 ? 'review' : 'reviews'})
+              </Typography>
+            </View>
+          )}
 
           {/* Organizer */}
           <View style={styles.organizerRow}>
@@ -297,7 +312,20 @@ export default function EventDetailScreen() {
           <Typography variant="body" color={colors.text} style={{ lineHeight: 22 }}>
             {event.description}
           </Typography>
+
+          {/* Community Ratings & Reviews Section */}
+          <ReviewsSection
+            targetId={event.id}
+            targetType="event"
+            targetTitle={event.title}
+            initialRating={event.rating}
+            initialReviewCount={event.reviewCount}
+            onRatingUpdated={(newRating, newCount) => {
+              setEvent((prev) => (prev ? { ...prev, rating: newRating, reviewCount: newCount } : null));
+            }}
+          />
         </Animated.View>
+
       </ScrollView>
     </View>
   );
@@ -401,5 +429,10 @@ const styles = StyleSheet.create({
   civicRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
 });

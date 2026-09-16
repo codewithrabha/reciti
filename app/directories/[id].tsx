@@ -33,6 +33,7 @@ import { Typography } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { StateView } from '@/components/ui/StateView';
+import { ReviewsSection } from '@/components/reviews/ReviewsSection';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_HEIGHT = 260;
@@ -236,6 +237,7 @@ export default function DirectoryDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         scrollEventThrottle={16}
+        overScrollMode="never"
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset.y;
           if (y > 24 !== scrolled) setScrolled(y > 24);
@@ -285,14 +287,14 @@ export default function DirectoryDetailScreen() {
           </Typography>
 
           {/* Rating & Reviews */}
-          {business.rating && (
+          {Boolean(business.rating && business.rating > 0 && business.reviewCount && business.reviewCount > 0) && (
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={16} color="#F59E0B" />
               <Typography variant="body" weight="bold" style={{ marginLeft: 4 }}>
-                {business.rating.toFixed(1)}
+                {business.rating!.toFixed(1)}
               </Typography>
               <Typography variant="caption" color={colors.textMuted} style={{ marginLeft: 6 }}>
-                ({business.reviewCount ?? 0} reviews)
+                ({business.reviewCount} {business.reviewCount === 1 ? 'review' : 'reviews'})
               </Typography>
             </View>
           )}
@@ -395,7 +397,20 @@ export default function DirectoryDetailScreen() {
           <Typography variant="body" color={colors.text} style={{ lineHeight: 22 }}>
             {business.description}
           </Typography>
+
+          {/* Community Ratings & Reviews Section */}
+          <ReviewsSection
+            targetId={business.id}
+            targetType="directory"
+            targetTitle={business.name}
+            initialRating={business.rating}
+            initialReviewCount={business.reviewCount}
+            onRatingUpdated={(newRating, newCount) => {
+              setBusiness((prev) => (prev ? { ...prev, rating: newRating, reviewCount: newCount } : null));
+            }}
+          />
         </Animated.View>
+
       </ScrollView>
 
       {/* Claim Modal */}

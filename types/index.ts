@@ -201,6 +201,8 @@ export interface CityEvent {
   organizerName: string;
   isSponsored?: boolean;
   civicPointsReward?: number;
+  rating?: number;
+  reviewCount?: number;
 
   // ─── Organizer Ownership & Verification ───────────────────────────────────
   organizerId?: string | null;
@@ -240,4 +242,25 @@ export interface CityNotice {
   actionUrl?: string; // Tel URI, external link, or internal route e.g. '/explore'
   actionType?: 'phone' | 'link' | 'route' | 'modal' | 'none';
   isPinned?: boolean;
+}
+
+// ─── Global Ratings & Reviews ───────────────────────────────────────────────
+
+export type ReviewTargetType = 'directory' | 'event';
+
+export interface Review {
+  reviewId: string;
+  targetId: string;
+  targetType: ReviewTargetType;
+  targetTitle?: string;
+  userId: string;
+  userName: string;
+  userPhotoURL?: string | null;
+  rating: number; // 1 to 5
+  title?: string;
+  comment: string;
+  tags?: string[];
+  likes: string[]; // UIDs of users who marked this review helpful
+  createdAt: Timestamp | string;
+  updatedAt?: Timestamp | string | null;
 }
