@@ -2,10 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
-  Dimensions,
   Modal,
+  Pressable,
   StyleSheet,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -27,6 +26,8 @@ interface StoryViewerProps {
   ownerUid: string | null;
   /** UID of the currently signed-in user (null = anonymous). */
   currentUid: string | null;
+  reporterName?: string | null;
+  reporterPhotoURL?: string | null;
   onClose: () => void;
 }
 
@@ -36,59 +37,113 @@ export function StoryViewer({
   reportId,
   ownerUid,
   currentUid,
+  reporterName,
+  reporterPhotoURL,
   onClose,
 }: StoryViewerProps) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [currentIndex, setCurrentIndex] = useState(
+    Math.max(0, Math.min(initialIndex, slides.length - 1)),
+  );
   const [deleting, setDeleting] = useState(false);
 
   const isOwner = !!currentUid && currentUid === ownerUid;
 
-  // One animated value per slide for the progress bars.
+  // One animated value per slide for progress bars
   const progressAnims = useRef(slides.map(() => new Animated.Value(0))).current;
   const timerRef = useRef<ReturnType<typeof Animated.timing> | null>(null);
+  const currentProgress = useRef(0);
+  const isPaused = useRef(false);
+
+  // Set completed bars for earlier slides and reset later slides
+  useEffect(() => {
+    slides.forEach((_, i) => {
+      if (i < currentIndex) {
+        progressAnims[i]?.setValue(1);
+      } else if (i > currentIndex) {
+        progressAnims[i]?.setValue(0);
+      }
+    });
+  }, [currentIndex, slides, progressAnims]);
 
   const advance = useCallback(() => {
     setCurrentIndex((prev) => {
       if (prev >= slides.length - 1) {
-        // Last slide finished — close after brief pause.
-        setTimeout(onClose, 400);
+        setTimeout(onClose, 300);
         return prev;
       }
       return prev + 1;
     });
   }, [slides.length, onClose]);
 
-  // Start / reset the animated progress bar whenever the active slide changes.
-  useEffect(() => {
-    progressAnims[currentIndex].setValue(0);
+  // Start progress animation
+  const startProgress = useCallback(
+    (fromValue = 0) => {
+      timerRef.current?.stop();
+      currentProgress.current = fromValue;
+      progressAnims[currentIndex]?.setValue(fromValue);
 
-    timerRef.current = Animated.timing(progressAnims[currentIndex], {
-      toValue: 1,
-      duration: SLIDE_DURATION,
-      useNativeDriver: false,
-    });
-    timerRef.current.start(({ finished }) => {
-      if (finished) advance();
+      const remainingDuration = SLIDE_DURATION * (1 - fromValue);
+
+      timerRef.current = Animated.timing(progressAnims[currentIndex], {
+        toValue: 1,
+        duration: remainingDuration,
+        useNativeDriver: false,
+      });
+
+      timerRef.current.start(({ finished }) => {
+        if (finished && !isPaused.current) {
+          advance();
+        }
+      });
+    },
+    [currentIndex, advance, progressAnims],
+  );
+
+  // Animate whenever currentIndex changes
+  useEffect(() => {
+    isPaused.current = false;
+    startProgress(0);
+
+    const animListener = progressAnims[currentIndex]?.addListener(({ value }) => {
+      currentProgress.current = value;
     });
 
     return () => {
       timerRef.current?.stop();
+      if (animListener) {
+        progressAnims[currentIndex]?.removeListener(animListener);
+      }
     };
-  }, [currentIndex, advance, progressAnims]);
+  }, [currentIndex, startProgress, progressAnims]);
+
+  const pause = () => {
+    isPaused.current = true;
+    timerRef.current?.stop();
+  };
+
+  const resume = () => {
+    if (isPaused.current) {
+      isPaused.current = false;
+      startProgress(currentProgress.current);
+    }
+  };
 
   const goToPrev = () => {
     timerRef.current?.stop();
     if (currentIndex > 0) {
-      progressAnims[currentIndex].setValue(0);
-      progressAnims[currentIndex - 1].setValue(0);
+      progressAnims[currentIndex]?.setValue(0);
+      progressAnims[currentIndex - 1]?.setValue(0);
       setCurrentIndex(currentIndex - 1);
+    } else {
+      // Replay current slide
+      startProgress(0);
     }
   };
 
   const goToNext = () => {
     timerRef.current?.stop();
     if (currentIndex < slides.length - 1) {
-      progressAnims[currentIndex].setValue(1);
+      progressAnims[currentIndex]?.setValue(1);
       setCurrentIndex(currentIndex + 1);
     } else {
       onClose();
@@ -97,8 +152,9 @@ export function StoryViewer({
 
   const handleDelete = () => {
     const slide = slides[currentIndex];
+    pause();
     Alert.alert('Delete update', 'Remove this slide permanently? This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+      { text: 'Cancel', style: 'cancel', onPress: resume },
       {
         text: 'Delete',
         style: 'destructive',
@@ -106,14 +162,14 @@ export function StoryViewer({
           setDeleting(true);
           try {
             await deleteStorySlide(reportId, currentUid!, slide.slideId);
-            if (slides.length === 1) {
+            if (slides.length <= 1) {
               onClose();
             } else if (currentIndex >= slides.length - 1) {
               setCurrentIndex(currentIndex - 1);
             }
-            // The parent's real-time subscription will shrink the slides array.
           } catch {
             Alert.alert('Error', 'Could not delete this update. Please try again.');
+            resume();
           } finally {
             setDeleting(false);
           }
@@ -144,7 +200,7 @@ export function StoryViewer({
             contentFit="cover"
           />
         )}
-        {/* Dark scrim — lighter when there's a photo so image shows through */}
+        {/* Dark scrim — lighter when photo is present */}
         <View style={[styles.scrim, hasPhoto && styles.scrimLight]} />
 
         {/* Progress bars */}
@@ -159,10 +215,10 @@ export function StoryViewer({
                       i < currentIndex
                         ? '100%'
                         : i === currentIndex
-                        ? progressAnims[i].interpolate({
+                        ? progressAnims[i]?.interpolate({
                             inputRange: [0, 1],
                             outputRange: ['0%', '100%'],
-                          })
+                          }) ?? '0%'
                         : '0%',
                   },
                 ]}
@@ -171,18 +227,39 @@ export function StoryViewer({
           ))}
         </View>
 
-        {/* Header */}
+        {/* Header - Instagram Style */}
         <View style={styles.header}>
-          <View style={styles.slideLabel}>
-            <Ionicons name="megaphone" size={13} color="rgba(255,255,255,0.75)" />
-            <Typography
-              variant="caption"
-              color="rgba(255,255,255,0.75)"
-              style={{ marginLeft: 5 }}
-            >
-              Update {currentIndex + 1} of {slides.length}
-            </Typography>
+          <View style={styles.authorGroup}>
+            {/* Small avatar */}
+            <View style={styles.headerAvatarRing}>
+              {reporterPhotoURL ? (
+                <Image
+                  source={{ uri: reporterPhotoURL }}
+                  style={styles.headerAvatarImg}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.headerAvatarPlaceholder}>
+                  <Ionicons name="person" size={13} color="#FFFFFF" />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.headerTextCol}>
+              <View style={styles.headerNameRow}>
+                <Typography variant="caption" weight="bold" color="#FFFFFF" numberOfLines={1}>
+                  {reporterName || 'Reporter'}
+                </Typography>
+                <Typography variant="caption" color="rgba(255,255,255,0.7)">
+                  · {formatDistanceToNow(slide.createdAt.toDate(), { addSuffix: false })}
+                </Typography>
+              </View>
+              <Typography variant="caption" color="rgba(255,255,255,0.6)" style={{ fontSize: 10 }}>
+                Update {currentIndex + 1} of {slides.length}
+              </Typography>
+            </View>
           </View>
+
           <View style={styles.headerActions}>
             {isOwner && (
               <AnimatedButton
@@ -191,7 +268,7 @@ export function StoryViewer({
                 hapticFeedback="medium"
                 style={styles.iconBtn}
               >
-                <Ionicons name="trash-outline" size={20} color="rgba(255,255,255,0.85)" />
+                <Ionicons name="trash-outline" size={19} color="rgba(255,255,255,0.85)" />
               </AnimatedButton>
             )}
             <AnimatedButton onPress={onClose} hapticFeedback="light" style={styles.iconBtn}>
@@ -200,14 +277,20 @@ export function StoryViewer({
           </View>
         </View>
 
-        {/* Tap zones — transparent overlays for prev / next */}
-        <View style={styles.tapZones} pointerEvents="box-none">
-          <TouchableWithoutFeedback onPress={goToPrev}>
-            <View style={styles.tapHalf} />
-          </TouchableWithoutFeedback>
-          <TouchableWithoutFeedback onPress={goToNext}>
-            <View style={styles.tapHalf} />
-          </TouchableWithoutFeedback>
+        {/* Interactive Tap Zones: Hold to pause, Tap to skip */}
+        <View style={styles.tapZones}>
+          <Pressable
+            style={styles.tapHalf}
+            onPressIn={pause}
+            onPressOut={resume}
+            onPress={goToPrev}
+          />
+          <Pressable
+            style={styles.tapHalf}
+            onPressIn={pause}
+            onPressOut={resume}
+            onPress={goToNext}
+          />
         </View>
 
         {/* Slide content — bottom-anchored */}
@@ -243,15 +326,15 @@ const styles = StyleSheet.create({
   progressRow: {
     flexDirection: 'row',
     paddingHorizontal: 12,
-    paddingTop: 56, // clears status bar on most devices
+    paddingTop: 56, // clears status bar
     gap: 4,
   },
   progressTrack: {
     flex: 1,
-    height: 3,
+    height: 2.5,
     borderRadius: 2,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.35)',
   },
   progressFill: {
     height: '100%',
@@ -264,18 +347,52 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 12,
     paddingTop: 10,
+    zIndex: 10,
   },
-  slideLabel: {
+  authorGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  headerAvatarRing: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  headerAvatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTextCol: {
+    justifyContent: 'center',
+  },
+  headerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   headerActions: {
     flexDirection: 'row',
-    gap: 2,
+    alignItems: 'center',
+    gap: 4,
   },
   iconBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -285,7 +402,9 @@ const styles = StyleSheet.create({
     top: 100,
     bottom: 180,
   },
-  tapHalf: { flex: 1 },
+  tapHalf: {
+    flex: 1,
+  },
   contentArea: {
     position: 'absolute',
     bottom: 72,
@@ -293,8 +412,8 @@ const styles = StyleSheet.create({
     right: 24,
   },
   slideText: {
-    fontSize: 20,
-    lineHeight: 30,
+    fontSize: 19,
+    lineHeight: 28,
     letterSpacing: 0.15,
   },
 });

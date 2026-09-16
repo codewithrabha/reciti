@@ -46,12 +46,14 @@ import { CommentComposer } from '@/components/report/CommentComposer';
 import { shareReport } from '@/lib/shareService';
 import { StoryViewer } from '@/components/report/StoryViewer';
 import { StoryComposer } from '@/components/report/StoryComposer';
+import { StoryTray } from '@/components/report/StoryTray';
 import { VolunteerSection } from '@/components/report/VolunteerSection';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
 import { Typography } from '@/components/ui/Typography';
 import { ReportDetailSkeleton } from '@/components/skeletons';
+import { ImageLightboxModal } from '@/components/ui/ImageLightboxModal';
 import { useTheme } from '@/theme';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -184,6 +186,7 @@ export default function ReportDetailScreen() {
 
   const [report, setReport] = useState<Report | null | undefined>(undefined);
   const [reporterName, setReporterName] = useState<string | null>(null);
+  const [reporterPhotoURL, setReporterPhotoURL] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(false);
@@ -191,9 +194,11 @@ export default function ReportDetailScreen() {
   const [scrolled, setScrolled] = useState(false);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // Story slides
   const [slides, setSlides] = useState<StorySlide[]>([]);
+  const [activeSlideIdx, setActiveSlideIdx] = useState(0);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [storyComposerOpen, setStoryComposerOpen] = useState(false);
 
@@ -325,7 +330,10 @@ export default function ReportDetailScreen() {
     if (!reporterId) return;
     let active = true;
     getUserDoc(reporterId).then((u) => {
-      if (active) setReporterName(u?.displayName ?? null);
+      if (active) {
+        setReporterName(u?.displayName ?? null);
+        setReporterPhotoURL(u?.photoURL ?? null);
+      }
     });
     return () => {
       active = false;
@@ -730,6 +738,14 @@ export default function ReportDetailScreen() {
     }
   };
 
+  const gallery = report.imageUrls && report.imageUrls.length > 0
+    ? report.imageUrls
+    : (report.imageUrl ? [report.imageUrl] : []);
+  const safeIdx = Math.min(activeImageIdx, Math.max(0, gallery.length - 1));
+  const heroUrl = gallery[safeIdx];
+  const isReporter = user?.uid === report.reporterId;
+  const canAddPhoto = isReporter && gallery.length < 3 && report.status !== 'archived';
+
   return (
     <View style={[styles.fill, { backgroundColor: colors.background }]}>
       <View
@@ -773,90 +789,69 @@ export default function ReportDetailScreen() {
         }}
       >
         {/* Hero */}
-        {(() => {
-          const gallery = report.imageUrls && report.imageUrls.length > 0
-            ? report.imageUrls
-            : (report.imageUrl ? [report.imageUrl] : []);
-          const safeIdx = Math.min(activeImageIdx, Math.max(0, gallery.length - 1));
-          const heroUrl = gallery[safeIdx];
-          const isReporter = user?.uid === report.reporterId;
-          const canAddPhoto = isReporter && gallery.length < 3 && report.status !== 'archived';
-          const showThumbStrip = gallery.length > 1 || canAddPhoto;
-          return (
-            <>
-              <View style={styles.hero}>
-                {heroUrl ? (
-                  <Image
-                    source={{ uri: heroUrl }}
-                    style={styles.heroImage}
-                    contentFit="cover"
-                    transition={300}
-                  />
+        <View style={styles.hero}>
+          {heroUrl ? (
+            <AnimatedButton
+              onPress={() => setLightboxOpen(true)}
+              hapticFeedback="light"
+              scaleTo={0.99}
+              style={{ width: '100%' }}
+            >
+              <Image
+                source={{ uri: heroUrl }}
+                style={styles.heroImage}
+                contentFit="cover"
+                transition={300}
+              />
+            </AnimatedButton>
+          ) : (
+            <View style={[styles.heroImage, styles.center, { backgroundColor: colors.surface }]}>
+              <Ionicons name="image-outline" size={48} color={colors.border} />
+            </View>
+          )}
+
+          <View style={[styles.statusPill, { backgroundColor: status.color, bottom: 16 }]}>
+            <Typography variant="caption" weight="bold" color="#FFFFFF">
+              {status.label}
+            </Typography>
+          </View>
+
+          {/* Hero Bottom-Right Badges: +Photo and +N Count Indicator */}
+          <View style={styles.heroBottomRight}>
+            {canAddPhoto && (
+              <AnimatedButton
+                onPress={handleAddPhoto}
+                disabled={uploadingPhoto}
+                hapticFeedback="medium"
+                style={[styles.heroBadgeBtn, { backgroundColor: 'rgba(0,0,0,0.65)' }]}
+              >
+                {uploadingPhoto ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <View style={[styles.heroImage, styles.center, { backgroundColor: colors.surface }]}>
-                    <Ionicons name="image-outline" size={48} color={colors.border} />
-                  </View>
+                  <>
+                    <Ionicons name="camera" size={13} color="#FFFFFF" />
+                    <Typography variant="caption" weight="bold" color="#FFFFFF">
+                      + Photo
+                    </Typography>
+                  </>
                 )}
-                <View style={[styles.statusPill, { backgroundColor: status.color, bottom: 16 }]}>
-                  <Typography variant="caption" weight="bold" color="#FFFFFF">
-                    {status.label}
-                  </Typography>
-                </View>
-              </View>
-              {showThumbStrip && (
-                <View style={[styles.thumbStrip, { backgroundColor: colors.background }]}>
-                  {gallery.map((url, i) => {
-                    const active = i === safeIdx;
-                    return (
-                      <AnimatedButton
-                        key={`${url}-${i}`}
-                        onPress={() => setActiveImageIdx(i)}
-                        hapticFeedback="light"
-                        style={[
-                          styles.thumbBtn,
-                          { borderColor: active ? colors.primary : 'transparent' },
-                        ]}
-                      >
-                        <Image source={{ uri: url }} style={styles.thumbImg} contentFit="cover" />
-                      </AnimatedButton>
-                    );
-                  })}
-                  {canAddPhoto && (
-                    <AnimatedButton
-                      onPress={handleAddPhoto}
-                      disabled={uploadingPhoto}
-                      hapticFeedback="medium"
-                      style={[
-                        styles.thumbBtn,
-                        styles.addPhotoBtn,
-                        {
-                          borderColor: colors.primary,
-                          backgroundColor: colors.surface,
-                        },
-                      ]}
-                    >
-                      {uploadingPhoto ? (
-                        <ActivityIndicator size="small" color={colors.primary} />
-                      ) : (
-                        <View style={styles.addPhotoIconContent}>
-                          <Ionicons name="camera-outline" size={24} color={colors.primary} />
-                          <Typography
-                            variant="caption"
-                            weight="bold"
-                            color={colors.primary}
-                            style={{ fontSize: 12, marginTop: 2 }}
-                          >
-                            + Photo
-                          </Typography>
-                        </View>
-                      )}
-                    </AnimatedButton>
-                  )}
-                </View>
-              )}
-            </>
-          );
-        })()}
+              </AnimatedButton>
+            )}
+
+            {gallery.length > 1 && (
+              <AnimatedButton
+                onPress={() => setLightboxOpen(true)}
+                hapticFeedback="light"
+                style={[styles.heroBadgeBtn, { backgroundColor: 'rgba(0,0,0,0.65)' }]}
+              >
+                <Ionicons name="copy" size={12} color="#FFFFFF" />
+                <Typography variant="caption" weight="bold" color="#FFFFFF">
+                  +{gallery.length - 1}
+                </Typography>
+              </AnimatedButton>
+            )}
+          </View>
+        </View>
 
         <View style={styles.body}>
           {/* Meta */}
@@ -892,6 +887,27 @@ export default function ReportDetailScreen() {
             </Typography>
           ) : null}
 
+          {/* Owner Updates section — Instagram Stories Tray */}
+          {(() => {
+            const isOwner = !!user && user.uid === report.reporterId;
+            const canCompose = isOwner && slides.length < STORY_SLIDE_MAX && report.status !== 'archived';
+            const authorPhoto = reporterPhotoURL ?? (isOwner ? user?.photoURL : null);
+            return (
+              <StoryTray
+                slides={slides}
+                isOwner={isOwner}
+                canCompose={canCompose}
+                reporterName={reporterName}
+                reporterPhotoURL={authorPhoto}
+                onPressSlide={(idx) => {
+                  setActiveSlideIdx(idx);
+                  setStoryViewerOpen(true);
+                }}
+                onPressAdd={() => setStoryComposerOpen(true)}
+              />
+            );
+          })()}
+
           {/* Contextual actions */}
           <View style={styles.sectionLabel} />
           {renderActions()}
@@ -916,87 +932,6 @@ export default function ReportDetailScreen() {
               />
             </>
           )}
-
-          {/* Owner Updates section — shown above Location */}
-          {(() => {
-            const isOwner = !!user && user.uid === report.reporterId;
-            const hasSlides = slides.length > 0;
-            const canCompose = isOwner && slides.length < STORY_SLIDE_MAX && report.status !== 'archived';
-            // Hide entirely if no slides and not the owner
-            if (!hasSlides && !isOwner) return null;
-            const latestSlide = slides[slides.length - 1];
-            return (
-              <>
-                <Typography
-                  variant="caption"
-                  weight="bold"
-                  color={colors.textMuted}
-                  style={styles.sectionLabel}
-                >
-                  OWNER UPDATES
-                </Typography>
-                <Card padding="lg">
-                  {hasSlides ? (
-                    <>
-                      {/* Latest slide preview */}
-                      <View style={styles.slidePreviewRow}>
-                        <View style={[styles.slidePreviewIcon, { backgroundColor: colors.primaryMuted }]}>
-                          <Ionicons name="megaphone" size={16} color={colors.primary} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Typography variant="body" weight="medium" numberOfLines={2}>
-                            {latestSlide.text}
-                          </Typography>
-                          <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 2 }}>
-                            {formatDistanceToNow(latestSlide.createdAt.toDate(), { addSuffix: true })}
-                            {slides.length > 1 ? ` · ${slides.length} updates` : ' · 1 update'}
-                          </Typography>
-                        </View>
-                      </View>
-                      {/* View all button */}
-                      <AnimatedButton
-                        onPress={() => setStoryViewerOpen(true)}
-                        hapticFeedback="light"
-                        style={[
-                          styles.viewUpdatesBtn,
-                          { borderColor: colors.primary, borderRadius: radii.md },
-                        ]}
-                      >
-                        <Ionicons name="play-circle" size={18} color={colors.primary} />
-                        <Typography variant="body" weight="bold" color={colors.primary}>
-                          View updates
-                        </Typography>
-                      </AnimatedButton>
-                    </>
-                  ) : (
-                    /* No slides yet — owner-only empty state */
-                    <View style={styles.slideEmptyState}>
-                      <Ionicons name="megaphone-outline" size={28} color={colors.textMuted} />
-                      <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 6 }} align="center">
-                        Share progress updates with the community.
-                      </Typography>
-                    </View>
-                  )}
-                  {/* Post update button — owner only */}
-                  {canCompose && (
-                    <AnimatedButton
-                      onPress={() => setStoryComposerOpen(true)}
-                      hapticFeedback="medium"
-                      style={[
-                        styles.postUpdateBtn,
-                        { backgroundColor: colors.primaryMuted, borderRadius: radii.md, marginTop: hasSlides ? 12 : 14 },
-                      ]}
-                    >
-                      <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-                      <Typography variant="body" weight="bold" color={colors.primary}>
-                        Post update
-                      </Typography>
-                    </AnimatedButton>
-                  )}
-                </Card>
-              </>
-            );
-          })()}
 
           {/* Directions */}
           <Typography
@@ -1078,9 +1013,12 @@ export default function ReportDetailScreen() {
       {storyViewerOpen && slides.length > 0 && (
         <StoryViewer
           slides={slides}
+          initialIndex={activeSlideIdx}
           reportId={report.reportId}
           ownerUid={report.reporterId}
           currentUid={user?.uid ?? null}
+          reporterName={reporterName}
+          reporterPhotoURL={reporterPhotoURL ?? (user?.uid === report.reporterId ? user?.photoURL : null)}
           onClose={() => setStoryViewerOpen(false)}
         />
       )}
@@ -1094,6 +1032,17 @@ export default function ReportDetailScreen() {
           onPosted={() => setStoryComposerOpen(false)}
         />
       )}
+
+      {/* Image Lightbox */}
+      <ImageLightboxModal
+        visible={lightboxOpen}
+        images={gallery}
+        initialIndex={safeIdx}
+        onClose={() => setLightboxOpen(false)}
+        canAddPhoto={canAddPhoto}
+        onAddPhoto={handleAddPhoto}
+        uploadingPhoto={uploadingPhoto}
+      />
     </View>
   );
 }
@@ -1104,28 +1053,21 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 140 },
   hero: { position: 'relative' },
   heroImage: { width: '100%', height: 290 },
-  thumbStrip: {
+  heroBottomRight: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 12,
   },
-  thumbBtn: {
-    width: 120,
-    aspectRatio: 4/3,
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 2,
-  },
-  thumbImg: { width: '100%', height: '100%' },
-  addPhotoBtn: {
-    borderStyle: 'dashed',
-    justifyContent: 'center',
+  heroBadgeBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  addPhotoIconContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 9999,
   },
   stickyHeader: {
     position: 'absolute',
@@ -1209,38 +1151,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
-  },
-  // Story slides
-  slidePreviewRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 12,
-  },
-  slidePreviewIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  viewUpdatesBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderWidth: 1.5,
-  },
-  postUpdateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-  },
-  slideEmptyState: {
-    alignItems: 'center',
-    paddingVertical: 8,
   },
 });
