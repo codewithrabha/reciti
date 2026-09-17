@@ -1,33 +1,31 @@
-import React from 'react';
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import React from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
-import { DirectoryCategory, DirectorySubcategory } from '@/types';
-import { SubcategoryMeta } from '@/lib/directoryService';
-import { useTheme } from '@/theme';
-import { Typography } from '@/components/ui/Typography';
-import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { EventCategory, EventSubcategory } from "@/types";
+import { EventSubcategoryMeta } from "@/lib/eventService";
+import { useTheme } from "@/theme";
+import { Typography } from "@/components/ui/Typography";
+import { AnimatedButton } from "@/components/ui/AnimatedButton";
 
-interface CategoryFilterModalProps {
+interface EventFilterModalProps {
   visible: boolean;
   onClose: () => void;
-  categoryOptions: { key: DirectoryCategory | 'all'; label: string; icon: string }[];
-  selectedCategory: DirectoryCategory | 'all';
-  onSelectCategory: (category: DirectoryCategory | 'all') => void;
-  subcategories: SubcategoryMeta[];
-  selectedSubcategory: DirectorySubcategory | 'all';
-  onSelectSubcategory: (subcategory: DirectorySubcategory | 'all') => void;
+  categoryOptions: {
+    key: EventCategory | "all";
+    label: string;
+    icon: string;
+  }[];
+  selectedCategory: EventCategory | "all";
+  onSelectCategory: (category: EventCategory | "all") => void;
+  subcategories: EventSubcategoryMeta[];
+  selectedSubcategory: EventSubcategory | "all";
+  onSelectSubcategory: (subcategory: EventSubcategory | "all") => void;
   onClearFilter: () => void;
 }
 
-export function CategoryFilterModal({
+export function EventFilterModal({
   visible,
   onClose,
   categoryOptions,
@@ -37,11 +35,12 @@ export function CategoryFilterModal({
   selectedSubcategory,
   onSelectSubcategory,
   onClearFilter,
-}: CategoryFilterModalProps) {
-  const { colors, spacing } = useTheme();
+}: EventFilterModalProps) {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const isFiltered = selectedCategory !== 'all' || selectedSubcategory !== 'all';
+  const isFiltered =
+    selectedCategory !== "all" || selectedSubcategory !== "all";
 
   return (
     <Modal
@@ -66,16 +65,20 @@ export function CategoryFilterModal({
           ]}
         >
           {/* Top Handle */}
-          <View style={[styles.handleBar, { backgroundColor: colors.border }]} />
+          <View
+            style={[styles.handleBar, { backgroundColor: colors.border }]}
+          />
 
           {/* Modal Header */}
-          <View style={[styles.headerRow, { borderBottomColor: colors.border }]}>
+          <View
+            style={[styles.headerRow, { borderBottomColor: colors.border }]}
+          >
             <View>
               <Typography variant="h2" style={{ fontSize: 18 }}>
-                Filter Categories
+                Filter Events
               </Typography>
               <Typography variant="caption" color={colors.textMuted}>
-                Select a sector to narrow down listings
+                Select a category or theme to narrow down events
               </Typography>
             </View>
 
@@ -91,14 +94,14 @@ export function CategoryFilterModal({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            {/* Primary Categories Grid / Chips */}
+            {/* Primary Categories Section */}
             <Typography
               variant="caption"
               weight="bold"
               color={colors.textMuted}
               style={styles.sectionTitle}
             >
-              PRIMARY SECTORS
+              PRIMARY CATEGORIES
             </Typography>
 
             <View style={styles.chipsWrap}>
@@ -111,8 +114,12 @@ export function CategoryFilterModal({
                     style={[
                       styles.chip,
                       {
-                        backgroundColor: isSelected ? colors.primary : colors.background,
-                        borderColor: isSelected ? colors.primary : colors.border,
+                        backgroundColor: isSelected
+                          ? colors.primary
+                          : colors.background,
+                        borderColor: isSelected
+                          ? colors.primary
+                          : colors.border,
                       },
                     ]}
                   >
@@ -124,7 +131,7 @@ export function CategoryFilterModal({
                     />
                     <Typography
                       variant="body"
-                      weight={isSelected ? 'bold' : 'regular'}
+                      weight={isSelected ? "bold" : "regular"}
                       color={isSelected ? colors.white : colors.text}
                       style={{ fontSize: 13 }}
                     >
@@ -143,8 +150,8 @@ export function CategoryFilterModal({
               })}
             </View>
 
-            {/* Subcategories Section (if category selected and has subcategories) */}
-            {selectedCategory !== 'all' && subcategories.length > 0 && (
+            {/* Subcategories Section (if a specific category is selected) */}
+            {selectedCategory !== "all" && subcategories.length > 0 && (
               <View style={{ marginTop: 20 }}>
                 <Typography
                   variant="caption"
@@ -152,28 +159,40 @@ export function CategoryFilterModal({
                   color={colors.textMuted}
                   style={styles.sectionTitle}
                 >
-                  SUBCATEGORIES
+                  SUBCATEGORIES & THEMES
                 </Typography>
 
                 <View style={styles.chipsWrap}>
                   {/* All subcategory option */}
                   <AnimatedButton
-                    onPress={() => onSelectSubcategory('all')}
+                    onPress={() => onSelectSubcategory("all")}
                     style={[
                       styles.chip,
                       {
-                        backgroundColor: selectedSubcategory === 'all' ? colors.primary : colors.background,
-                        borderColor: selectedSubcategory === 'all' ? colors.primary : colors.border,
+                        backgroundColor:
+                          selectedSubcategory === "all"
+                            ? colors.primary
+                            : colors.background,
+                        borderColor:
+                          selectedSubcategory === "all"
+                            ? colors.primary
+                            : colors.border,
                       },
                     ]}
                   >
                     <Typography
                       variant="body"
-                      weight={selectedSubcategory === 'all' ? 'bold' : 'regular'}
-                      color={selectedSubcategory === 'all' ? colors.white : colors.text}
+                      weight={
+                        selectedSubcategory === "all" ? "bold" : "regular"
+                      }
+                      color={
+                        selectedSubcategory === "all"
+                          ? colors.white
+                          : colors.text
+                      }
                       style={{ fontSize: 13 }}
                     >
-                      All in this Sector
+                      All in this Category
                     </Typography>
                   </AnimatedButton>
 
@@ -186,20 +205,26 @@ export function CategoryFilterModal({
                         style={[
                           styles.chip,
                           {
-                            backgroundColor: isSubSelected ? colors.primary : colors.background,
-                            borderColor: isSubSelected ? colors.primary : colors.border,
+                            backgroundColor: isSubSelected
+                              ? colors.primary
+                              : colors.background,
+                            borderColor: isSubSelected
+                              ? colors.primary
+                              : colors.border,
                           },
                         ]}
                       >
                         <Ionicons
                           name={sub.icon as any}
-                          size={14}
-                          color={isSubSelected ? colors.white : colors.textMuted}
-                          style={{ marginRight: 5 }}
+                          size={15}
+                          color={
+                            isSubSelected ? colors.white : colors.textMuted
+                          }
+                          style={{ marginRight: 6 }}
                         />
                         <Typography
                           variant="body"
-                          weight={isSubSelected ? 'bold' : 'regular'}
+                          weight={isSubSelected ? "bold" : "regular"}
                           color={isSubSelected ? colors.white : colors.text}
                           style={{ fontSize: 13 }}
                         >
@@ -219,16 +244,22 @@ export function CategoryFilterModal({
                 </View>
               </View>
             )}
+
+            <View style={{ height: 24 }} />
           </ScrollView>
 
-          {/* Footer Actions */}
-          <View style={[styles.footerRow, { borderTopColor: colors.border }]}>
+          {/* Bottom Action */}
+          <View style={[styles.bottomBar, { borderTopColor: colors.border }]}>
             {isFiltered ? (
               <AnimatedButton
                 onPress={onClearFilter}
                 style={[styles.clearButton, { borderColor: colors.border }]}
               >
-                <Typography variant="body" weight="bold" color={colors.textMuted}>
+                <Typography
+                  variant="body"
+                  weight="bold"
+                  color={colors.textMuted}
+                >
                   Clear Filter
                 </Typography>
               </AnimatedButton>
@@ -247,7 +278,7 @@ export function CategoryFilterModal({
               ]}
             >
               <Typography variant="body" weight="bold" color={colors.white}>
-                {isFiltered ? 'Show Results' : 'Close'}
+                {isFiltered ? "Show Filtered Events" : "Close"}
               </Typography>
             </AnimatedButton>
           </View>
@@ -260,8 +291,8 @@ export function CategoryFilterModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    justifyContent: "flex-end",
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -269,64 +300,65 @@ const styles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    maxHeight: '80%',
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    maxHeight: "82%",
   },
   handleBar: {
-    width: 38,
+    width: 36,
     height: 4,
     borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 6,
+    alignSelf: "center",
+    marginTop: 8,
+    marginBottom: 8,
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   clearHeaderBtn: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
   },
   closeBtn: {
     padding: 6,
-    borderRadius: 16,
+    borderRadius: 20,
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 24,
   },
   sectionTitle: {
     letterSpacing: 0.8,
     marginBottom: 10,
+    fontSize: 11,
   },
   chipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
   },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  bottomBar: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 14,
     borderTopWidth: StyleSheet.hairlineWidth,

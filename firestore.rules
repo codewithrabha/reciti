@@ -585,6 +585,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ─── event_categories ─────────────────────────────────────────────────
+    // Public to read for mobile app and web clients. Writable only by administrators.
+    match /event_categories/{categoryId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
     // ─── city_events ──────────────────────────────────────────────────────
     // Public to read. Real users or organizers can create events.
     // Only the organizer or an admin can update or delete the event, or real users sync rating.

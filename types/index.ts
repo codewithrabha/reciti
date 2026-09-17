@@ -219,17 +219,49 @@ export interface ListingClaim {
 // ─── Public & City Events ───────────────────────────────────────────────────
 
 export type EventCategory =
+  | 'cultural_religious'
+  | 'sports_tournaments'
+  | 'business_trade_community'
+  | 'entertainment_arts'
+  | 'social_public_awareness'
+  // Legacy categories for backward compatibility
   | 'cultural'
   | 'civic'
   | 'sports'
   | 'concerts'
   | 'fairs'
-  | 'workshops';
+  | 'workshops'
+  | 'other';
+
+export type EventSubcategory =
+  // Cultural & Religious Festivals
+  | 'pujas_celebrations'
+  | 'folk_festivals'
+  | 'processions_gatherings'
+  // Sports & Tournaments
+  | 'leagues_championships'
+  | 'marathons_walks'
+  | 'traditional_sports'
+  // Business, Trade & Community
+  | 'trade_fairs_expos'
+  | 'business_inaugurations'
+  | 'networking_workshops'
+  // Entertainment & Arts
+  | 'music_concerts_gigs'
+  | 'plays_drama_theatre'
+  | 'art_photo_exhibitions'
+  // Social & Public Awareness
+  | 'health_wellness_camps'
+  | 'civic_environmental_drives'
+  | 'gov_public_outreach'
+  | 'general_events';
 
 export interface CityEvent {
   id: string;
   title: string;
   category: EventCategory;
+  subcategory?: EventSubcategory;
+  subcategoryLabel?: string;
   description: string;
   date: string; // e.g. '2026-09-12' or 'Tomorrow, 10:00 AM'
   time: string;

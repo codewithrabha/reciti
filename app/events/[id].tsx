@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { CityEvent } from '@/types';
-import { getEventById } from '@/lib/eventService';
+import { getEventById, getEventCategoryLabel, getEventSubcategoryLabel } from '@/lib/eventService';
 import { shareEvent } from '@/lib/shareService';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
@@ -163,9 +163,15 @@ export default function EventDetailScreen() {
           {/* Category & Tag Row */}
           <View style={styles.metaRow}>
             <Badge
-              label={event.category.toUpperCase()}
+              label={getEventCategoryLabel(event.category).toUpperCase()}
               variant="default"
             />
+            {(event.subcategoryLabel || getEventSubcategoryLabel(event.subcategory)) && (
+              <Badge
+                label={event.subcategoryLabel || getEventSubcategoryLabel(event.subcategory)!}
+                variant="primary"
+              />
+            )}
             <Badge
               label={event.price === 'Free' ? 'FREE ENTRY' : event.price}
               variant={event.price === 'Free' ? 'primary' : 'warning'}

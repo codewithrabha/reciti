@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 import { CityEvent } from '@/types';
+import { getEventCategoryLabel, getEventSubcategoryLabel } from '@/lib/eventService';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
@@ -16,6 +17,11 @@ interface EventCardProps {
 
 export function EventCard({ item, onPress }: EventCardProps) {
   const { colors, spacing } = useTheme();
+
+  const categoryBadgeText =
+    item.subcategoryLabel ||
+    getEventSubcategoryLabel(item.subcategory) ||
+    getEventCategoryLabel(item.category);
 
   return (
     <AnimatedButton
@@ -36,7 +42,7 @@ export function EventCard({ item, onPress }: EventCardProps) {
         {/* Category Badge Overlay */}
         <View style={styles.categoryBadgeOverlay}>
           <Badge
-            label={item.category.toUpperCase()}
+            label={categoryBadgeText}
             variant="default"
           />
         </View>
