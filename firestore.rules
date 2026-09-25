@@ -729,6 +729,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ─── app_config (Legal documents, Terms, Dynamic App content) ─────────
+    // Public to read for all users (guests and signed in).
+    // Modifiable exclusively by verified administrators.
+    match /app_config/{configId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
     // Everything else is denied by default.
   }
 }

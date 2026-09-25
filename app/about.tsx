@@ -1,5 +1,5 @@
 import React from 'react';
-import { Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,21 +9,29 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Card } from '@/components/ui/Card';
 import { Typography } from '@/components/ui/Typography';
 import { useTheme } from '@/theme';
+import { useDynamicAbout } from '@/lib/legalService';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
-const CONTACT_EMAIL = 'abhijitrabha.dev@gmail.com';
-
-const DOES: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
-  { icon: 'camera', text: 'Capture civic wins and issues around you' },
-  { icon: 'people', text: 'Verify and confirm what neighbours report' },
-  { icon: 'pulse', text: 'Track your city’s health on the Pulse dashboard' },
-  { icon: 'school', text: 'Learn through daily civic trivia' },
-];
 
 export default function AboutScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, spacing, radii } = useTheme();
+  const { content, loading } = useDynamicAbout();
+
+  if (loading && !content) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    );
+  }
+
+  const appName = content?.appName || 'ReCiti';
+  const missionPrimary = content?.missionPrimary || '';
+  const missionSecondary = content?.missionSecondary || '';
+  const contactEmail = content?.contactEmail || 'abhijitrabha.dev@gmail.com';
+  const highlights = content?.highlights || [];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -50,7 +58,7 @@ export default function AboutScreen() {
             <Ionicons name="planet" size={40} color={colors.primary} />
           </View>
           <Typography variant="h2" weight="bold" align="center" style={{ marginTop: spacing.md }}>
-            ReCiti
+            {appName}
           </Typography>
           <View style={[styles.versionPill, { backgroundColor: colors.primaryMuted, borderRadius: radii.full }]}>
             <Typography variant="caption" weight="semiBold" color={colors.primary}>
@@ -65,15 +73,13 @@ export default function AboutScreen() {
         </Typography>
         <Card padding="lg">
           <Typography variant="body" color={colors.text} style={styles.bodyText}>
-            ReCiti turns everyday observations into a shared, community-maintained
-            picture of a city’s health. Spot something — a pothole, an overflowing
-            bin, a freshly cleaned park — capture it, and let your neighbours verify
-            it and follow it through to resolution.
+            {missionPrimary}
           </Typography>
-          <Typography variant="body" color={colors.textMuted} style={[styles.bodyText, { marginTop: spacing.sm }]}>
-            We believe civic change starts with people noticing, together. ReCiti is
-            built for Indian cities, by and for the citizens who live in them.
-          </Typography>
+          {!!missionSecondary && (
+            <Typography variant="body" color={colors.textMuted} style={[styles.bodyText, { marginTop: spacing.sm }]}>
+              {missionSecondary}
+            </Typography>
+          )}
         </Card>
 
         {/* What you can do */}
@@ -82,10 +88,10 @@ export default function AboutScreen() {
         </Typography>
         <Card padding="lg">
           <View style={{ gap: 14 }}>
-            {DOES.map((d) => (
+            {highlights.map((d) => (
               <View key={d.text} style={styles.doRow}>
                 <View style={[styles.doIcon, { backgroundColor: colors.primaryMuted }]}>
-                  <Ionicons name={d.icon} size={16} color={colors.primary} />
+                  <Ionicons name={d.icon as any} size={16} color={colors.primary} />
                 </View>
                 <Typography variant="body" style={{ flex: 1 }}>
                   {d.text}
@@ -130,17 +136,17 @@ export default function AboutScreen() {
         </Typography>
         <Card padding="none">
           <AnimatedButton
-            onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)}
+            onPress={() => Linking.openURL(`mailto:${contactEmail}`)}
             hapticFeedback="light"
             scaleTo={0.99}
             style={styles.linkRow}
-            accessibilityLabel={`Email ${CONTACT_EMAIL}`}
+            accessibilityLabel={`Email ${contactEmail}`}
           >
             <View style={[styles.doIcon, { backgroundColor: colors.primaryMuted, marginRight: 12 }]}>
               <Ionicons name="mail" size={16} color={colors.primary} />
             </View>
             <Typography variant="body" weight="medium" style={{ flex: 1 }}>
-              {CONTACT_EMAIL}
+              {contactEmail}
             </Typography>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </AnimatedButton>
@@ -153,7 +159,7 @@ export default function AboutScreen() {
           align="center"
           style={{ marginTop: spacing.xl }}
         >
-          Made for Indian cities · ReCiti v{APP_VERSION}
+          Made for Indian cities · {appName} v{APP_VERSION}
         </Typography>
       </ScrollView>
     </View>
