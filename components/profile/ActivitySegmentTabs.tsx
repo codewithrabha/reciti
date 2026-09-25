@@ -11,27 +11,23 @@ export type ActivityTabKey = 'reports' | 'listings' | 'events' | 'saved';
 interface ActivitySegmentTabsProps {
   activeTab: ActivityTabKey;
   onSelectTab: (tab: ActivityTabKey) => void;
-  reportsCount: number;
-  listingsCount: number;
-  eventsCount: number;
+  reportsCount?: number;
+  listingsCount?: number;
+  eventsCount?: number;
   savedCount?: number;
 }
 
 export function ActivitySegmentTabs({
   activeTab,
   onSelectTab,
-  reportsCount,
-  listingsCount,
-  eventsCount,
-  savedCount = 0,
 }: ActivitySegmentTabsProps) {
   const { colors } = useTheme();
 
-  const tabs: { key: ActivityTabKey; label: string; count: number; icon: keyof typeof Ionicons.glyphMap }[] = [
-    { key: 'reports', label: 'Reports', count: reportsCount, icon: 'document-text-outline' },
-    { key: 'listings', label: 'Listings', count: listingsCount, icon: 'home-outline' },
-    { key: 'events', label: 'Events', count: eventsCount, icon: 'sparkles-outline' },
-    { key: 'saved', label: 'Saved', count: savedCount, icon: 'bookmark-outline' },
+  const tabs: { key: ActivityTabKey; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { key: 'reports', label: 'Reports', icon: 'document-text-outline' },
+    { key: 'listings', label: 'Listings', icon: 'home-outline' },
+    { key: 'events', label: 'Events', icon: 'sparkles-outline' },
+    { key: 'saved', label: 'Saved', icon: 'bookmark-outline' },
   ];
 
   return (
@@ -57,31 +53,16 @@ export function ActivitySegmentTabs({
                 name={tab.icon}
                 size={14}
                 color={isActive ? '#FFFFFF' : colors.textMuted}
-                style={{ marginRight: 4 }}
+                style={{ marginRight: 5 }}
               />
               <Typography
                 variant="caption"
                 weight={isActive ? 'bold' : 'semiBold'}
                 color={isActive ? '#FFFFFF' : colors.textMuted}
-                style={{ fontSize: 11 }}
+                style={{ fontSize: 12 }}
               >
                 {tab.label}
               </Typography>
-              <View
-                style={[
-                  styles.countBadge,
-                  { backgroundColor: isActive ? '#FFFFFF30' : `${colors.textMuted}20` },
-                ]}
-              >
-                <Typography
-                  variant="caption"
-                  weight="bold"
-                  color={isActive ? '#FFFFFF' : colors.textMuted}
-                  style={{ fontSize: 10 }}
-                >
-                  {tab.count}
-                </Typography>
-              </View>
             </AnimatedButton>
           );
         })}
@@ -112,7 +93,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 8,
   },
   tabBtnActive: {
@@ -121,11 +102,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 2,
     elevation: 2,
-  },
-  countBadge: {
-    marginLeft: 5,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 10,
   },
 });

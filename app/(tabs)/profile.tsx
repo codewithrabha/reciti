@@ -338,10 +338,6 @@ export default function ProfileScreen() {
       <ActivitySegmentTabs
         activeTab={activeTab}
         onSelectTab={setActiveTab}
-        reportsCount={myReports.length}
-        listingsCount={combinedListings.length}
-        eventsCount={myEvents.length}
-        savedCount={savedItems.length}
       />
 
       {/* Saved Filter Pills (shown only on Saved tab) */}
