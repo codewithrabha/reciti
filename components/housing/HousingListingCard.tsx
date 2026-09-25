@@ -8,6 +8,7 @@ import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { BookmarkButton } from '@/components/ui/BookmarkButton';
 
 interface HousingListingCardProps {
   item: BusinessDirectoryItem;
@@ -59,17 +60,38 @@ export function HousingListingCard({
           </View>
         ) : null}
 
-        {/* Top Badges */}
+        {/* Top Badges & Bookmark */}
         <View style={styles.topBadgesRow}>
-          <Badge label={subcategoryLabel.toUpperCase()} variant="default" />
-          {item.isZeroBrokerVerified !== false && (
-            <View style={[styles.zeroBrokerBadge, { backgroundColor: '#10B981' }]}>
-              <Ionicons name="shield-checkmark" size={11} color="#FFFFFF" />
-              <Typography variant="caption" weight="bold" color="#FFFFFF" style={{ fontSize: 10, marginLeft: 3 }}>
-                ZERO BROKER
-              </Typography>
-            </View>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Badge label={subcategoryLabel.toUpperCase()} variant="default" />
+            {item.isZeroBrokerVerified !== false && (
+              <View style={[styles.zeroBrokerBadge, { backgroundColor: '#10B981' }]}>
+                <Ionicons name="shield-checkmark" size={11} color="#FFFFFF" />
+                <Typography variant="caption" weight="bold" color="#FFFFFF" style={{ fontSize: 10, marginLeft: 3 }}>
+                  ZERO BROKER
+                </Typography>
+              </View>
+            )}
+          </View>
+
+          <BookmarkButton
+            variant="badge"
+            item={{
+              targetId: item.id,
+              itemType: 'housing',
+              title: item.name,
+              category: item.category,
+              imageUrl: item.imageUrl,
+              address: item.address,
+              city: item.city,
+              extraMeta: {
+                monthlyRent: item.monthlyRent,
+                bhkType: item.bhkType,
+                sharingType: item.sharingType,
+                vacancyStatus: item.vacancyStatus,
+              },
+            }}
+          />
         </View>
 
         {/* Vacancy Status Banner */}

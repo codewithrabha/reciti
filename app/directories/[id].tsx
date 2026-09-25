@@ -44,6 +44,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { StateView } from '@/components/ui/StateView';
 import { ReviewsSection } from '@/components/reviews/ReviewsSection';
 import { ImageLightboxModal } from '@/components/ui/ImageLightboxModal';
+import { BookmarkButton } from '@/components/ui/BookmarkButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_HEIGHT = 270;
@@ -246,6 +247,25 @@ export default function DirectoryDetailScreen() {
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </AnimatedButton>
         <View style={styles.topBarRight}>
+          {business && (
+            <BookmarkButton
+              variant="header"
+              item={{
+                targetId: business.id,
+                itemType: business.category === 'housing_rentals' ? 'housing' : 'directory',
+                title: business.name,
+                category: business.category,
+                imageUrl: business.imageUrl,
+                address: business.address,
+                city: business.city,
+                extraMeta: {
+                  monthlyRent: business.monthlyRent,
+                  bhkType: business.bhkType,
+                  rating: business.rating,
+                },
+              }}
+            />
+          )}
           <AnimatedButton
             onPress={handleShare}
             hapticFeedback="light"

@@ -9,6 +9,7 @@ import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { BookmarkButton } from '@/components/ui/BookmarkButton';
 
 interface DirectoryCardProps {
   item: BusinessDirectoryItem;
@@ -42,12 +43,27 @@ export function DirectoryCard({ item, onPress }: DirectoryCardProps) {
             label={badgeLabel}
             variant="default"
           />
-        </View>
-        {item.isSponsored && (
-          <View style={styles.sponsoredBadgeOverlay}>
+          {item.isSponsored && (
             <Badge label="FEATURED" variant="warning" />
-          </View>
-        )}
+          )}
+        </View>
+
+        {/* Floating Bookmark Button */}
+        <View style={styles.bookmarkOverlay}>
+          <BookmarkButton
+            variant="badge"
+            item={{
+              targetId: item.id,
+              itemType: item.category === 'housing_rentals' ? 'housing' : 'directory',
+              title: item.name,
+              category: item.category,
+              imageUrl: item.imageUrl,
+              address: item.address,
+              city: item.city,
+              extraMeta: { rating: item.rating },
+            }}
+          />
+        </View>
       </View>
 
       {/* Content Details */}
@@ -133,8 +149,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     left: 10,
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
   },
-  sponsoredBadgeOverlay: {
+  bookmarkOverlay: {
     position: 'absolute',
     top: 10,
     right: 10,

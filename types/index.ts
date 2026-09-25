@@ -450,3 +450,52 @@ export interface Review {
   createdAt: Timestamp | string;
   updatedAt?: Timestamp | string | null;
 }
+
+// ─── Scalable User Bookmarks / Saved ────────────────────────────────────────
+
+export type BookmarkItemType = 'directory' | 'housing' | 'event';
+
+export interface UserBookmark {
+  id: string; // matches targetId for O(1) reads
+  targetId: string;
+  itemType: BookmarkItemType;
+  title: string;
+  subtitle?: string;
+  category?: string;
+  imageUrl?: string;
+  address?: string;
+  city?: string;
+  // Compact preview metadata for instant rendering without N+1 fetches
+  extraMeta?: {
+    priceTag?: string;
+    monthlyRent?: number;
+    bhkType?: string;
+    sharingType?: string;
+    eventDate?: string;
+    venueName?: string;
+    vacancyStatus?: string;
+    rating?: number;
+  };
+  savedAt: number; // Unix timestamp for efficient sorting
+}
+
+export interface BookmarkableItem {
+  targetId: string;
+  itemType: BookmarkItemType;
+  title: string;
+  subtitle?: string;
+  category?: string;
+  imageUrl?: string;
+  address?: string;
+  city?: string;
+  extraMeta?: {
+    priceTag?: string;
+    monthlyRent?: number;
+    bhkType?: string;
+    sharingType?: string;
+    eventDate?: string;
+    venueName?: string;
+    vacancyStatus?: string;
+    rating?: number;
+  };
+}

@@ -47,7 +47,7 @@ export function CategoryShelf({ shelf, onSeeAll, onCardPress }: CategoryShelfPro
 
         <AnimatedButton
           onPress={() => onSeeAll(shelf.key)}
-          style={[styles.seeAllButton, { backgroundColor: colors.surface }]}
+          style={[styles.seeAllButton]}
         >
           <Typography variant="caption" weight="bold" color={colors.primary}>
             See All
@@ -102,9 +102,6 @@ const styles = StyleSheet.create({
   seeAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
   },
   horizontalList: {
     paddingHorizontal: 16,

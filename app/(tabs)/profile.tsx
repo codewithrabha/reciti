@@ -29,6 +29,7 @@ import {
   ListingClaim,
   Report,
   ReportStatus,
+  UserBookmark,
   UserEntitlement,
 } from '@/types';
 import { ResidentPassCard } from '@/components/profile/ResidentPassCard';
@@ -36,6 +37,8 @@ import { ProfileQuickActions } from '@/components/profile/ProfileQuickActions';
 import { ActivitySegmentTabs, ActivityTabKey } from '@/components/profile/ActivitySegmentTabs';
 import { ListingItemRow, UserListingItem } from '@/components/profile/ListingItemRow';
 import { EventItemRow } from '@/components/profile/EventItemRow';
+import { SavedItemRow } from '@/components/profile/SavedItemRow';
+import { useBookmarkStore } from '@/store/bookmarkStore';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
@@ -132,6 +135,8 @@ export default function ProfileScreen() {
   const [myListings, setMyListings] = useState<BusinessDirectoryItem[]>([]);
   const [myClaims, setMyClaims] = useState<ListingClaim[]>([]);
   const [myEvents, setMyEvents] = useState<CityEvent[]>([]);
+  const savedItems = useBookmarkStore((s) => s.savedItems);
+  const [savedFilter, setSavedFilter] = useState<'all' | 'directory' | 'housing' | 'event'>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
@@ -170,6 +175,7 @@ export default function ProfileScreen() {
         getUserOwnedListings(user.uid),
         getUserClaims(user.uid),
         getUserEvents(user.uid),
+        useBookmarkStore.getState().loadSavedItems(user.uid),
       ]);
       setMyReports(reports);
       setMyListings(ownedListings);
@@ -298,13 +304,19 @@ export default function ProfileScreen() {
     return [...owned, ...claims];
   }, [myListings, myClaims]);
 
+  const filteredSavedItems = React.useMemo(() => {
+    if (savedFilter === 'all') return savedItems;
+    return savedItems.filter((item) => item.itemType === savedFilter);
+  }, [savedItems, savedFilter]);
+
   // Current active data based on selected segment
   const activeData: any[] = React.useMemo(() => {
     if (error) return NO_REPORTS;
     if (activeTab === 'reports') return myReports;
     if (activeTab === 'listings') return combinedListings;
-    return myEvents;
-  }, [error, activeTab, myReports, combinedListings, myEvents]);
+    if (activeTab === 'events') return myEvents;
+    return filteredSavedItems;
+  }, [error, activeTab, myReports, combinedListings, myEvents, filteredSavedItems]);
 
   // Everything above the active list scrolls with the list as its header
   const listHeader = (
@@ -329,7 +341,45 @@ export default function ProfileScreen() {
         reportsCount={myReports.length}
         listingsCount={combinedListings.length}
         eventsCount={myEvents.length}
+        savedCount={savedItems.length}
       />
+
+      {/* Saved Filter Pills (shown only on Saved tab) */}
+      {activeTab === 'saved' && (
+        <View style={styles.savedFilterRow}>
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'directory', label: 'Places' },
+            { key: 'housing', label: 'Rentals' },
+            { key: 'event', label: 'Events' },
+          ].map((pill) => {
+            const isSelected = savedFilter === pill.key;
+            return (
+              <AnimatedButton
+                key={pill.key}
+                onPress={() => setSavedFilter(pill.key as any)}
+                hapticFeedback="light"
+                style={[
+                  styles.filterPill,
+                  {
+                    backgroundColor: isSelected ? colors.primary : colors.surface,
+                    borderColor: isSelected ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Typography
+                  variant="caption"
+                  weight={isSelected ? 'bold' : 'medium'}
+                  color={isSelected ? '#FFFFFF' : colors.textMuted}
+                  style={{ fontSize: 11 }}
+                >
+                  {pill.label}
+                </Typography>
+              </AnimatedButton>
+            );
+          })}
+        </View>
+      )}
 
       {error && (
         <View style={styles.errorWrap}>
@@ -360,21 +410,27 @@ export default function ProfileScreen() {
             ? 'camera-outline'
             : activeTab === 'listings'
             ? 'business-outline'
-            : 'sparkles-outline'
+            : activeTab === 'events'
+            ? 'sparkles-outline'
+            : 'bookmark-outline'
         }
         title={
           activeTab === 'reports'
             ? 'No reports yet'
             : activeTab === 'listings'
             ? 'No listings or claims'
-            : 'No hosted events'
+            : activeTab === 'events'
+            ? 'No hosted events'
+            : 'No saved items yet'
         }
         message={
           activeTab === 'reports'
             ? "You haven't submitted any reports yet. Capture your first one."
             : activeTab === 'listings'
             ? 'You have not registered or claimed any rental spaces, shops, or businesses yet.'
-            : "You haven't organized any civic or community gatherings yet."
+            : activeTab === 'events'
+            ? "You haven't organized any civic or community gatherings yet."
+            : 'Bookmark verified places, rentals, or events across your city to quickly find them here.'
         }
       />
     </Card>
@@ -386,7 +442,8 @@ export default function ProfileScreen() {
       if (activeTab === 'listings') {
         return item.type === 'owned' ? `owned_${item.listing.id}` : `claim_${item.claim.claimId}`;
       }
-      return `event_${item.id}`;
+      if (activeTab === 'events') return `event_${item.id}`;
+      return `saved_${item.targetId}`;
     },
     [activeTab],
   );
@@ -411,9 +468,18 @@ export default function ProfileScreen() {
           />
         );
       }
+      if (activeTab === 'events') {
+        return (
+          <EventItemRow
+            event={item as CityEvent}
+            isFirst={index === 0}
+            isLast={index === activeData.length - 1}
+          />
+        );
+      }
       return (
-        <EventItemRow
-          event={item as CityEvent}
+        <SavedItemRow
+          bookmark={item as UserBookmark}
           isFirst={index === 0}
           isLast={index === activeData.length - 1}
         />
@@ -649,4 +715,18 @@ const styles = StyleSheet.create({
   },
   vibeDot: { width: 10, height: 10, borderRadius: 5 },
   reportInfo: { flex: 1, gap: 1 },
+  // Saved filters
+  savedFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  filterPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
 });

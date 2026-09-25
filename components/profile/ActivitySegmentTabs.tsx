@@ -6,7 +6,7 @@ import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 
-export type ActivityTabKey = 'reports' | 'listings' | 'events';
+export type ActivityTabKey = 'reports' | 'listings' | 'events' | 'saved';
 
 interface ActivitySegmentTabsProps {
   activeTab: ActivityTabKey;
@@ -14,6 +14,7 @@ interface ActivitySegmentTabsProps {
   reportsCount: number;
   listingsCount: number;
   eventsCount: number;
+  savedCount?: number;
 }
 
 export function ActivitySegmentTabs({
@@ -22,6 +23,7 @@ export function ActivitySegmentTabs({
   reportsCount,
   listingsCount,
   eventsCount,
+  savedCount = 0,
 }: ActivitySegmentTabsProps) {
   const { colors } = useTheme();
 
@@ -29,6 +31,7 @@ export function ActivitySegmentTabs({
     { key: 'reports', label: 'Reports', count: reportsCount, icon: 'document-text-outline' },
     { key: 'listings', label: 'Listings', count: listingsCount, icon: 'home-outline' },
     { key: 'events', label: 'Events', count: eventsCount, icon: 'sparkles-outline' },
+    { key: 'saved', label: 'Saved', count: savedCount, icon: 'bookmark-outline' },
   ];
 
   return (

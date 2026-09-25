@@ -59,6 +59,11 @@ service cloud.firestore {
             && after.civicPoints >= before.civicPoints
             && after.civicPoints <= before.civicPoints + 50;
       }
+
+      // User Private Bookmarks / Saved Items
+      match /bookmarks/{bookmarkId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
     }
 
     // ─── reports ─────────────────────────────────────────────────────────

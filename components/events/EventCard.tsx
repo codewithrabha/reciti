@@ -9,6 +9,7 @@ import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { BookmarkButton } from '@/components/ui/BookmarkButton';
 
 interface EventCardProps {
   item: CityEvent;
@@ -39,18 +40,35 @@ export function EventCard({ item, onPress }: EventCardProps) {
           contentFit="cover"
           transition={200}
         />
-        {/* Category Badge Overlay */}
+        {/* Badges Overlay */}
         <View style={styles.categoryBadgeOverlay}>
           <Badge
             label={categoryBadgeText}
             variant="default"
           />
-        </View>
-        {/* Price Badge Overlay */}
-        <View style={styles.priceBadgeOverlay}>
           <Badge
             label={item.price === 'Free' ? 'FREE' : item.price}
             variant={item.price === 'Free' ? 'primary' : 'warning'}
+          />
+        </View>
+
+        {/* Floating Bookmark Button */}
+        <View style={styles.bookmarkOverlay}>
+          <BookmarkButton
+            variant="badge"
+            item={{
+              targetId: item.id,
+              itemType: 'event',
+              title: item.title,
+              category: item.category,
+              imageUrl: item.imageUrl,
+              address: item.address,
+              city: item.city,
+              extraMeta: {
+                eventDate: `${item.date} • ${item.time}`,
+                venueName: item.locationName,
+              },
+            }}
           />
         </View>
       </View>
@@ -153,8 +171,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     left: 10,
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
   },
-  priceBadgeOverlay: {
+  bookmarkOverlay: {
     position: 'absolute',
     top: 10,
     right: 10,

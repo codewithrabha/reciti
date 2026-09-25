@@ -4,6 +4,7 @@ import { auth } from '@/lib/firebase';
 import { createOrUpdateUserDoc, getUserDoc } from '@/lib/db';
 import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import { User } from '@/types';
+import { useBookmarkStore } from './bookmarkStore';
 
 /**
  * Global auth state.
@@ -61,15 +62,19 @@ export function initAuthListener(): void {
         registerForPushNotificationsAsync(currentUser.uid).catch((err) =>
           console.error('[authStore] Push registration error:', err)
         );
+        // Sync user bookmarks map for instant O(1) checks
+        useBookmarkStore.getState().syncBookmarkedIds(currentUser.uid);
       } else {
         // Guests have no Firestore doc — clear any doc left over from a
         // previous signed-in session (e.g. after sign-out → anonymous).
         useAuthStore.setState({ userDoc: null });
+        useBookmarkStore.getState().syncBookmarkedIds('');
       }
       useAuthStore.setState({ loading: false });
     } else {
       // No session — sign in anonymously so browsing-only users can still read.
       useAuthStore.setState({ userDoc: null });
+      useBookmarkStore.getState().syncBookmarkedIds('');
       try {
         await signInAnonymously(auth);
       } catch (error) {

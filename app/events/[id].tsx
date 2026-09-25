@@ -25,6 +25,7 @@ import { Card } from '@/components/ui/Card';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { StateView } from '@/components/ui/StateView';
 import { ReviewsSection } from '@/components/reviews/ReviewsSection';
+import { BookmarkButton } from '@/components/ui/BookmarkButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_HEIGHT = 260;
@@ -128,6 +129,24 @@ export default function EventDetailScreen() {
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </AnimatedButton>
         <View style={styles.topBarRight}>
+          {event && (
+            <BookmarkButton
+              variant="header"
+              item={{
+                targetId: event.id,
+                itemType: 'event',
+                title: event.title,
+                category: event.category,
+                imageUrl: event.imageUrl,
+                address: event.address,
+                city: event.city,
+                extraMeta: {
+                  eventDate: `${event.date} • ${event.time}`,
+                  venueName: event.locationName,
+                },
+              }}
+            />
+          )}
           <AnimatedButton
             onPress={handleShare}
             hapticFeedback="light"
