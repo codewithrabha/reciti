@@ -7,6 +7,7 @@ import {
   orderBy,
   query,
   setDoc,
+  where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { CityEvent, EventCategory, EventSubcategory } from '@/types';
@@ -359,5 +360,26 @@ export async function createCityEvent(
   } catch (err: any) {
     console.error('[eventService] createCityEvent error:', err);
     return { success: false, error: err?.message ?? 'Failed to publish event' };
+  }
+}
+
+/**
+ * Fetches all community/civic events organized by the user.
+ */
+export async function getUserEvents(organizerUid: string): Promise<CityEvent[]> {
+  try {
+    const q = query(EVENTS_COL, where('organizerId', '==', organizerUid));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => {
+      const data = d.data() as Omit<CityEvent, 'id'>;
+      return {
+        id: d.id,
+        ...data,
+        subcategoryLabel: data.subcategoryLabel || getEventSubcategoryLabel(data.subcategory),
+      };
+    });
+  } catch (err) {
+    console.warn('[eventService] getUserEvents error:', err);
+    return [];
   }
 }

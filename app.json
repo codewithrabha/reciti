@@ -40,6 +40,11 @@
               "scheme": "https",
               "host": "reciti.in",
               "pathPrefix": "/events"
+            },
+            {
+              "scheme": "https",
+              "host": "reciti.in",
+              "pathPrefix": "/r"
             }
           ],
           "category": [

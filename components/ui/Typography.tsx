@@ -3,7 +3,7 @@ import { Text, TextProps } from 'react-native';
 import { useTheme } from '@/theme';
 
 interface TypographyProps extends TextProps {
-  variant?: 'h1' | 'h2' | 'h3' | 'subtitle' | 'body' | 'caption';
+  variant?: 'h1' | 'h2' | 'h3' | 'subtitle' | 'body' | 'caption' | 'label';
   color?: string;
   weight?: 'regular' | 'medium' | 'semiBold' | 'bold';
   align?: 'auto' | 'left' | 'right' | 'center' | 'justify';
@@ -28,6 +28,7 @@ export function Typography({
     // Default weights by variant
     if (variant.startsWith('h')) fontFamily = typography.family.bold;
     if (variant === 'subtitle') fontFamily = typography.family.semiBold;
+    if (variant === 'label') fontFamily = typography.family.medium;
   }
 
   // Determine font size by variant
@@ -36,7 +37,8 @@ export function Typography({
   if (variant === 'h2') fontSize = typography.size.xxl;
   if (variant === 'h3') fontSize = typography.size.xl;
   if (variant === 'subtitle') fontSize = typography.size.lg;
-  if (variant === 'caption') fontSize = typography.size.sm;
+  if (variant === 'label') fontSize = typography.size.sm;
+  if (variant === 'caption') fontSize = typography.size.xs;
 
   return (
     <Text

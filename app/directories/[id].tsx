@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,12 +15,14 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { BusinessDirectoryItem, ListingClaim } from '@/types';
+import { BusinessDirectoryItem, ListingClaim, UserEntitlement } from '@/types';
 import {
   getCategoryLabel,
   getDirectoryItemById,
@@ -28,6 +30,11 @@ import {
   getUserListingClaim,
   submitListingClaim,
 } from '@/lib/directoryService';
+import {
+  subscribeUserEntitlement,
+  createDefaultEntitlement,
+} from '@/lib/referralService';
+import { CategorySectionRegistry } from '@/components/directories/templates/CategorySectionRegistry';
 import { shareDirectory } from '@/lib/shareService';
 import { useUser, useUserDoc } from '@/store/authStore';
 import { useTheme } from '@/theme';
@@ -36,9 +43,10 @@ import { Badge } from '@/components/ui/Badge';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { StateView } from '@/components/ui/StateView';
 import { ReviewsSection } from '@/components/reviews/ReviewsSection';
+import { ImageLightboxModal } from '@/components/ui/ImageLightboxModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const BANNER_HEIGHT = 260;
+const BANNER_HEIGHT = 270;
 
 export default function DirectoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -53,6 +61,42 @@ export default function DirectoryDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [existingClaim, setExistingClaim] = useState<ListingClaim | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [entitlement, setEntitlement] = useState<UserEntitlement>(createDefaultEntitlement(user?.uid || ''));
+
+  // Gallery & Lightbox states
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const gallery = useMemo(() => {
+    if (!business) return [];
+    const list: string[] = [];
+    if (business.imageUrl && business.imageUrl.trim()) {
+      list.push(business.imageUrl.trim());
+    }
+    if (business.imageUrls && Array.isArray(business.imageUrls)) {
+      business.imageUrls.forEach((u) => {
+        if (u && typeof u === 'string' && u.trim() && !list.includes(u.trim())) {
+          list.push(u.trim());
+        }
+      });
+    }
+    return list;
+  }, [business]);
+
+  useEffect(() => {
+    setActiveImageIdx(0);
+  }, [business?.id]);
+
+  const safeIdx = Math.min(activeImageIdx, Math.max(0, gallery.length - 1));
+  const currentImageUrl = gallery[safeIdx] || business?.imageUrl || '';
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = subscribeUserEntitlement(user.uid, (ent) => {
+      setEntitlement(ent);
+    });
+    return () => unsub();
+  }, [user?.uid]);
 
   // Claim Modal state
   const [claimModalVisible, setClaimModalVisible] = useState(false);
@@ -85,29 +129,6 @@ export default function DirectoryDetailScreen() {
   const handleShare = async () => {
     if (!business) return;
     await shareDirectory(business);
-  };
-
-  const handleCall = () => {
-    if (!business?.phone) return;
-    Linking.openURL(`tel:${business.phone}`);
-  };
-
-  const handleDirections = () => {
-    if (!business) return;
-    const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
-    const latLng = `${business.latitude},${business.longitude}`;
-    const label = encodeURIComponent(business.name);
-    const url = Platform.select({
-      ios: `${scheme}${label}@${latLng}`,
-      android: `${scheme}${latLng}(${label})`,
-      default: `https://www.google.com/maps/search/?api=1&query=${latLng}`,
-    });
-    if (url) Linking.openURL(url);
-  };
-
-  const handleWebsite = () => {
-    if (!business?.website) return;
-    Linking.openURL(business.website);
   };
 
   const handleOpenClaimModal = () => {
@@ -245,14 +266,101 @@ export default function DirectoryDetailScreen() {
           if (y > 24 !== scrolled) setScrolled(y > 24);
         }}
       >
-        {/* Banner */}
+        {/* Banner with Interactive Lightbox & Thumbnails */}
         <View style={styles.bannerContainer}>
-          <Image
-            source={{ uri: business.imageUrl }}
-            style={styles.bannerImage}
-            contentFit="cover"
-            transition={300}
-          />
+          <Pressable
+            onPress={() => setLightboxOpen(true)}
+            style={styles.bannerImagePressable}
+            accessibilityRole="imagebutton"
+            accessibilityLabel="View full screen photos"
+          >
+            <Image
+              source={{ uri: currentImageUrl }}
+              style={styles.bannerImage}
+              contentFit="cover"
+              transition={300}
+            />
+
+            {/* Gradient shadow for contrast */}
+            <LinearGradient
+              colors={['rgba(0,0,0,0.3)', 'transparent', 'rgba(0,0,0,0.75)']}
+              locations={[0, 0.45, 1]}
+              style={styles.bannerGradient}
+              pointerEvents="none"
+            />
+          </Pressable>
+
+          {/* Bottom Thumbnails Strip (if multiple photos exist) */}
+          {gallery.length > 1 && (
+            <View style={styles.thumbnailsContainer}>
+              <View style={styles.thumbnailsContent}>
+                {gallery.slice(0, 3).map((imgUri, index) => {
+                  const isActive = index === safeIdx;
+                  return (
+                    <AnimatedButton
+                      key={`thumb-${imgUri}-${index}`}
+                      onPress={() => {
+                        setActiveImageIdx(index);
+                        Haptics.selectionAsync().catch(() => {});
+                      }}
+                      hapticFeedback="none"
+                      style={[
+                        styles.thumbnailItem,
+                        isActive && [
+                          styles.thumbnailActive,
+                          { borderColor: colors.primary },
+                        ],
+                      ]}
+                    >
+                      <Image
+                        source={{ uri: imgUri }}
+                        style={styles.thumbnailImage}
+                        contentFit="cover"
+                        transition={150}
+                      />
+                      {isActive && <View style={[styles.activeIndicator, { backgroundColor: colors.primary }]} />}
+                    </AnimatedButton>
+                  );
+                })}
+
+                {/* +Count box if there are more than 3 photos */}
+                {gallery.length > 3 && (
+                  <AnimatedButton
+                    onPress={() => {
+                      if (safeIdx < 3) {
+                        setActiveImageIdx(3);
+                      }
+                      setLightboxOpen(true);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    }}
+                    hapticFeedback="none"
+                    style={[
+                      styles.thumbnailItem,
+                      styles.moreThumbBox,
+                      safeIdx >= 3 && [
+                        styles.thumbnailActive,
+                        { borderColor: colors.primary },
+                      ],
+                    ]}
+                  >
+                    {gallery[3] && (
+                      <Image
+                        source={{ uri: gallery[3] }}
+                        style={[StyleSheet.absoluteFillObject, { opacity: 0.35 }]}
+                        contentFit="cover"
+                      />
+                    )}
+                    <View style={styles.moreThumbOverlay}>
+                      <Typography variant="body" weight="bold" color="#FFFFFF" style={styles.moreThumbText}>
+                        +{gallery.length - 3}
+                      </Typography>
+                    </View>
+                    {safeIdx >= 3 && <View style={[styles.activeIndicator, { backgroundColor: colors.primary }]} />}
+                  </AnimatedButton>
+                )}
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Content Body */}
@@ -307,58 +415,13 @@ export default function DirectoryDetailScreen() {
             </View>
           )}
 
-          {/* Address & Hours */}
-          <View style={[styles.infoBlock, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.infoRow}>
-              <Ionicons name="location" size={18} color={colors.primary} />
-              <Typography variant="body" color={colors.text} style={{ flex: 1, marginLeft: spacing.sm }}>
-                {business.address}{business.city ? `, ${business.city}` : ''}
-              </Typography>
-            </View>
-            {business.openingHours && (
-              <View style={[styles.infoRow, { marginTop: spacing.sm }]}>
-                <Ionicons name="time" size={18} color={colors.textMuted} />
-                <Typography variant="body" color={colors.textMuted} style={{ flex: 1, marginLeft: spacing.sm }}>
-                  {business.openingHours}
-                </Typography>
-              </View>
-            )}
-          </View>
-
-          {/* Quick Action Buttons */}
-          <View style={styles.actionsGrid}>
-            {business.phone && (
-              <AnimatedButton
-                onPress={handleCall}
-                style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              >
-                <Ionicons name="call-outline" size={20} color={colors.primary} />
-                <Typography variant="caption" weight="semiBold" style={{ marginTop: 4 }}>
-                  Call
-                </Typography>
-              </AnimatedButton>
-            )}
-            <AnimatedButton
-              onPress={handleDirections}
-              style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            >
-              <Ionicons name="navigate-outline" size={20} color={colors.primary} />
-              <Typography variant="caption" weight="semiBold" style={{ marginTop: 4 }}>
-                Directions
-              </Typography>
-            </AnimatedButton>
-            {business.website && (
-              <AnimatedButton
-                onPress={handleWebsite}
-                style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              >
-                <Ionicons name="globe-outline" size={20} color={colors.primary} />
-                <Typography variant="caption" weight="semiBold" style={{ marginTop: 4 }}>
-                  Website
-                </Typography>
-              </AnimatedButton>
-            )}
-          </View>
+          {/* Category-Specific Section Slot */}
+          <CategorySectionRegistry
+            business={business}
+            user={user}
+            entitlement={entitlement}
+            onShare={handleShare}
+          />
 
           {/* Ownership & Claim Section */}
           {!business.isClaimed && (
@@ -578,6 +641,14 @@ export default function DirectoryDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Image Lightbox Modal */}
+      <ImageLightboxModal
+        visible={lightboxOpen}
+        images={gallery}
+        initialIndex={safeIdx}
+        onClose={() => setLightboxOpen(false)}
+      />
     </View>
   );
 }
@@ -589,10 +660,83 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     height: BANNER_HEIGHT,
     position: 'relative',
+    backgroundColor: '#0a0a0a',
+  },
+  bannerImagePressable: {
+    width: '100%',
+    height: '100%',
   },
   bannerImage: {
     width: '100%',
     height: '100%',
+  },
+  bannerGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  lightboxBadge: {
+    position: 'absolute',
+    right: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    zIndex: 5,
+  },
+  thumbnailsContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    zIndex: 5,
+  },
+  thumbnailsContent: {
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    gap: 8,
+    alignItems: 'center',
+  },
+  moreThumbBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreThumbOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreThumbText: {
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
+  thumbnailItem: {
+    width: 54,
+    height: 54,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  thumbnailActive: {
+    borderWidth: 1.5,
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: -5,
+    left: 0,
+    right: 0,
+    height: 3,
   },
   topBar: {
     position: 'absolute',
@@ -632,29 +776,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
-  },
-  infoBlock: {
-    marginTop: 14,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
   },
   claimCard: {
     marginTop: 16,

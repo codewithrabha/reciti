@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LegendList } from '@legendapp/list/react-native';
 
-import { BusinessDirectoryItem, DirectoryCategory, DirectorySubcategory } from '@/types';
+import { BusinessDirectoryItem, DirectoryCategory, DirectorySubcategory, UserEntitlement } from '@/types';
 import {
   getCategoryLabel,
   getDirectoryCategories,
@@ -20,12 +20,20 @@ import {
   normalizeCategory,
   subscribeDynamicCategories,
 } from '@/lib/directoryService';
+import {
+  subscribeUserEntitlement,
+  createDefaultEntitlement,
+} from '@/lib/referralService';
+import { canViewLandlordContact } from '@/lib/entitlementRules';
+import { useUser } from '@/store/authStore';
 import { useLocationStore } from '@/store/locationStore';
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { StateView } from '@/components/ui/StateView';
 import { DirectoryCard } from '@/components/directories/DirectoryCard';
+import { HousingListingCard } from '@/components/housing/HousingListingCard';
+import { HousingUnlockModal } from '@/components/housing/HousingUnlockModal';
 import { CategoryShelf, CategoryShelfData } from '@/components/directories/CategoryShelf';
 import { CategoryFilterModal } from '@/components/directories/CategoryFilterModal';
 
@@ -35,6 +43,10 @@ export default function DirectoriesScreen() {
   const { colors, spacing } = useTheme();
 
   const cityName = useLocationStore((s) => s.cityName);
+  const user = useUser();
+  const [entitlement, setEntitlement] = useState<UserEntitlement | null>(null);
+  const [housingUnlockModalVisible, setHousingUnlockModalVisible] = useState(false);
+
   const [categoryOptions, setCategoryOptions] = useState(() => getDirectoryCategories());
   const [selectedCategory, setSelectedCategory] = useState<DirectoryCategory | 'all'>('all');
   const [selectedSubcategory, setSelectedSubcategory] = useState<DirectorySubcategory | 'all'>('all');
@@ -43,6 +55,20 @@ export default function DirectoriesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+  // Subscribe to user housing entitlement
+  useEffect(() => {
+    if (!user?.uid) {
+      setEntitlement(createDefaultEntitlement(''));
+      return;
+    }
+    const unsub = subscribeUserEntitlement(user.uid, (ent) => {
+      setEntitlement(ent);
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
+  const isHousingUnlocked = canViewLandlordContact(entitlement);
 
   // Subscribe to real-time dynamic taxonomy changes from Admin
   useEffect(() => {
@@ -188,6 +214,45 @@ export default function DirectoriesScreen() {
           </AnimatedButton>
         </View>
       </View>
+
+      {/* Housing Community Notice Banner (when housing is selected) */}
+      {selectedCategory === 'housing_rentals' && (
+        <View
+          style={[
+            styles.housingNoticeBanner,
+            {
+              backgroundColor: isHousingUnlocked ? '#10B98115' : colors.primaryMuted,
+              borderColor: isHousingUnlocked ? '#10B98140' : colors.primary + '30',
+            },
+          ]}
+        >
+          <Ionicons
+            name={isHousingUnlocked ? 'shield-checkmark' : 'lock-closed'}
+            size={18}
+            color={isHousingUnlocked ? '#10B981' : colors.primary}
+          />
+          <View style={{ flex: 1, marginLeft: 8 }}>
+            <Typography variant="caption" weight="bold" color={isHousingUnlocked ? '#10B981' : colors.primary}>
+              {isHousingUnlocked ? 'Civic Rental Access Unlocked' : 'Community Zero-Broker Rentals'}
+            </Typography>
+            <Typography variant="caption" color={colors.textMuted} style={{ fontSize: 11, marginTop: 1 }}>
+              {isHousingUnlocked
+                ? 'You have direct access to owner phone numbers & verified stay intel.'
+                : 'Invite 3 friends or share your current PG/flat stay to unlock contacts.'}
+            </Typography>
+          </View>
+          {!isHousingUnlocked && (
+            <AnimatedButton
+              onPress={() => setHousingUnlockModalVisible(true)}
+              style={[styles.unlockMiniBtn, { backgroundColor: colors.primary }]}
+            >
+              <Typography variant="caption" weight="bold" color="#FFFFFF" style={{ fontSize: 11 }}>
+                Unlock
+              </Typography>
+            </AnimatedButton>
+          )}
+        </View>
+      )}
 
       {/* Secondary Subcategories Horizontal Scroll (when a category is selected) */}
       {activeSubcategories.length > 0 && (
@@ -354,15 +419,29 @@ export default function DirectoriesScreen() {
           }
           renderItem={({ item }) => (
             <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-              <DirectoryCard
-                item={item}
-                onPress={() =>
-                  router.push({
-                    pathname: '/directories/[id]' as any,
-                    params: { id: item.id },
-                  })
-                }
-              />
+              {item.category === 'housing_rentals' ? (
+                <HousingListingCard
+                  item={item}
+                  isUnlocked={isHousingUnlocked}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/directories/[id]' as any,
+                      params: { id: item.id },
+                    })
+                  }
+                  onUnlockPress={() => setHousingUnlockModalVisible(true)}
+                />
+              ) : (
+                <DirectoryCard
+                  item={item}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/directories/[id]' as any,
+                      params: { id: item.id },
+                    })
+                  }
+                />
+              )}
             </View>
           )}
         />
@@ -385,6 +464,14 @@ export default function DirectoriesScreen() {
         onClearFilter={() => {
           handleSelectCategory('all');
         }}
+      />
+
+      {/* Housing Unlock Modal */}
+      <HousingUnlockModal
+        visible={housingUnlockModalVisible}
+        onClose={() => setHousingUnlockModalVisible(false)}
+        user={user}
+        entitlement={entitlement}
       />
     </View>
   );
@@ -459,5 +546,21 @@ const styles = StyleSheet.create({
   listContent: {
     paddingTop: 12,
     paddingBottom: 100,
+  },
+  housingNoticeBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 4,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  unlockMiniBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    marginLeft: 8,
   },
 });

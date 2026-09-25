@@ -19,17 +19,29 @@ import { LegendList } from '@legendapp/list/react-native';
 
 import { useUser, useUserDoc, useRefreshUserDoc } from '@/hooks/useAuth';
 import { updateDisplayName } from '@/lib/auth';
-import { getLeaderboard, getUserReports } from '@/lib/db';
-import { Report, ReportStatus, User } from '@/types';
-import { TierProgress } from '@/components/pulse/TierProgress';
-import { StatCard } from '@/components/pulse/StatCard';
-import { LeaderboardRow } from '@/components/profile/LeaderboardRow';
+import { getUserReports } from '@/lib/db';
+import { getUserOwnedListings, getUserClaims } from '@/lib/directoryService';
+import { getUserEvents } from '@/lib/eventService';
+import { getReferralCodeForUser, shareReferral, subscribeUserEntitlement } from '@/lib/referralService';
+import {
+  BusinessDirectoryItem,
+  CityEvent,
+  ListingClaim,
+  Report,
+  ReportStatus,
+  UserEntitlement,
+} from '@/types';
+import { ResidentPassCard } from '@/components/profile/ResidentPassCard';
+import { ProfileQuickActions } from '@/components/profile/ProfileQuickActions';
+import { ActivitySegmentTabs, ActivityTabKey } from '@/components/profile/ActivitySegmentTabs';
+import { ListingItemRow, UserListingItem } from '@/components/profile/ListingItemRow';
+import { EventItemRow } from '@/components/profile/EventItemRow';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { StateView } from '@/components/ui/StateView';
 import { Typography } from '@/components/ui/Typography';
-import { LeaderboardRowSkeleton, MyReportRowSkeleton } from '@/components/skeletons';
+import { MyReportRowSkeleton } from '@/components/skeletons';
 import { useTheme } from '@/theme';
 
 const GRADIENT = ['#34D399', '#10B981', '#059669'] as const;
@@ -115,27 +127,56 @@ export default function ProfileScreen() {
   const refreshUserDoc = useRefreshUserDoc();
   const { colors, spacing, radii } = useTheme();
 
+  const [activeTab, setActiveTab] = useState<ActivityTabKey>('reports');
   const [myReports, setMyReports] = useState<Report[]>([]);
-  const [leaderboard, setLeaderboard] = useState<User[]>([]);
+  const [myListings, setMyListings] = useState<BusinessDirectoryItem[]>([]);
+  const [myClaims, setMyClaims] = useState<ListingClaim[]>([]);
+  const [myEvents, setMyEvents] = useState<CityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
+  const [entitlement, setEntitlement] = useState<UserEntitlement | null>(null);
+
+  // Subscribe to user entitlement for referral stats
+  React.useEffect(() => {
+    if (!user || user.isAnonymous) return;
+    const unsub = subscribeUserEntitlement(user.uid, (ent) => {
+      setEntitlement(ent);
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
+  const referralCode = user && !user.isAnonymous ? getReferralCodeForUser(user.uid) : '';
+
+  const handleShareCivicReferral = async () => {
+    if (!referralCode) return;
+    try {
+      await shareReferral(referralCode, 'general_civic');
+    } catch (err) {
+      console.error('Error sharing referral:', err);
+    }
+  };
 
   const loadData = useCallback(async () => {
     if (!user || user.isAnonymous) return;
     setLoading(true);
     setError(false);
     try {
-      const [reports, board] = await Promise.all([
+      const [reports, ownedListings, claims, events] = await Promise.all([
         getUserReports(user.uid),
-        getLeaderboard(5),
+        getUserOwnedListings(user.uid),
+        getUserClaims(user.uid),
+        getUserEvents(user.uid),
       ]);
       setMyReports(reports);
-      setLeaderboard(board);
-    } catch {
+      setMyListings(ownedListings);
+      setMyClaims(claims);
+      setMyEvents(events);
+    } catch (err) {
+      console.warn('[profile] loadData error:', err);
       setError(true);
     } finally {
       setLoading(false);
@@ -246,26 +287,51 @@ export default function ProfileScreen() {
   /* --------------------------- authenticated ----------------------------- */
 
   const name = userDoc?.displayName ?? user.displayName ?? 'Citizen';
-  const reportsFiled = myReports.length;
-  const winsLogged = myReports.filter((r) => r.vibe === 'win').length;
-  const verifiedCount = myReports.filter((r) =>
-    ['verified', 'in_progress', 'resolved'].includes(r.status),
-  ).length;
-  const resolvedCount = myReports.filter((r) => r.status === 'resolved').length;
 
-  // Only feed real rows to the list — error/loading/empty render elsewhere.
-  const reportsData = error ? NO_REPORTS : myReports;
+  // Combined list of verified owned directories and submitted claims
+  const combinedListings: UserListingItem[] = React.useMemo(() => {
+    const owned: UserListingItem[] = myListings.map((l) => ({ type: 'owned', listing: l }));
+    const ownedIds = new Set(myListings.map((l) => l.id));
+    const claims: UserListingItem[] = myClaims
+      .filter((c) => !ownedIds.has(c.listingId))
+      .map((c) => ({ type: 'claim', claim: c }));
+    return [...owned, ...claims];
+  }, [myListings, myClaims]);
 
-  // Everything above "your reports" scrolls with the list as its header.
+  // Current active data based on selected segment
+  const activeData: any[] = React.useMemo(() => {
+    if (error) return NO_REPORTS;
+    if (activeTab === 'reports') return myReports;
+    if (activeTab === 'listings') return combinedListings;
+    return myEvents;
+  }, [error, activeTab, myReports, combinedListings, myEvents]);
+
+  // Everything above the active list scrolls with the list as its header
   const listHeader = (
     <>
-      {/* Tier */}
-      <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
-        YOUR CLIMB
-      </Typography>
-      <TierProgress userDoc={userDoc} />
+      {/* Resident Pass & Civic Membership */}
+      <ResidentPassCard
+        entitlement={entitlement}
+        referralCode={referralCode}
+        userDoc={userDoc}
+        onShareReferral={handleShareCivicReferral}
+      />
 
-      {error ? (
+      {/* Quick Actions (List Space, Host Event, Share Invite) */}
+      <ProfileQuickActions
+        onShareInvite={handleShareCivicReferral}
+      />
+
+      {/* Activity Segment Tabs */}
+      <ActivitySegmentTabs
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        reportsCount={myReports.length}
+        listingsCount={combinedListings.length}
+        eventsCount={myEvents.length}
+      />
+
+      {error && (
         <View style={styles.errorWrap}>
           <StateView
             icon="cloud-offline"
@@ -276,72 +342,84 @@ export default function ProfileScreen() {
             onAction={loadData}
           />
         </View>
-      ) : (
-        <>
-          {/* Impact */}
-          <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
-            YOUR IMPACT
-          </Typography>
-          <View style={styles.statRow}>
-            <StatCard icon="document-text" value={reportsFiled} label="Reports filed" tint="primary" />
-            <StatCard icon="leaf" value={winsLogged} label="Wins logged" tint="primary" />
-          </View>
-          <View style={styles.statRow}>
-            <StatCard icon="checkmark-circle" value={verifiedCount} label="Verified" tint="primary" />
-            <StatCard icon="sparkles" value={resolvedCount} label="Resolved" tint="primary" />
-          </View>
-
-          {/* Leaderboard */}
-          <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
-            LEADERBOARD
-          </Typography>
-          {loading && leaderboard.length === 0 ? (
-            <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
-              <LeaderboardRowSkeleton count={5} />
-            </Animated.View>
-          ) : leaderboard.length === 0 ? (
-            <Card padding="none">
-              <StateView
-                compact
-                icon="podium-outline"
-                title="No rankings yet"
-                message="The leaderboard is just getting started — keep earning points."
-              />
-            </Card>
-          ) : (
-            leaderboard.map((u, i) => (
-              <LeaderboardRow
-                key={u.uid}
-                rank={i + 1}
-                user={u}
-                isCurrentUser={u.uid === user.uid}
-              />
-            ))
-          )}
-
-          {/* My reports */}
-          <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.sectionLabel}>
-            YOUR REPORTS ({reportsFiled})
-          </Typography>
-        </>
       )}
     </>
   );
 
-  // Reports states shown in place of the rows when there are none.
+  // Dynamic empty state per tab
   const listEmpty = error ? null : loading ? (
     <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
-      <MyReportRowSkeleton count={4} />
+      <MyReportRowSkeleton count={3} />
     </Animated.View>
   ) : (
     <Card padding="none">
       <StateView
         compact
-        icon="camera-outline"
-        title="No reports yet"
-        message="You haven’t submitted any reports yet. Capture your first one."
+        icon={
+          activeTab === 'reports'
+            ? 'camera-outline'
+            : activeTab === 'listings'
+            ? 'business-outline'
+            : 'sparkles-outline'
+        }
+        title={
+          activeTab === 'reports'
+            ? 'No reports yet'
+            : activeTab === 'listings'
+            ? 'No listings or claims'
+            : 'No hosted events'
+        }
+        message={
+          activeTab === 'reports'
+            ? "You haven't submitted any reports yet. Capture your first one."
+            : activeTab === 'listings'
+            ? 'You have not registered or claimed any rental spaces, shops, or businesses yet.'
+            : "You haven't organized any civic or community gatherings yet."
+        }
       />
     </Card>
+  );
+
+  const keyExtractor = useCallback(
+    (item: any) => {
+      if (activeTab === 'reports') return item.reportId;
+      if (activeTab === 'listings') {
+        return item.type === 'owned' ? `owned_${item.listing.id}` : `claim_${item.claim.claimId}`;
+      }
+      return `event_${item.id}`;
+    },
+    [activeTab],
+  );
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: any; index: number }) => {
+      if (activeTab === 'reports') {
+        return (
+          <ReportRow
+            report={item as Report}
+            isFirst={index === 0}
+            isLast={index === activeData.length - 1}
+          />
+        );
+      }
+      if (activeTab === 'listings') {
+        return (
+          <ListingItemRow
+            item={item as UserListingItem}
+            isFirst={index === 0}
+            isLast={index === activeData.length - 1}
+          />
+        );
+      }
+      return (
+        <EventItemRow
+          event={item as CityEvent}
+          isFirst={index === 0}
+          isLast={index === activeData.length - 1}
+        />
+      );
+    },
+    [activeTab, activeData.length],
   );
 
   return (
@@ -388,15 +466,9 @@ export default function ProfileScreen() {
       </View>
 
       <LegendList
-        data={reportsData}
-        renderItem={({ item, index }) => (
-          <ReportRow
-            report={item}
-            isFirst={index === 0}
-            isLast={index === reportsData.length - 1}
-          />
-        )}
-        keyExtractor={(item) => item.reportId}
+        data={activeData}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
         estimatedItemSize={64}
         recycleItems
         ListHeaderComponent={listHeader}
@@ -563,7 +635,6 @@ const styles = StyleSheet.create({
 
   // Sections
   sectionLabel: { letterSpacing: 1, marginTop: 24, marginBottom: 10 },
-  statRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   loading: { paddingVertical: 32, alignItems: 'center' },
 
   // Sections

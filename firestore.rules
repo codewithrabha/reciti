@@ -51,15 +51,13 @@ service cloud.firestore {
       function isPointAward() {
         let before = resource.data;
         let after  = request.resource.data;
-        // Allow updates to completedDailyTrivia (stores trivia ID → ISO timestamp).
-        // Client-side validation ensures only timestamps are stored.
         return after.uid == before.uid
             && after.displayName == before.displayName
             && after.email == before.email
             && after.photoURL == before.photoURL
-            && after.completedDailyTrivia is map
+            && (!('completedDailyTrivia' in after) || after.completedDailyTrivia is map)
             && after.civicPoints >= before.civicPoints
-            && after.civicPoints <= before.civicPoints + 10;
+            && after.civicPoints <= before.civicPoints + 50;
       }
     }
 
@@ -566,7 +564,10 @@ service cloud.firestore {
     // A signed-in user may submit a claim for a directory listing as themselves.
     // They can read their own claim. Admins review and update status.
     match /listing_claims/{claimId} {
-      allow list:   if isAdmin();
+      allow list:   if isRealUser() && (
+        isAdmin() ||
+        resource.data.claimantUid == request.auth.uid
+      );
       allow get:    if isRealUser() && (
         resource.data.claimantUid == request.auth.uid ||
         isAdmin()
@@ -664,6 +665,62 @@ service cloud.firestore {
     // Admin push broadcast campaigns. Only admins can read and queue broadcasts.
     match /broadcast_notifications/{broadcastId} {
       allow read, write: if isAdmin();
+    }
+
+    // ─── user_entitlements ────────────────────────────────────────────────
+    // Housing rental unlock & subscription entitlements.
+    // User can read and write their own entitlement.
+    // An authenticated user can update another user's entitlement during referral qualification.
+    match /user_entitlements/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isRealUser() && (request.auth.uid == userId || isAdmin());
+      allow update: if isRealUser() && (
+        request.auth.uid == userId ||
+        isAdmin() ||
+        isReferralQualificationUpdate()
+      );
+      allow delete: if isAdmin();
+
+      function isReferralQualificationUpdate() {
+        let before = resource.data;
+        let after  = request.resource.data;
+        return after.uid == userId
+            && after.referralCount == before.referralCount + 1
+            && (after.isUnlocked == true || after.isUnlocked == before.isUnlocked);
+      }
+    }
+
+    // ─── referral_events ──────────────────────────────────────────────────
+    // ReelBlink secure referral tracking. Compound doc ID: {referrerUid}_{referredUid}.
+    // Both participants or admin can read the event.
+    // Referred user can create their claim.
+    // Either participant can qualify during transaction, or admin.
+    match /referral_events/{eventId} {
+      allow read: if signedIn() && (
+        resource.data.referrerUid == request.auth.uid ||
+        resource.data.referredUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isRealUser()
+                   && request.resource.data.referredUid == request.auth.uid
+                   && request.resource.data.referrerUid != request.auth.uid;
+      allow update: if isRealUser() && (
+        request.auth.uid == resource.data.referredUid ||
+        request.auth.uid == resource.data.referrerUid ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ─── stay_intel ───────────────────────────────────────────────────────
+    // Current accommodation / PG stay intelligence submitted by citizens.
+    // Contributor or admin can read.
+    // Contributor can create.
+    match /stay_intel/{submissionId} {
+      allow read: if isRealUser() && (resource.data.contributorUid == request.auth.uid || isAdmin());
+      allow create: if isRealUser() && request.resource.data.contributorUid == request.auth.uid;
+      allow update: if isRealUser() && (resource.data.contributorUid == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
     }
 
     // Everything else is denied by default.

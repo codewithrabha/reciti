@@ -13,6 +13,10 @@ export const Colors = {
     dangerMuted: '#FFE4E6', // Rose 100
     warning: '#F59E0B', // Amber 500
     warningMuted: '#FEF3C7', // Amber 100
+    subscription: '#D97706', // Amber 600 - Resident Pass Gold / VIP
+    subscriptionMuted: '#FEF3C7', // Amber 100 - soft amber background
+    subscriptionText: '#92400E', // Amber 800 - contrast text
+    subscriptionBorder: '#FCD34D', // Amber 300 - border
     white: '#FFFFFF',
     black: '#000000',
     transparent: 'transparent',
@@ -30,6 +34,10 @@ export const Colors = {
     dangerMuted: '#881337', // Rose 900
     warning: '#F59E0B', // Amber 500
     warningMuted: '#78350F', // Amber 900
+    subscription: '#F59E0B', // Amber 500 - Luminous Resident Pass Gold
+    subscriptionMuted: 'rgba(245, 158, 11, 0.15)', // Soft warm amber glow
+    subscriptionText: '#FDE68A', // Amber 200 - contrast text
+    subscriptionBorder: 'rgba(245, 158, 11, 0.35)', // Amber border
     white: '#FFFFFF',
     black: '#000000',
     transparent: 'transparent',

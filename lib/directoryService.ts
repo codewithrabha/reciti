@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   collection,
   doc,
@@ -32,6 +33,18 @@ export const DIRECTORY_SECTORS: CategoryMeta[] = [
     label: 'All',
     icon: 'apps-outline',
     subcategories: [],
+  },
+  {
+    key: 'housing_rentals',
+    label: 'Housing & PGs (To-Let)',
+    icon: 'home-outline',
+    subcategories: [
+      { key: 'bhk', label: 'BHK Flats & Apartments', icon: 'business-outline' },
+      { key: 'pg', label: 'Paying Guest (PG)', icon: 'people-outline' },
+      { key: 'hostel', label: 'Hostels (Student & Working)', icon: 'school-outline' },
+      { key: 'rk', label: '1 RK (Room Kitchen)', icon: 'home-outline' },
+      { key: 'room', label: 'Single Room / Room Rental', icon: 'bed-outline' },
+    ],
   },
   {
     key: 'food_dining',
@@ -243,6 +256,32 @@ export function getSubcategoriesForCategory(category: DirectoryCategory | 'all')
   return sector ? sector.subcategories : [];
 }
 
+/**
+ * React hook to observe dynamic subcategories for a given category.
+ * Features zero layout shift: synchronously initializes with cached/fallback subcategories,
+ * and updates seamlessly when Firestore's directory_categories updates.
+ */
+export function useCategorySubcategories(category: DirectoryCategory = 'housing_rentals'): SubcategoryMeta[] {
+  const [subcategories, setSubcategories] = useState<SubcategoryMeta[]>(() =>
+    getSubcategoriesForCategory(category)
+  );
+
+  useEffect(() => {
+    setSubcategories(getSubcategoriesForCategory(category));
+
+    const unsubscribe = subscribeDynamicCategories((sectors) => {
+      const parent = sectors.find((s) => s.key === category);
+      if (parent && parent.subcategories) {
+        setSubcategories(parent.subcategories);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [category]);
+
+  return subcategories;
+}
+
 const DIRECTORIES_COL = collection(db, 'directories');
 const CLAIMS_COL = collection(db, 'listing_claims');
 
@@ -420,5 +459,36 @@ export async function createDirectoryItem(
   } catch (err: any) {
     console.error('[directoryService] createDirectoryItem error:', err);
     return { success: false, error: err?.message ?? 'Failed to create listing' };
+  }
+}
+
+/**
+ * Fetches all directories/properties where the user is the verified owner.
+ */
+export async function getUserOwnedListings(ownerUid: string): Promise<BusinessDirectoryItem[]> {
+  try {
+    const q = query(DIRECTORIES_COL, where('ownerId', '==', ownerUid));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<BusinessDirectoryItem, 'id'>),
+    }));
+  } catch (err) {
+    console.warn('[directoryService] getUserOwnedListings error:', err);
+    return [];
+  }
+}
+
+/**
+ * Fetches all listing ownership claims submitted by the user.
+ */
+export async function getUserClaims(claimantUid: string): Promise<ListingClaim[]> {
+  try {
+    const q = query(CLAIMS_COL, where('claimantUid', '==', claimantUid));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => d.data() as ListingClaim);
+  } catch (err) {
+    console.warn('[directoryService] getUserClaims error:', err);
+    return [];
   }
 }

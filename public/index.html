@@ -2,32 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>ReCiti — Empowering Citizens, Transforming Cities</title>
-  <meta name="description" content="Report local civic issues, verify community fixes, earn Civic Coins (C-Coins), and explore verified local businesses across your city.">
+  <meta name="description" content="Report local civic issues, verify community fixes, earn Civic Coins, and explore verified zero-broker rentals, student PGs, and local spots across your city.">
   <meta property="og:title" content="ReCiti — Civic Action & City Directory Network">
-  <meta property="og:description" content="Spot, report, and resolve neighborhood issues with your community.">
+  <meta property="og:description" content="Community-driven civic alerts, zero-broker rentals, and verified city directory.">
   <meta property="og:url" content="https://reciti.in">
   <meta property="og:type" content="website">
   <link rel="icon" href="https://img.icons8.com/color/96/city-buildings.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <style>
     :root {
-      --primary: #2563EB;
-      --primary-gradient: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%);
-      --bg: #0B1120;
-      --surface: #1E293B;
+      --primary: #10B981;
+      --primary-dark: #059669;
+      --primary-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      --accent-blue: #3B82F6;
+      --bg: #0A0F1D;
+      --surface: #131D31;
+      --surface-card: #18243C;
       --border: rgba(255, 255, 255, 0.1);
+      --border-accent: rgba(16, 185, 129, 0.3);
       --text: #F8FAFC;
       --text-muted: #94A3B8;
-      --accent: #10B981;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-full: 9999px;
     }
+
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
+
     body {
       background-color: var(--bg);
       color: var(--text);
@@ -35,215 +47,532 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      overflow-x: hidden;
     }
+
+    /* Top Navigation Header */
     header {
-      padding: 1.5rem 2rem;
+      padding: 1rem 1.5rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      background: rgba(10, 15, 29, 0.85);
+      position: sticky;
+      top: 0;
+      z-index: 50;
     }
+
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.65rem;
       text-decoration: none;
       color: var(--text);
       font-weight: 800;
-      font-size: 1.4rem;
+      font-size: 1.25rem;
       letter-spacing: -0.5px;
     }
+
     .brand-badge {
       background: var(--primary-gradient);
       color: #fff;
-      padding: 0.35rem 0.65rem;
+      padding: 0.3rem 0.6rem;
       border-radius: 8px;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+      font-weight: 800;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
-    .hero {
-      max-width: 900px;
-      margin: 4rem auto 2rem auto;
-      padding: 0 1.5rem;
-      text-align: center;
+
+    .header-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      padding: 0.4rem 0.8rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+
+    .header-link:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Main Container */
+    main {
       flex: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem 1.25rem;
+      text-align: center;
+      width: 100%;
     }
+
+    /* Referral Welcome Card (Dynamic) */
+    #referralBanner {
+      display: none;
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%);
+      border: 1.5px solid var(--border-accent);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin: 0 auto 2rem auto;
+      max-width: 600px;
+      text-align: center;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .ref-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(16, 185, 129, 0.2);
+      color: #34D399;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-full);
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .ref-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 0.35rem;
+    }
+
+    .ref-desc {
+      font-size: 0.9rem;
+      color: #CBD5E1;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .ref-code-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--bg);
+      border: 1px dashed rgba(16, 185, 129, 0.5);
+      border-radius: 10px;
+      padding: 0.45rem 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .ref-code-box:hover {
+      border-color: #34D399;
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    .ref-code-text {
+      font-family: monospace;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #34D399;
+      letter-spacing: 2px;
+    }
+
+    .copy-btn {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #94A3B8;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* Standard Deep Link Notice */
+    #deepLinkNotice {
+      display: none;
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #93C5FD;
+      padding: 0.85rem 1.25rem;
+      border-radius: var(--radius-md);
+      max-width: 600px;
+      margin: 0 auto 1.75rem auto;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    /* Hero Section */
     .pill {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      background: rgba(37, 99, 235, 0.15);
-      border: 1px solid rgba(37, 99, 235, 0.3);
-      color: #60A5FA;
-      padding: 0.35rem 1rem;
-      border-radius: 9999px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin-bottom: 1.5rem;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #34D399;
+      padding: 0.35rem 0.95rem;
+      border-radius: var(--radius-full);
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
     }
+
     h1 {
-      font-size: clamp(2.2rem, 5vw, 3.5rem);
-      font-weight: 900;
+      font-size: clamp(2rem, 6vw, 3.4rem);
+      font-weight: 800;
       line-height: 1.15;
       letter-spacing: -1px;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1.2rem;
       background: linear-gradient(180deg, #FFFFFF 0%, #CBD5E1 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+
     p.lead {
-      font-size: clamp(1.05rem, 2vw, 1.25rem);
+      font-size: clamp(0.98rem, 2.5vw, 1.15rem);
       color: var(--text-muted);
-      max-width: 650px;
-      margin: 0 auto 2.5rem auto;
+      max-width: 620px;
+      margin: 0 auto 2rem auto;
+      line-height: 1.6;
     }
+
+    /* Action Buttons */
     .cta-group {
       display: flex;
       justify-content: center;
       gap: 1rem;
       flex-wrap: wrap;
+      margin-bottom: 3.5rem;
     }
+
     .btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.6rem;
-      padding: 0.85rem 1.6rem;
-      border-radius: 12px;
+      justify-content: center;
+      gap: 0.65rem;
+      min-height: 52px;
+      padding: 0.85rem 1.8rem;
+      border-radius: var(--radius-md);
       font-weight: 700;
       font-size: 1rem;
       text-decoration: none;
-      transition: all 0.2s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
       cursor: pointer;
+      width: 100%;
+      max-width: 320px;
     }
+
     .btn-primary {
       background: var(--primary-gradient);
-      color: #fff;
-      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+      color: #FFFFFF;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+      border: none;
     }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
     .btn-primary:hover {
+      box-shadow: 0 12px 28px rgba(16, 185, 129, 0.45);
       transform: translateY(-2px);
-      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.45);
     }
+
+    /* Features Grid */
+    .features-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      color: #F1F5F9;
+      letter-spacing: -0.5px;
+    }
+
     .features {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 1.5rem;
-      max-width: 1000px;
-      margin: 4rem auto;
-      padding: 0 1.5rem;
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.75rem;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
       text-align: left;
     }
-    .card-icon {
-      font-size: 1.8rem;
-      margin-bottom: 0.75rem;
+
+    .card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      flex-direction: column;
     }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-3px);
+    }
+
+    .card-icon-wrap {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+    }
+
     .card h3 {
-      font-size: 1.15rem;
-      margin-bottom: 0.5rem;
-      color: #F1F5F9;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      color: #F8FAFC;
     }
+
     .card p {
-      font-size: 0.92rem;
+      font-size: 0.88rem;
       color: var(--text-muted);
-      line-height: 1.5;
+      line-height: 1.55;
     }
-    #deepLinkNotice {
-      display: none;
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #34D399;
-      padding: 1rem;
-      border-radius: 12px;
-      max-width: 600px;
-      margin: 0 auto 2rem auto;
-      font-size: 0.95rem;
-    }
+
+    /* Footer */
     footer {
       border-top: 1px solid var(--border);
-      padding: 2rem;
+      padding: 2rem 1.5rem;
       text-align: center;
       color: var(--text-muted);
-      font-size: 0.85rem;
+      font-size: 0.84rem;
+      background: rgba(10, 15, 29, 0.6);
+    }
+
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 600px) {
+      header {
+        padding: 0.85rem 1rem;
+      }
+      main {
+        padding: 1.5rem 1rem 3rem 1rem;
+      }
+      .btn {
+        max-width: 100%;
+      }
+      .card {
+        padding: 1.25rem;
+      }
+      .features {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
     }
   </style>
 </head>
 <body>
 
+  <!-- Header -->
   <header>
     <a href="/" class="brand">
       <span class="brand-badge">ReCiti</span>
       <span>reciti.in</span>
     </a>
+    <a href="#download" class="header-link">Get App</a>
   </header>
 
-  <main class="hero">
+  <!-- Main Hero -->
+  <main>
+    <!-- Dynamic Referral Alert Banner -->
+    <div id="referralBanner">
+      <div class="ref-badge">✨ Exclusive Civic Invite</div>
+      <div class="ref-title" id="refTitle">You've been invited to ReCiti!</div>
+      <p class="ref-desc" id="refDesc">
+        Download the app to explore verified zero-broker rentals & student PGs with direct owner access.
+      </p>
+      <div class="ref-code-box" id="refCodeBox" onclick="copyReferralCode()">
+        <span style="font-size: 0.75rem; color: #94A3B8; font-weight: 700;">INVITE CODE</span>
+        <span class="ref-code-text" id="refCodeDisplay">RECITI</span>
+        <button class="copy-btn" id="copyBtn">Copy</button>
+      </div>
+    </div>
+
+    <!-- Generic Deep Link Notice -->
     <div id="deepLinkNotice">
-      Opening content in the <strong>ReCiti</strong> App...
+      Opening in <strong>ReCiti App</strong>...
     </div>
 
     <div class="pill">
-      <span>✨ Community Civic Network & Local Hub</span>
+      <span>🌿 Official Citizen Network & Local Directory</span>
     </div>
 
     <h1>Empowering Citizens.<br>Transforming Our Cities.</h1>
 
     <p class="lead">
-      Spot local civic issues, earn Civic Coins (C-Coins) for verifying neighborhood fixes, and discover verified businesses, clinics, and official city bulletins.
+      Spot local civic issues, earn Civic Points, and explore community zero-broker rentals, student PGs, and trusted neighborhood businesses.
     </p>
 
-    <div class="cta-group">
-      <a href="https://play.google.com/store/apps/details?id=com.reciti.android" class="btn btn-primary" id="openAppBtn">
+    <!-- Download / Open App CTA -->
+    <div class="cta-group" id="download">
+      <a 
+        href="https://play.google.com/store/apps/details?id=com.reciti.android" 
+        class="btn btn-primary" 
+        id="openAppBtn"
+        onclick="handleDownloadClick(event)"
+      >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
           <path d="M3.609 1.814L13.793 12 3.61 22.186a1.986 1.986 0 0 1-.61-1.42V3.234c0-.54.225-1.043.609-1.42zm11.246 11.247l2.253 2.253-12.015 6.94 9.762-9.193zm0-2.122L5.093 1.746l12.015 6.94-2.253 2.253zm1.414 1.061l3.525 2.036c1.085.626 1.085 1.646 0 2.272l-3.525 2.036-1.782-1.782a.75.75 0 0 1 0-1.06l1.782-1.502z"/>
         </svg>
-        <span>Download on Google Play</span>
+        <span id="btnText">Download on Google Play</span>
       </a>
     </div>
 
+    <!-- Features Showcase -->
+    <h2 class="features-title">What You Can Do on ReCiti</h2>
     <section class="features">
       <div class="card">
-        <div class="card-icon">📸</div>
-        <h3>Spot & Report</h3>
-        <p>Snap a photo of potholes, trash dumps, or water leakages. Geolocation is automatically attached to mobilize city authorities.</p>
+        <div class="card-icon-wrap" style="background: rgba(16, 185, 129, 0.15);">🏠</div>
+        <h3>Zero-Broker Housing & PGs</h3>
+        <p>Explore verified boys & girls hostels, co-ed PGs, and rental flats directly from owners without brokers or commissions.</p>
       </div>
+
       <div class="card">
-        <div class="card-icon">🪙</div>
-        <h3>Earn Civic Coins</h3>
-        <p>Verify reports and confirm neighbor fixes to earn C-Coins, climb the community ranks, and gain civic recognition.</p>
+        <div class="card-icon-wrap" style="background: rgba(59, 130, 246, 0.15);">📸</div>
+        <h3>Spot & Report Civic Issues</h3>
+        <p>Photograph street hazards, broken lights, or waste dumps. Precise GPS automatically alerts civic authorities.</p>
       </div>
+
       <div class="card">
-        <div class="card-icon">📍</div>
-        <h3>Verified Directory</h3>
-        <p>Discover trusted neighborhood healthcare centers, stores, open markets, and municipal announcements across Bongaigaon.</p>
+        <div class="card-icon-wrap" style="background: rgba(245, 158, 11, 0.15);">🪙</div>
+        <h3>Earn Civic Points & Badges</h3>
+        <p>Verify neighbor resolutions, complete daily city trivia, and climb the civic leaderboard from Tourist to Guardian.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon-wrap" style="background: rgba(168, 85, 247, 0.15);">📍</div>
+        <h3>Verified City Directory</h3>
+        <p>Find authentic local pharmacies, markets, stores, and municipal circulars verified by your community.</p>
       </div>
     </section>
   </main>
 
+  <!-- Footer -->
   <footer>
-    <p>© 2026 ReCiti. Built for citizens, powered by community verification.</p>
+    <p>© 2026 ReCiti (reciti.in). Built with pride for cleaner, connected communities.</p>
   </footer>
 
   <script>
-    // Handle App Link Routing
-    const path = window.location.pathname;
-    if (path.startsWith('/report/') || path.startsWith('/directories/') || path.startsWith('/events/')) {
-      const notice = document.getElementById('deepLinkNotice');
-      notice.style.display = 'block';
-      
-      const appSchemeUrl = 'reciti:/' + path;
-      // Try opening app protocol
-      window.location.href = appSchemeUrl;
+    const PLAY_STORE_BASE = 'https://play.google.com/store/apps/details?id=com.reciti.android';
+    let currentReferralCode = '';
+    let currentContext = '';
 
-      // Update button text to emphasize app
-      const btn = document.getElementById('openAppBtn');
-      btn.innerHTML = '<span>Open in ReCiti App</span>';
-      btn.href = appSchemeUrl;
+    // 1. Extract referral code and context from Path or Query params
+    function parseReferralInfo() {
+      const path = window.location.pathname;
+      const params = new URLSearchParams(window.location.search);
+
+      // Check path format: /r/CODE
+      if (path.startsWith('/r/')) {
+        const parts = path.split('/');
+        if (parts[2]) {
+          currentReferralCode = parts[2].trim().toUpperCase();
+        }
+      }
+
+      // Check query params: ?ref=... or ?r=... or ?code=...
+      if (!currentReferralCode) {
+        currentReferralCode = (params.get('ref') || params.get('r') || params.get('code') || '').trim().toUpperCase();
+      }
+
+      currentContext = params.get('src') || 'rental_mission';
+      return { code: currentReferralCode, context: currentContext };
     }
+
+    // 2. Setup Referral UI and dynamic Play Store referrer parameter
+    function initReferral() {
+      const { code, context } = parseReferralInfo();
+      if (!code) return;
+
+      // Display referral banner
+      const banner = document.getElementById('referralBanner');
+      const codeDisplay = document.getElementById('refCodeDisplay');
+      const desc = document.getElementById('refDesc');
+
+      if (banner && codeDisplay) {
+        codeDisplay.textContent = code;
+        banner.style.display = 'block';
+
+        if (context === 'rental_mission') {
+          desc.textContent = 'Your friend invited you to unlock direct landlord phone numbers for zero-broker student PGs and rental flats!';
+        } else {
+          desc.textContent = 'Your friend invited you to join ReCiti! Earn bonus Civic Points on your first community report.';
+        }
+      }
+
+      // Dynamically attach Google Play install referrer parameter:
+      // Play Store parses: &referrer=utm_source%3Dreciti%26ref_code%3DCODE%26src%3DCONTEXT
+      const rawReferrer = `utm_source=reciti&utm_medium=referral&ref_code=${code}&src=${context}`;
+      const playStoreUrlWithReferrer = `${PLAY_STORE_BASE}&referrer=${encodeURIComponent(rawReferrer)}`;
+
+      const downloadBtn = document.getElementById('openAppBtn');
+      if (downloadBtn) {
+        downloadBtn.href = playStoreUrlWithReferrer;
+      }
+    }
+
+    // 3. Handle Download Click (Copies code to clipboard as seamless backup)
+    function handleDownloadClick(e) {
+      if (currentReferralCode) {
+        // Copy code to clipboard in background as extra insurance
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(currentReferralCode).catch(() => {});
+        }
+        // Try opening custom app scheme if already installed on device
+        setTimeout(() => {
+          window.location.href = `reciti://r/${currentReferralCode}?src=${currentContext}`;
+        }, 150);
+      }
+    }
+
+    // 4. Manual Copy Code helper
+    function copyReferralCode() {
+      if (!currentReferralCode) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(currentReferralCode).then(() => {
+          const btn = document.getElementById('copyBtn');
+          btn.textContent = 'Copied! ✓';
+          btn.style.color = '#34D399';
+          setTimeout(() => {
+            btn.textContent = 'Copy';
+            btn.style.color = '#94A3B8';
+          }, 2500);
+        }).catch(() => {});
+      }
+    }
+
+    // 5. Generic Deep-Link Handlers (/report/*, /directories/*, /events/*)
+    function initDeepLinks() {
+      const path = window.location.pathname;
+      if (path.startsWith('/report/') || path.startsWith('/directories/') || path.startsWith('/events/')) {
+        const notice = document.getElementById('deepLinkNotice');
+        if (notice) notice.style.display = 'block';
+
+        const appSchemeUrl = 'reciti:/' + path;
+        // Try opening app protocol
+        window.location.href = appSchemeUrl;
+
+        const btn = document.getElementById('openAppBtn');
+        const btnText = document.getElementById('btnText');
+        if (btnText) btnText.textContent = 'Open in ReCiti App';
+        if (btn) btn.href = appSchemeUrl;
+      }
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      initReferral();
+      initDeepLinks();
+    });
   </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import { FieldValue, Timestamp } from 'firebase/firestore';
 
 export type Tier = 'Tourist' | 'Resident' | 'Advocate' | 'Guardian';
 
@@ -118,6 +118,7 @@ export interface StorySlide {
 // ─── Business Directory & Services ──────────────────────────────────────────
 
 export type DirectoryCategory =
+  | 'housing_rentals'
   | 'food_dining'
   | 'accommodation'
   | 'healthcare'
@@ -135,6 +136,17 @@ export type DirectoryCategory =
   | 'services';
 
 export type DirectorySubcategory =
+  // Housing, To-Let & Student PGs
+  | 'pg'
+  | 'hostel'
+  | 'bhk'
+  | 'rk'
+  | 'room'
+  | 'pg_boys'
+  | 'pg_girls'
+  | 'pg_coed'
+  | 'flats_apartments'
+  | 'room_rental'
   // Food & Dining
   | 'restaurants_cafes'
   | 'bakeries_confectioneries'
@@ -181,6 +193,7 @@ export interface BusinessDirectoryItem {
   longitude: number;
   phone?: string;
   website?: string;
+  googleBusinessUrl?: string;
   imageUrl: string;
   imageUrls?: string[];
   rating?: number;
@@ -189,11 +202,109 @@ export interface BusinessDirectoryItem {
   isSponsored?: boolean;
   openingHours?: string;
 
+  // ─── Housing & Rental Specifics (To-Let / PGs) ────────────────────────────
+  monthlyRent?: number;
+  securityDeposit?: number;
+  maintenanceCharges?: number | string;
+  electricityType?: 'included' | 'submeter_unit' | 'separate_bill';
+  waterSupply?: '24_hours' | 'timed' | 'borewell';
+  parkingType?: 'car_bike' | 'bike_only' | 'street' | 'none';
+  amenitiesList?: string[];
+  vacancyStatus?: 'available_now' | 'vacating_soon' | 'occupied';
+  availableFromDate?: string;
+  vacatingTenantNote?: string;
+  isZeroBrokerVerified?: boolean;
+  landlordName?: string;
+  landlordPhone?: string;
+
+  // BHK & Independent Living
+  bhkType?: '1_rk' | '1_bhk' | '2_bhk' | '3_bhk' | '4_plus_bhk' | 'studio';
+  furnishingStatus?: 'unfurnished' | 'semi_furnished' | 'fully_furnished';
+  floorLevel?: string;
+  bathroomsCount?: number;
+  balconiesCount?: number;
+  preferredTenants?: 'all' | 'family_only' | 'bachelors_only' | 'girls_only' | 'boys_only' | 'students_only';
+  petsAllowed?: boolean;
+
+  // PG & Hostel Living
+  sharingType?: 'single' | 'double' | 'triple' | 'four_plus';
+  genderPreference?: 'boys' | 'girls' | 'coed' | 'any';
+  bachelorsAllowed?: boolean;
+  studentsOnly?: boolean;
+  foodIncluded?: boolean;
+  foodType?: 'veg_only' | 'veg_nonveg' | 'none';
+  foodDetails?: string;
+  mealsProvided?: string[];
+  curfewTime?: string;
+  noticePeriod?: string;
+
+  // Room & RK Living
+  washroomType?: 'attached' | 'common';
+  kitchenSetup?: 'private' | 'shared' | 'none';
+
   // ─── Ownership & Verification ─────────────────────────────────────────────
   ownerId?: string | null;
   isClaimed?: boolean;
   claimStatus?: 'unclaimed' | 'pending' | 'verified';
   claimedAt?: Timestamp | string | null;
+}
+
+// ─── User Entitlements & Housing Access ─────────────────────────────────────
+
+export type UnlockMethod = 'referral' | 'stay_intel' | 'subscription' | 'civic_points';
+
+export interface UserEntitlement {
+  uid: string;
+  isUnlocked: boolean;
+  unlockedVia?: UnlockMethod;
+  validUntil?: Timestamp | string | null;
+  housingAccessExpiresAt?: Timestamp | number | null;
+  referralCount: number;
+  referralsQualifiedCount?: number;
+  stayIntelSubmittedId?: string | null;
+  createdAt?: Timestamp | string | FieldValue;
+  updatedAt?: Timestamp | string | FieldValue;
+}
+
+// ─── Referral Audit Ledger ──────────────────────────────────────────────────
+
+export type ReferralContext = 'rental_mission' | 'general_civic';
+export type ReferralStatus = 'pending' | 'qualified' | 'rejected';
+
+export interface ReferralEvent {
+  id: string; // Idempotent key: `${referrerUid}_${referredUid}`
+  referrerUid: string;
+  referredUid: string;
+  referralCode: string;
+  context: ReferralContext;
+  status: ReferralStatus;
+  rejectionReason?: 'self_referral' | 'existing_account' | 'same_device' | 'duplicate';
+  createdAt: Timestamp | string;
+  qualifiedAt?: Timestamp | string | null;
+  rewardGranted?: boolean;
+}
+
+// ─── Stay Intel (Crowdsourced Tenant Vacancy) ───────────────────────────────
+
+export interface StayIntelSubmission {
+  id: string;
+  submitterUid: string;
+  submitterName?: string;
+  propertyType: DirectorySubcategory | string;
+  propertyName?: string;
+  locality: string;
+  city?: string;
+  monthlyRent: number;
+  securityDeposit?: number;
+  foodIncluded: boolean;
+  curfewTime?: string;
+  vacatingSoon: boolean;
+  moveOutDate?: string;
+  vacatingNote?: string;
+  landlordName: string;
+  landlordPhone: string;
+  status: 'active' | 'archived';
+  createdAt: Timestamp | string | FieldValue;
 }
 
 // ─── Listing Claim Verification ─────────────────────────────────────────────
