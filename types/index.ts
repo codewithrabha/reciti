@@ -2,6 +2,14 @@ import { FieldValue, Timestamp } from 'firebase/firestore';
 
 export type Tier = 'Tourist' | 'Resident' | 'Advocate' | 'Guardian';
 
+export interface StayIntelSubmissionMeta {
+  directoryId: string;
+  propertyName: string;
+  status: 'pending_review' | 'approved' | 'rejected';
+  submittedAt: any;
+  reviewedAt?: any;
+}
+
 export interface User {
   uid: string;
   displayName: string | null;
@@ -14,6 +22,7 @@ export interface User {
   createdAt?: any;
   joinedAt?: any;
   provider?: 'google' | 'email' | string;
+  stayIntelSubmission?: StayIntelSubmissionMeta | null;
 }
 
 export type ReportStatus =
@@ -247,6 +256,15 @@ export interface BusinessDirectoryItem {
   isClaimed?: boolean;
   claimStatus?: 'unclaimed' | 'pending' | 'verified';
   claimedAt?: Timestamp | string | null;
+
+  // ─── Crowdsourced / Community Submission Meta ──────────────────────────────
+  source?: 'admin' | 'community_stay_intel';
+  status?: 'active' | 'pending_admin_approval' | 'rejected';
+  contributorUid?: string;
+  contributorName?: string;
+  contributorPhone?: string;
+  reviewedAt?: any;
+  reviewedBy?: string | null;
 }
 
 // ─── User Entitlements & Housing Access ─────────────────────────────────────
@@ -290,21 +308,36 @@ export interface StayIntelSubmission {
   id: string;
   submitterUid: string;
   submitterName?: string;
+  submitterPhone?: string;
+  directoryId?: string;
   propertyType: DirectorySubcategory | string;
   propertyName?: string;
   locality: string;
+  address?: string;
   city?: string;
+  latitude?: number;
+  longitude?: number;
+  googleBusinessUrl?: string;
   monthlyRent: number;
   securityDeposit?: number;
+  maintenanceCharges?: string | number;
+  electricityType?: 'included' | 'submeter_unit' | 'separate_bill';
+  waterSupply?: '24_hours' | 'timed' | 'borewell';
+  parkingType?: 'car_bike' | 'bike_only' | 'street' | 'none';
+  amenitiesList?: string[];
   foodIncluded: boolean;
+  foodType?: 'veg_only' | 'veg_nonveg' | 'none';
   curfewTime?: string;
   vacatingSoon: boolean;
   moveOutDate?: string;
   vacatingNote?: string;
   landlordName: string;
   landlordPhone: string;
-  status: 'active' | 'archived';
+  images: string[];
+  status: 'pending_review' | 'approved' | 'rejected' | 'archived';
   createdAt: Timestamp | string | FieldValue;
+  reviewedAt?: any;
+  reviewedBy?: string | null;
 }
 
 // ─── Listing Claim Verification ─────────────────────────────────────────────

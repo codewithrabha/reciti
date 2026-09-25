@@ -300,6 +300,9 @@ export async function getDirectoryItems(
         id: docSnap.id,
         ...(docSnap.data() as Omit<BusinessDirectoryItem, 'id'>),
       }));
+
+      // Filter out pending community submissions or rejected listings from public view
+      items = items.filter((b) => !b.status || b.status === 'active');
     }
   } catch (err) {
     console.warn('[directoryService] Firestore query error:', err);

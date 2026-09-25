@@ -12,16 +12,17 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/theme';
 import { Typography } from '@/components/ui/Typography';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
-import { User, UserEntitlement } from '@/types';
+import { StayIntelSubmissionMeta, User, UserEntitlement } from '@/types';
 import {
   getReferralCodeForUser,
+  getUserStayIntelSubmission,
   shareReferral,
-  submitStayIntel,
 } from '@/lib/referralService';
 import { useCategorySubcategories } from '@/lib/directoryService';
 import { RESIDENT_PASS_CONFIG } from '@/lib/residentPassConfig';
@@ -43,31 +44,27 @@ export function HousingUnlockModal({
 }: HousingUnlockModalProps) {
   const { colors, spacing } = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<'referrals' | 'stay_intel' | 'fast_track'>('referrals');
-  const [submittingIntel, setSubmittingIntel] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-
-  const housingSubcategories = useCategorySubcategories('housing_rentals');
-
-  // Stay Intel form states
-  const [stayType, setStayType] = useState<string>(() => housingSubcategories[0]?.key || 'pg');
+  const [submissionStatus, setSubmissionStatus] = useState<StayIntelSubmissionMeta | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
 
   useEffect(() => {
-    if (housingSubcategories.length > 0 && !housingSubcategories.some((s) => s.key === stayType)) {
-      setStayType(housingSubcategories[0].key);
+    if (visible && user?.uid) {
+      setLoadingStatus(true);
+      getUserStayIntelSubmission(user.uid)
+        .then((meta) => {
+          if (meta) {
+            setSubmissionStatus(meta);
+          } else if (user.stayIntelSubmission) {
+            setSubmissionStatus(user.stayIntelSubmission);
+          }
+        })
+        .finally(() => setLoadingStatus(false));
     }
-  }, [housingSubcategories, stayType]);
-  const [propertyName, setPropertyName] = useState('');
-  const [locality, setLocality] = useState('');
-  const [rent, setRent] = useState('');
-  const [foodIncluded, setFoodIncluded] = useState(false);
-  const [curfewTime, setCurfewTime] = useState('10:00 PM');
-  const [vacatingSoon, setVacatingSoon] = useState(true);
-  const [moveOutDate, setMoveOutDate] = useState('End of this month');
-  const [vacatingNote, setVacatingNote] = useState('');
-  const [landlordName, setLandlordName] = useState('');
-  const [landlordPhone, setLandlordPhone] = useState('');
+  }, [visible, user?.uid, user?.stayIntelSubmission]);
 
   const referralCode = user ? getReferralCodeForUser(user.uid, user.displayName) : 'RECITI-LOCAL';
   const progressCount = Math.min(entitlement?.referralCount || 0, 3);
@@ -89,55 +86,9 @@ export function HousingUnlockModal({
     await shareReferral(referralCode, 'rental_mission');
   };
 
-
-  const handleSubmitStayIntel = async () => {
-    if (!user) {
-      Alert.alert('Sign In Required', 'Please sign in to submit your stay details.');
-      return;
-    }
-    if (!locality.trim()) {
-      Alert.alert('Required', 'Please enter your locality or neighborhood area.');
-      return;
-    }
-    if (!rent.trim() || isNaN(Number(rent))) {
-      Alert.alert('Required', 'Please enter a valid monthly rent amount.');
-      return;
-    }
-    if (!landlordPhone.trim() || landlordPhone.trim().length < 10) {
-      Alert.alert('Required', 'Please provide a valid 10-digit landlord/owner contact number.');
-      return;
-    }
-
-    setSubmittingIntel(true);
-    try {
-      const res = await submitStayIntel(user, {
-        propertyType: stayType,
-        propertyName: propertyName.trim() || undefined,
-        locality: locality.trim(),
-        monthlyRent: Number(rent),
-        foodIncluded,
-        curfewTime: curfewTime.trim() || undefined,
-        vacatingSoon,
-        moveOutDate: vacatingSoon ? moveOutDate.trim() : undefined,
-        vacatingNote: vacatingNote.trim() || undefined,
-        landlordName: landlordName.trim() || 'House Owner',
-        landlordPhone: landlordPhone.trim(),
-      });
-
-      if (res.success) {
-        Alert.alert(
-          '🎉 Stay Intel Submitted!',
-          'Thank you for contributing to our zero-broker civic community! All landlord contacts are now fully unlocked (+50 Civic Points awarded).',
-          [{ text: 'Explore Now', onPress: () => { onClose(); onUnlocked?.(); } }]
-        );
-      } else {
-        Alert.alert('Error', res.error || 'Failed to submit stay details.');
-      }
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Something went wrong.');
-    } finally {
-      setSubmittingIntel(false);
-    }
+  const handleGoToContribute = () => {
+    onClose();
+    router.push('/directories/contribute');
   };
 
   return (
@@ -327,160 +278,163 @@ export function HousingUnlockModal({
             </ScrollView>
           )}
 
-          {/* Tab 2: Stay Intel Form */}
+          {/* Tab 2: Stay Intel / Contribute Screen Navigation & Status */}
           {activeTab === 'stay_intel' && (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.tabContent}>
-              <View style={[styles.intelIntroCard, { backgroundColor: colors.primaryMuted, borderColor: colors.primary }]}>
-                
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Typography variant="body" weight="bold" color={colors.primary}>
-                    Share & Instant Unlock
-                  </Typography>
-                  <Typography variant="caption" color={colors.text} style={{ marginTop: 2 }}>
-                    Already renting in a PG or flat? Share your stay details to unlock all housing immediately!
+              {loadingStatus ? (
+                <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 8 }}>
+                    Checking submission status...
                   </Typography>
                 </View>
-              </View>
-
-              {/* Property Type */}
-              <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.formSectionTitle}>
-                1. PROPERTY TYPE
-              </Typography>
-              <View style={styles.chipsWrap}>
-                {housingSubcategories.map((item) => {
-                  const isSelected = stayType === item.key;
-                  return (
-                    <AnimatedButton
-                      key={item.key}
-                      onPress={() => setStayType(item.key)}
-                      style={[
-                        styles.choiceChip,
-                        {
-                          backgroundColor: isSelected ? colors.primary : colors.background,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                        },
-                      ]}
-                    >
-                      <Typography
-                        variant="caption"
-                        weight={isSelected ? 'bold' : 'regular'}
-                        color={isSelected ? '#FFFFFF' : colors.text}
-                      >
-                        {item.label}
+              ) : submissionStatus?.status === 'pending_review' ? (
+                /* Pending Status Card */
+                <View style={[styles.statusCard, { backgroundColor: colors.primaryMuted, borderColor: colors.primary }]}>
+                  <View style={styles.statusHeaderRow}>
+                    <View style={[styles.statusIconWrap, { backgroundColor: colors.surface }]}>
+                      <Ionicons name="time" size={24} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Typography variant="body" weight="bold" color={colors.primary}>
+                        Verification in Progress
                       </Typography>
-                    </AnimatedButton>
-                  );
-                })}
-              </View>
+                      <Typography variant="caption" color={colors.text} style={{ marginTop: 2 }}>
+                        {submissionStatus.propertyName || 'Your Accommodation'}
+                      </Typography>
+                    </View>
+                  </View>
 
-              {/* Locality & Rent */}
-              <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.formSectionTitle}>
-                2. LOCATION & RENT
-              </Typography>
-              <View style={styles.inputGrid}>
-                <TextInput
-                  placeholder="Locality (e.g. College Road, Ward 3)"
-                  placeholderTextColor={colors.textMuted}
-                  value={locality}
-                  onChangeText={setLocality}
-                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                />
-                <TextInput
-                  placeholder="Monthly Rent (e.g. 4500)"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numeric"
-                  value={rent}
-                  onChangeText={setRent}
-                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                />
-              </View>
+                  <View style={[styles.statusDivider, { backgroundColor: colors.border }]} />
 
-              {/* Vacancy Alert */}
-              <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.formSectionTitle}>
-                3. VACANCY STATUS
-              </Typography>
-              <View style={styles.vacancyChoiceRow}>
-                <AnimatedButton
-                  onPress={() => setVacatingSoon(true)}
-                  style={[
-                    styles.vacancyBtn,
-                    {
-                      backgroundColor: vacatingSoon ? colors.primary + '18' : colors.background,
-                      borderColor: vacatingSoon ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={vacatingSoon ? 'radio-button-on' : 'radio-button-off'}
-                    size={16}
-                    color={vacatingSoon ? colors.primary : colors.textMuted}
-                  />
-                  <Typography variant="caption" weight={vacatingSoon ? 'bold' : 'regular'} style={{ marginLeft: 6 }}>
-                    Vacating Soon (Room Opening)
+                  <Typography variant="caption" color={colors.textMuted} style={{ lineHeight: 18 }}>
+                    Our municipal directory team is verifying landlord contact details and photo authenticity. Once approved, you will automatically unlock direct landlord numbers across the city (+50 Civic Points).
                   </Typography>
-                </AnimatedButton>
 
-                <AnimatedButton
-                  onPress={() => setVacatingSoon(false)}
-                  style={[
-                    styles.vacancyBtn,
-                    {
-                      backgroundColor: !vacatingSoon ? colors.primary + '18' : colors.background,
-                      borderColor: !vacatingSoon ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={!vacatingSoon ? 'radio-button-on' : 'radio-button-off'}
-                    size={16}
-                    color={!vacatingSoon ? colors.primary : colors.textMuted}
-                  />
-                  <Typography variant="caption" weight={!vacatingSoon ? 'bold' : 'regular'} style={{ marginLeft: 6 }}>
-                    Fully Occupied (For now)
+                  <View style={styles.statusStepsList}>
+                    <View style={styles.statusStepRow}>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                      <Typography variant="caption" color={colors.text} style={{ marginLeft: 8 }}>
+                        Submission Received
+                      </Typography>
+                    </View>
+                    <View style={styles.statusStepRow}>
+                      <Ionicons name="ellipse" size={16} color={colors.primary} />
+                      <Typography variant="caption" weight="bold" color={colors.primary} style={{ marginLeft: 8 }}>
+                        Admin Verification Underway (12–24h)
+                      </Typography>
+                    </View>
+                    <View style={styles.statusStepRow}>
+                      <Ionicons name="ellipse-outline" size={16} color={colors.textMuted} />
+                      <Typography variant="caption" color={colors.textMuted} style={{ marginLeft: 8 }}>
+                        Unlock & +50 Civic Points
+                      </Typography>
+                    </View>
+                  </View>
+                </View>
+              ) : submissionStatus?.status === 'approved' ? (
+                /* Approved Status Card */
+                <View style={[styles.statusCard, { backgroundColor: colors.primaryMuted, borderColor: colors.primary }]}>
+                  <View style={styles.statusHeaderRow}>
+                    <View style={[styles.statusIconWrap, { backgroundColor: colors.surface }]}>
+                      <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Typography variant="body" weight="bold" color={colors.primary}>
+                        Contribution Approved!
+                      </Typography>
+                      <Typography variant="caption" color={colors.text} style={{ marginTop: 2 }}>
+                        {submissionStatus.propertyName || 'Your Accommodation'}
+                      </Typography>
+                    </View>
+                  </View>
+
+                  <Typography variant="caption" color={colors.text} style={{ marginTop: 10, lineHeight: 18 }}>
+                    Thank you! Your stay contribution is active in the city directory. You have full access to all direct landlord contacts.
                   </Typography>
-                </AnimatedButton>
-              </View>
 
-              {/* Landlord Contact */}
-              <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.formSectionTitle}>
-                4. DIRECT LANDLORD CONTACT
-              </Typography>
-              <View style={styles.inputGrid}>
-                <TextInput
-                  placeholder="Landlord Name (e.g. Barman Uncle)"
-                  placeholderTextColor={colors.textMuted}
-                  value={landlordName}
-                  onChangeText={setLandlordName}
-                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                />
-                <TextInput
-                  placeholder="Owner 10-Digit Mobile Number"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={landlordPhone}
-                  onChangeText={setLandlordPhone}
-                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                />
-              </View>
-
-              {/* Submit Stay Intel Button */}
-              <AnimatedButton
-                onPress={handleSubmitStayIntel}
-                disabled={submittingIntel}
-                style={[styles.submitIntelBtn, { backgroundColor: colors.primary, opacity: submittingIntel ? 0.7 : 1 }]}
-              >
-                {submittingIntel ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="rocket-outline" size={18} color="#FFFFFF" />
-                    <Typography variant="body" weight="bold" color="#FFFFFF" style={{ marginLeft: 8 }}>
-                      Submit & Unlock
+                  <AnimatedButton
+                    onPress={onClose}
+                    style={[styles.contributeCtaBtn, { backgroundColor: colors.primary, marginTop: 14 }]}
+                  >
+                    <Typography variant="body" weight="bold" color="#FFFFFF">
+                      Explore Housing Listings ➔
                     </Typography>
-                  </>
-                )}
-              </AnimatedButton>
+                  </AnimatedButton>
+                </View>
+              ) : (
+                /* Standard Value Proposition & CTA */
+                <View>
+                  <View style={[styles.intelIntroCard, { backgroundColor: colors.primaryMuted, borderColor: colors.primary }]}>
+                    <Ionicons name="shield-checkmark" size={26} color={colors.primary} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Typography variant="label" weight="bold" color={colors.primary}>
+                        Contribute & Unlock
+                      </Typography>
+                      <Typography variant="caption" color={colors.text} style={{ marginTop: 2 }}>
+                        Are you renting a PG, hostel, or flat in our city? Share your accommodation to unlock all landlord contacts for free!
+                      </Typography>
+                    </View>
+                  </View>
+
+                  {/* Requirements checklist */}
+                  <Typography variant="caption" weight="bold" color={colors.textMuted} style={styles.checklistHeading}>
+                    WHAT YOU'LL NEED (TAKES ~3 MINS):
+                  </Typography>
+
+                  <View style={[styles.checklistCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={styles.checklistItem}>
+                      <Ionicons name="location-outline" size={18} color={colors.primary} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Typography variant="caption" weight="bold">1-Tap GPS Location</Typography>
+                        <Typography variant="caption" color={colors.textMuted}>
+                          Auto-detect the property coordinates or enter street locality.
+                        </Typography>
+                      </View>
+                    </View>
+
+                    <View style={[styles.checklistItem, { marginTop: 12 }]}>
+                      <Ionicons name="camera-outline" size={18} color={colors.primary} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Typography variant="caption" weight="bold">Real Accommodation Photos</Typography>
+                        <Typography variant="caption" color={colors.textMuted}>
+                          At least 1 photo of the room, building, or entrance (mandatory).
+                        </Typography>
+                      </View>
+                    </View>
+
+                    <View style={[styles.checklistItem, { marginTop: 12 }]}>
+                      <Ionicons name="call-outline" size={18} color={colors.primary} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Typography variant="caption" weight="bold">Direct Landlord Mobile Number</Typography>
+                        <Typography variant="caption" color={colors.textMuted}>
+                          Owner contact number to maintain our 100% zero-broker guarantee.
+                        </Typography>
+                      </View>
+                    </View>
+
+                    <View style={[styles.checklistItem, { marginTop: 12 }]}>
+                      <Ionicons name="shield-outline" size={18} color={colors.primary} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Typography variant="caption" weight="bold">Quick Admin Verification</Typography>
+                        <Typography variant="caption" color={colors.textMuted}>
+                          Verified within 1/2 - 1Hr by municipal admin to unlock contacts and earn +50 Civic Points.
+                        </Typography>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* High-impact CTA Button to Dedicated Screen */}
+                  <AnimatedButton
+                    onPress={handleGoToContribute}
+                    style={[styles.contributeCtaBtn, { backgroundColor: colors.primary }]}
+                  >
+                    <Typography variant="body" weight="bold" color="#FFFFFF" style={{ marginLeft: 8 }}>
+                      Contribute
+                    </Typography>
+                  </AnimatedButton>
+                </View>
+              )}
             </ScrollView>
           )}
 
@@ -669,50 +623,57 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
   },
-  formSectionTitle: {
+  checklistHeading: {
     fontSize: 11,
     letterSpacing: 0.8,
-    marginTop: 6,
+    marginTop: 18,
+    marginBottom: 8,
   },
-  chipsWrap: {
+  checklistCard: {
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  checklistItem: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'flex-start',
   },
-  choiceChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 3,
-    borderRadius: 50,
-    borderWidth: 1,
-  },
-  inputGrid: {
-    gap: 8,
-  },
-  input: {
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    fontSize: 13,
-  },
-  vacancyChoiceRow: {
-    gap: 8,
-  },
-  vacancyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  submitIntelBtn: {
+  contributeCtaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
-    marginTop: 10,
-    marginBottom: 20,
+    marginTop: 18,
+    marginBottom: 10,
+  },
+  statusCard: {
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  statusHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusDivider: {
+    height: 1,
+    marginVertical: 12,
+  },
+  statusStepsList: {
+    marginTop: 12,
+    gap: 8,
+  },
+  statusStepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   passCard: {
     padding: 18,

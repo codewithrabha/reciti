@@ -99,6 +99,7 @@ function RootNavigator() {
           <Stack.Screen name="report/index" options={{ headerShown: false }} />
           <Stack.Screen name="reports" options={{ headerShown: false }} />
           <Stack.Screen name="directories/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="directories/contribute" options={{ headerShown: false }} />
           <Stack.Screen name="events/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
           <Stack.Screen name="tiers" options={{ headerShown: false }} />

@@ -290,14 +290,14 @@ export async function qualifyReferral(
 }
 
 /**
- * Path B: "Stay Intel" Submission
- * Existing tenants contribute their current PG/rental details or upcoming vacancy.
- * Grants instant lifetime unlock to the submitter + awards +50 Civic Points!
+ * Path B: "Stay Intel" Community Housing Submission
+ * Existing tenants contribute their current accommodation/PG/flat details with mandatory real photos
+ * and GPS detection. Access to landlord contact & +50 Civic Points are unlocked after Admin approval.
  */
 export async function submitStayIntel(
   user: { uid: string; displayName?: string | null; [key: string]: any },
   intel: Omit<StayIntelSubmission, 'id' | 'submitterUid' | 'createdAt' | 'status'>
-): Promise<{ success: boolean; id?: string; error?: string }> {
+): Promise<{ success: boolean; id?: string; error?: string; pendingApproval?: boolean }> {
   if (!user || !user.uid) {
     return { success: false, error: 'User must be authenticated.' };
   }
@@ -306,76 +306,121 @@ export async function submitStayIntel(
     const intelDocRef = doc(collection(db, STAY_INTEL_COL));
     const intelId = intelDocRef.id;
 
-    const intelPayload: StayIntelSubmission = {
+    const listingDocRef = doc(collection(db, DIRECTORIES_COL));
+    const listingId = listingDocRef.id;
+
+    const propertyTitle = intel.propertyName?.trim() || `${intel.locality} ${formatPropertyType(intel.propertyType)}`;
+    const fullAddress = intel.address?.trim() || `${intel.locality}, ${intel.city || 'Bongaigaon'}`;
+    const coverImage = (intel.images && intel.images.length > 0)
+      ? intel.images[0]
+      : getDefaultHousingImage(intel.propertyType);
+
+    const intelPayload: StayIntelSubmission & { contributorUid: string } = {
       ...intel,
       id: intelId,
+      directoryId: listingId,
       submitterUid: user.uid,
-      submitterName: user.displayName || 'Anonymous Tenant',
-      status: 'active',
+      contributorUid: user.uid, // Parity with firestore.rules
+      submitterName: user.displayName || 'Resident Contributor',
+      status: 'pending_review',
       createdAt: serverTimestamp(),
     };
 
-    // Save stay intel
+    // 1. Save stay intel document
     await setDoc(intelDocRef, intelPayload);
 
-    // Create crowdsourced listing draft in directories collection
-    const listingDocRef = doc(collection(db, DIRECTORIES_COL));
-    await setDoc(listingDocRef, {
-      id: listingDocRef.id,
-      name: intel.propertyName || `${intel.locality} ${formatPropertyType(intel.propertyType)}`,
+    // 2. Create listing in directories collection with full schema parity (pending approval)
+    const directoryPayload: Record<string, any> = {
+      id: listingId,
+      name: propertyTitle,
       category: 'housing_rentals',
       subcategory: intel.propertyType,
       description: intel.vacatingNote
         ? `Tenant Note: ${intel.vacatingNote}`
-        : `Verified zero-broker ${formatPropertyType(intel.propertyType)} in ${intel.locality}.`,
-      address: `${intel.locality}, ${intel.city || 'Local Area'}`,
+        : `Community verified zero-broker ${formatPropertyType(intel.propertyType)} in ${intel.locality}.`,
+      address: fullAddress,
       city: intel.city || 'Bongaigaon',
-      latitude: 26.505,
-      longitude: 90.54,
+      latitude: intel.latitude ?? 26.505,
+      longitude: intel.longitude ?? 90.54,
+      googleBusinessUrl: intel.googleBusinessUrl || null,
       phone: intel.landlordPhone,
       landlordName: intel.landlordName,
+      landlordPhone: intel.landlordPhone,
       monthlyRent: intel.monthlyRent,
-      securityDeposit: intel.securityDeposit || 0,
-      foodIncluded: intel.foodIncluded,
+      securityDeposit: intel.securityDeposit ?? 0,
+      maintenanceCharges: intel.maintenanceCharges || null,
+      electricityType: intel.electricityType || 'submeter_unit',
+      waterSupply: intel.waterSupply || '24_hours',
+      parkingType: intel.parkingType || 'bike_only',
+      amenitiesList: intel.amenitiesList || [],
+      foodIncluded: !!intel.foodIncluded,
+      foodType: intel.foodType || 'veg_nonveg',
       curfewTime: intel.curfewTime || 'None',
       vacancyStatus: intel.vacatingSoon ? 'vacating_soon' : 'available_now',
       availableFromDate: intel.moveOutDate || 'Available Now',
       vacatingTenantNote: intel.vacatingNote || null,
       isZeroBrokerVerified: true,
-      imageUrl: getDefaultHousingImage(intel.propertyType),
+      imageUrl: coverImage,
+      imageUrls: intel.images || [coverImage],
       rating: 5.0,
       reviewCount: 1,
-      isVerified: true,
+      isVerified: false, // Must be verified by admin
+      status: 'pending_admin_approval', // Hidden from regular feed
+      source: 'community_stay_intel',
+      contributorUid: user.uid,
+      contributorName: user.displayName || 'Resident Contributor',
       createdAt: serverTimestamp(),
-    });
+    };
 
-    // Grant instant unlock entitlement to user
-    const entRef = doc(db, ENTITLEMENTS_COL, user.uid);
+    // Filter out undefined values
+    const safeDirectoryPayload: Record<string, any> = {};
+    for (const [k, v] of Object.entries(directoryPayload)) {
+      if (v !== undefined) {
+        safeDirectoryPayload[k] = v;
+      }
+    }
+
+    await setDoc(listingDocRef, safeDirectoryPayload);
+
+    // 3. Update user profile with pending submission tracker
+    const userRef = doc(db, USERS_COL, user.uid);
     await setDoc(
-      entRef,
+      userRef,
       {
-        uid: user.uid,
-        isUnlocked: true,
-        unlockedVia: 'stay_intel',
-        stayIntelSubmittedId: intelId,
-        updatedAt: serverTimestamp(),
+        stayIntelSubmission: {
+          directoryId: listingId,
+          propertyName: propertyTitle,
+          status: 'pending_review',
+          submittedAt: serverTimestamp(),
+        },
       },
       { merge: true }
     );
 
-    // Award +50 Civic Points
-    const userRef = doc(db, USERS_COL, user.uid);
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
-      const currentPts = userSnap.data()?.civicPoints || 0;
-      await setDoc(userRef, { civicPoints: currentPts + 50 }, { merge: true });
-    }
-
-    return { success: true, id: intelId };
+    return { success: true, id: listingId, pendingApproval: true };
   } catch (err: any) {
     console.error('[referralService] submitStayIntel error:', err);
-    return { success: false, error: err?.message || 'Failed to submit stay intel.' };
+    return { success: false, error: err?.message || 'Failed to submit stay details.' };
   }
+}
+
+/**
+ * Fetches user's current stay intel submission status.
+ */
+export async function getUserStayIntelSubmission(
+  uid: string
+): Promise<{ directoryId: string; propertyName: string; status: 'pending_review' | 'approved' | 'rejected'; submittedAt: any } | null> {
+  if (!uid) return null;
+  try {
+    const userRef = doc(db, USERS_COL, uid);
+    const snap = await getDoc(userRef);
+    if (snap.exists() && snap.data()?.stayIntelSubmission) {
+      return snap.data().stayIntelSubmission;
+    }
+  } catch (err) {
+    console.warn('[referralService] getUserStayIntelSubmission error:', err);
+  }
+  return null;
 }
 
 function formatPropertyType(type: string): string {
