@@ -128,7 +128,7 @@ function HousingIntelVisual() {
             </Typography>
           </View>
           <View style={[visualStyles.pricePill, { backgroundColor: colors.primaryMuted }]}>
-            <Typography variant="body" weight="bold" color={colors.primary}>
+            <Typography variant="caption" weight="bold" color={colors.primary}>
               ₹2,500
             </Typography>
             <Typography variant="caption" color={colors.primary} style={{ fontSize: 9 }}>
@@ -564,7 +564,7 @@ const visualStyles = StyleSheet.create({
   pricePill: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 8,
     gap: 2,

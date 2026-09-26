@@ -98,7 +98,7 @@ export default function SettingsScreen() {
     setSigningOut(true);
     try {
       await signOut();
-      router.back(); // back to Profile, which now shows the guest state
+      router.replace('/auth/login');
     } catch {
       Alert.alert('Error', 'Sign out failed. Please try again.');
       setSigningOut(false);
@@ -143,7 +143,7 @@ export default function SettingsScreen() {
     try {
       await requestAccountDeletion(user.uid, user.email, user.displayName);
       await signOut();
-      router.back(); // back to Profile (now guest)
+      router.replace('/auth/login');
       Alert.alert(
         'Request received',
         'Your account is scheduled for deletion and you have been signed out. This may take a few days to fully process.',

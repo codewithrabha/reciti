@@ -7,9 +7,9 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -36,7 +36,6 @@ type FieldErrors = {
   terms?: string;
 };
 
-const GRADIENT = ['#34D399', '#10B981', '#059669'] as const;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function authErrorMessage(err: any): string {
@@ -181,17 +180,13 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
 
-
         {/* Hero */}
         <View style={styles.hero}>
-          <LinearGradient
-            colors={GRADIENT}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.orb}
-          >
-            <Ionicons name="earth" size={44} color="#FFFFFF" />
-          </LinearGradient>
+          <Image
+            source={require('@/assets/images/icon.png')}
+            style={[styles.logo]}
+            contentFit="cover"
+          />
           <Typography
             variant="h1"
             align="center"
@@ -199,11 +194,7 @@ export default function LoginScreen() {
           >
             {isSignup ? 'Join ReCiti' : 'Welcome back'}
           </Typography>
-          <Typography variant="body" color={colors.textMuted} align="center">
-            {isSignup
-              ? 'Start as a Tourist — climb to Guardian as you help your city.'
-              : 'Sign in to pick up where you left off.'}
-          </Typography>
+          
         </View>
 
         {/* Tab toggle */}
@@ -492,23 +483,17 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 20, paddingTop: 32, paddingBottom: 48 },
   backBtn: { alignSelf: 'flex-start', marginBottom: 8, padding: 4 },
-  hero: { alignItems: 'center',marginVertical: 25 },
-  orb: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+  hero: { alignItems: 'center', marginTop: 50 },
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 22,
+    borderWidth: 0,
   },
   tabBar: {
     flexDirection: 'row',
     padding: 4,
-    marginBottom: 24,
+    marginVertical: 10,
     position: 'relative',
   },
   tabIndicator: { position: 'absolute', top: 4, left: 4, bottom: 4 },

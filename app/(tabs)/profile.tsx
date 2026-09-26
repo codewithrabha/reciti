@@ -147,12 +147,15 @@ export default function ProfileScreen() {
 
   // Subscribe to user entitlement for referral stats
   React.useEffect(() => {
-    if (!user || user.isAnonymous) return;
+    if (!user || user.isAnonymous) {
+      setEntitlement(null);
+      return;
+    }
     const unsub = subscribeUserEntitlement(user.uid, (ent) => {
       setEntitlement(ent);
     });
     return () => unsub();
-  }, [user?.uid]);
+  }, [user?.uid, user?.isAnonymous]);
 
   const referralCode = user && !user.isAnonymous ? getReferralCodeForUser(user.uid) : '';
 
@@ -166,7 +169,13 @@ export default function ProfileScreen() {
   };
 
   const loadData = useCallback(async () => {
-    if (!user || user.isAnonymous) return;
+    if (!user || user.isAnonymous) {
+      setMyReports([]);
+      setMyListings([]);
+      setMyClaims([]);
+      setMyEvents([]);
+      return;
+    }
     setLoading(true);
     setError(false);
     try {
@@ -234,65 +243,9 @@ export default function ProfileScreen() {
     }
   };
 
-  /* ----------------------------- guest state ----------------------------- */
-
-  if (!user || user.isAnonymous) {
-    return (
-      <View style={[styles.container, styles.anon, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-        <LinearGradient
-          colors={GRADIENT}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.anonOrb}
-        >
-          <Ionicons name="trophy" size={52} color="#FFFFFF" />
-        </LinearGradient>
-        <Typography variant="h1" align="center" style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
-          Join the movement
-        </Typography>
-        <Typography
-          variant="body"
-          color={colors.textMuted}
-          align="center"
-          style={{ marginBottom: spacing.xl }}
-        >
-          Create an account to submit reports, earn Civic Points, and climb from
-          Tourist to Guardian.
-        </Typography>
-
-        <AnimatedButton
-          style={{ width: '100%', marginBottom: spacing.sm }}
-          onPress={() => router.push('/auth/login')}
-          hapticFeedback="medium"
-        >
-          <LinearGradient
-            colors={['#34D399', '#059669']}
-            style={styles.primaryBtn}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
-            <Typography variant="body" weight="bold" color="#FFFFFF">
-              Create account
-            </Typography>
-          </LinearGradient>
-        </AnimatedButton>
-        <AnimatedButton
-          style={[styles.secondaryBtn, { borderColor: colors.border, borderRadius: radii.md }]}
-          onPress={() => router.push('/auth/login')}
-          hapticFeedback="light"
-        >
-          <Typography variant="body" weight="bold">
-            Sign in
-          </Typography>
-        </AnimatedButton>
-      </View>
-    );
-  }
-
   /* --------------------------- authenticated ----------------------------- */
 
-  const name = userDoc?.displayName ?? user.displayName ?? 'Citizen';
+  const name = userDoc?.displayName ?? user?.displayName ?? 'Citizen';
 
   // Combined list of verified owned directories and submitted claims
   const combinedListings: UserListingItem[] = React.useMemo(() => {
@@ -484,12 +437,70 @@ export default function ProfileScreen() {
     [activeTab, activeData.length],
   );
 
+  /* ----------------------------- guest state ----------------------------- */
+
+  if (!user || user.isAnonymous) {
+    return (
+      <View style={[styles.container, styles.anon, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <LinearGradient
+          colors={GRADIENT}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.anonOrb}
+        >
+          <Ionicons name="trophy" size={52} color="#FFFFFF" />
+        </LinearGradient>
+        <Typography variant="h1" align="center" style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
+          Join the movement
+        </Typography>
+        <Typography
+          variant="body"
+          color={colors.textMuted}
+          align="center"
+          style={{ marginBottom: spacing.xl }}
+        >
+          Create an account to submit reports, earn Civic Points, and climb from
+          Tourist to Guardian.
+        </Typography>
+
+        <AnimatedButton
+          style={{ width: '100%', marginBottom: spacing.sm }}
+          onPress={() => router.push('/auth/login')}
+          hapticFeedback="medium"
+        >
+          <LinearGradient
+            colors={['#34D399', '#059669']}
+            style={styles.primaryBtn}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
+            <Typography variant="body" weight="bold" color="#FFFFFF">
+              Create account
+            </Typography>
+          </LinearGradient>
+        </AnimatedButton>
+        <AnimatedButton
+          style={[styles.secondaryBtn, { borderColor: colors.border, borderRadius: radii.md }]}
+          onPress={() => router.push('/auth/login')}
+          hapticFeedback="light"
+        >
+          <Typography variant="body" weight="bold">
+            Sign in
+          </Typography>
+        </AnimatedButton>
+      </View>
+    );
+  }
+
+  /* --------------------------- authenticated ----------------------------- */
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       {/* Header */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <View style={styles.header}>
-          {user.photoURL ? (
+          {user?.photoURL ? (
             <Image source={{ uri: user.photoURL }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: colors.primary }]}>
@@ -510,7 +521,7 @@ export default function ProfileScreen() {
               </Typography>
               <Ionicons name="pencil" size={14} color={colors.textMuted} />
             </AnimatedButton>
-            {!!user.email && (
+            {!!user?.email && (
               <Typography variant="caption" color={colors.textMuted} numberOfLines={1}>
                 {user.email}
               </Typography>

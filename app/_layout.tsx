@@ -16,7 +16,7 @@ import {
 
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { initAuthListener } from '@/store/authStore';
+import { initAuthListener, useUser, useAuthLoading } from '@/store/authStore';
 import { OnboardingProvider, useOnboarding } from '@/hooks/useOnboarding';
 import { AppUpdateProvider } from '@/hooks/useAppUpdate';
 import { setupNotificationListeners } from '@/lib/notifications';
@@ -39,6 +39,9 @@ export default function RootLayout() {
 function RootNavigator() {
   const colorScheme = useColorScheme();
   const { needsOnboarding } = useOnboarding();
+  const user = useUser();
+  const authLoading = useAuthLoading();
+  const isAuthenticated = Boolean(user && !user.isAnonymous);
 
   const [fontsLoaded, error] = useFonts({
     PlusJakartaSans_400Regular,
@@ -47,8 +50,8 @@ function RootNavigator() {
     PlusJakartaSans_700Bold,
   });
 
-  // Wait for fonts and the persisted onboarding flag before revealing the app.
-  const ready = (fontsLoaded || !!error) && needsOnboarding !== null;
+  // Wait for fonts, the persisted onboarding flag, and initial auth state before revealing the app.
+  const ready = (fontsLoaded || !!error) && needsOnboarding !== null && !authLoading;
 
   // Start the single app-lifetime auth listener (idempotent).
   useEffect(() => {
@@ -87,21 +90,29 @@ function RootNavigator() {
           <Stack.Protected guard={needsOnboarding === false}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           </Stack.Protected>
+
           <Stack.Protected guard={needsOnboarding === true}>
             <Stack.Screen
               name="onboarding"
               options={{ headerShown: false, gestureEnabled: false }}
             />
           </Stack.Protected>
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          <Stack.Screen name="auth" options={{ headerShown: false }} />
+
+          {/* Public / Guest-browsable & deep-linkable screens */}
           <Stack.Screen name="report/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="report/index" options={{ headerShown: false }} />
           <Stack.Screen name="reports" options={{ headerShown: false }} />
           <Stack.Screen name="directories/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="directories/contribute" options={{ headerShown: false }} />
           <Stack.Screen name="events/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="notifications" options={{ headerShown: false }} />
+
+          {/* Authenticated citizen-only screens */}
+          <Stack.Protected guard={isAuthenticated}>
+            <Stack.Screen name="directories/contribute" options={{ headerShown: false }} />
+            <Stack.Screen name="notifications" options={{ headerShown: false }} />
+          </Stack.Protected>
+
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen name="auth" options={{ headerShown: false }} />
           <Stack.Screen name="tiers" options={{ headerShown: false }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
           <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
