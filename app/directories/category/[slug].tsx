@@ -166,22 +166,6 @@ export default function CategoryTaxonomyScreen() {
 
         <View style={styles.topBarRight}>
           <AnimatedButton
-            onPress={() =>
-              router.push({
-                pathname: '/directories/contribute' as any,
-                params: { category: categorySlug },
-              })
-            }
-            style={[styles.addListingBtn, { backgroundColor: colors.primary + '18' }]}
-            hapticFeedback="light"
-          >
-            <Ionicons name="add" size={16} color={colors.primary} />
-            <Typography variant="caption" weight="bold" color={colors.primary} style={{ marginLeft: 4 }}>
-              Add Spot
-            </Typography>
-          </AnimatedButton>
-
-          <AnimatedButton
             onPress={handleShare}
             style={[styles.circleButton, { backgroundColor: colors.surface }]}
             hapticFeedback="light"
@@ -300,15 +284,8 @@ export default function CategoryTaxonomyScreen() {
                   title="No Listings Found"
                   message={
                     cityName
-                      ? `No ${categoryLabel.toLowerCase()} spots currently listed in ${cityName}. Be the first to add one!`
-                      : 'Try refreshing or choosing another category.'
-                  }
-                  actionLabel="Add a Spot"
-                  onAction={() =>
-                    router.push({
-                      pathname: '/directories/contribute' as any,
-                      params: { category: categorySlug },
-                    })
+                      ? `No ${categoryLabel.toLowerCase()} spots currently listed in ${cityName}. Check back soon!`
+                      : 'Try selecting a different subcategory or search term.'
                   }
                 />
               </View>
@@ -409,13 +386,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  addListingBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 19,
   },
   heroCard: {
     marginTop: 6,
