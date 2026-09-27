@@ -103,6 +103,7 @@ function RootNavigator() {
           <Stack.Screen name="report/index" options={{ headerShown: false }} />
           <Stack.Screen name="reports" options={{ headerShown: false }} />
           <Stack.Screen name="directories/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="directories/category/[slug]" options={{ headerShown: false }} />
           <Stack.Screen name="events/[id]" options={{ headerShown: false }} />
 
           {/* Authenticated citizen-only screens */}

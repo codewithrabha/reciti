@@ -24,6 +24,8 @@ export interface CategoryMeta {
   key: DirectoryCategory | 'all';
   label: string;
   icon: string;
+  badgeText?: string;
+  description?: string;
   subcategories: SubcategoryMeta[];
 }
 
@@ -67,6 +69,8 @@ export function subscribeDynamicCategories(
                   key: (data.id || docSnap.id) as DirectoryCategory,
                   label: data.label || docSnap.id,
                   icon: data.icon || 'grid-outline',
+                  badgeText: data.badgeText || undefined,
+                  description: data.description || undefined,
                   subcategories: (data.subcategories || [])
                     .filter((s: any) => s.isActive !== false)
                     .map((s: any) => ({
@@ -99,6 +103,10 @@ export function subscribeDynamicCategories(
 
 // Auto-start listener on module load
 subscribeDynamicCategories();
+
+export function getCategoryMeta(categoryKey: string): CategoryMeta | undefined {
+  return dynamicSectors.find((s) => s.key === categoryKey);
+}
 
 export function getDirectoryCategories(): { key: DirectoryCategory | 'all'; label: string; icon: string }[] {
   return dynamicSectors.map((s) => ({

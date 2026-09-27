@@ -373,7 +373,12 @@ export default function DirectoriesScreen() {
           renderItem={({ item: shelf }) => (
             <CategoryShelf
               shelf={shelf}
-              onSeeAll={(catKey) => handleSelectCategory(catKey)}
+              onSeeAll={(catKey) =>
+                router.push({
+                  pathname: '/directories/category/[slug]' as any,
+                  params: { slug: catKey },
+                })
+              }
               onCardPress={(item) =>
                 router.push({
                   pathname: '/directories/[id]' as any,
