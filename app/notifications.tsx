@@ -41,7 +41,11 @@ export default function NotificationsScreen() {
     if (!n.read) {
       markNotificationRead(user.uid, n.notifId).catch(() => {});
     }
-    router.push({ pathname: '/report/[id]', params: { id: n.reportId } });
+    if (n.reportId) {
+      router.push({ pathname: '/report/[id]', params: { id: n.reportId } });
+    } else if ((n as any).actionUrl || (n as any).link) {
+      router.push(((n as any).actionUrl || (n as any).link) as any);
+    }
   };
 
   const handleMarkAllRead = () => {

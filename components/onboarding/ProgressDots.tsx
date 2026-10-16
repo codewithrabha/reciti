@@ -30,13 +30,13 @@ function Dot({
     const width = interpolate(
       progress,
       [index - 1, index, index + 1],
-      [8, 24, 8],
+      [7, 26, 7],
       Extrapolation.CLAMP,
     );
     const opacity = interpolate(
       progress,
       [index - 1, index, index + 1],
-      [0.25, 1, 0.25],
+      [0.35, 1, 0.35],
       Extrapolation.CLAMP,
     );
     return { width, opacity };
@@ -44,7 +44,7 @@ function Dot({
 
   return (
     <Animated.View
-      style={[styles.dot, { backgroundColor: colors.primary }, style]}
+      style={[styles.dot, { backgroundColor: '#10B981' }, style]}
     />
   );
 }
@@ -64,10 +64,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    height: 16,
   },
   dot: {
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
+    height: 7,
+    borderRadius: 3.5,
+    marginHorizontal: 3.5,
   },
 });

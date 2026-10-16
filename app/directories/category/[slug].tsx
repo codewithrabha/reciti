@@ -18,6 +18,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { StateView } from '@/components/ui/StateView';
 import { DirectoryCard } from '@/components/directories/DirectoryCard';
 import { SubcategoryShelf, SubcategoryShelfData } from '@/components/directories/SubcategoryShelf';
+import { LinkedServiceCategoryShelf } from '@/components/services/LinkedServiceCategoryShelf';
 import { useLocationStore } from '@/store/locationStore';
 import {
   getCategoryMeta,
@@ -27,6 +28,11 @@ import {
   subscribeDynamicCategories,
   CategoryMeta,
 } from '@/lib/directoryService';
+import {
+  subscribeServiceCategories,
+  getLinkedServiceCategoriesForDirectory,
+  ServiceCategoryMeta,
+} from '@/lib/serviceTaxonomyService';
 
 export default function CategoryTaxonomyScreen() {
   const insets = useSafeAreaInsets();
@@ -49,6 +55,9 @@ export default function CategoryTaxonomyScreen() {
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<BusinessDirectoryItem[]>([]);
+  const [linkedServiceCategories, setLinkedServiceCategories] = useState<ServiceCategoryMeta[]>(() =>
+    getLinkedServiceCategoriesForDirectory(categorySlug)
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -59,6 +68,15 @@ export default function CategoryTaxonomyScreen() {
       setCategoryMeta(getCategoryMeta(categorySlug));
     });
     return () => unsub();
+  }, [categorySlug]);
+
+  // Subscribe to service categories to dynamically display linked service categories
+  useEffect(() => {
+    setLinkedServiceCategories(getLinkedServiceCategoriesForDirectory(categorySlug));
+    const unsub = subscribeServiceCategories(() => {
+      setLinkedServiceCategories(getLinkedServiceCategoriesForDirectory(categorySlug));
+    });
+    return unsub;
   }, [categorySlug]);
 
   const categoryLabel = categoryMeta?.label || getCategoryLabel(categorySlug);
@@ -162,7 +180,19 @@ export default function CategoryTaxonomyScreen() {
           hapticFeedback="light"
         >
           <Ionicons name="arrow-back" size={20} color={colors.text} />
+          
         </AnimatedButton>
+
+          <View style={{  marginLeft: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+              <Typography variant="h2" style={{ fontSize: 20, fontWeight: '800' }}>
+                {categoryLabel}
+              </Typography>
+            </View>
+            <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 2 }}>
+              {items.length} {items.length === 1 ? 'spot' : 'spots'} {cityName ? `in ${cityName}` : 'available'}
+            </Typography>
+          </View>
 
         <View style={styles.topBarRight}>
           <AnimatedButton
@@ -173,38 +203,6 @@ export default function CategoryTaxonomyScreen() {
             <Ionicons name="share-social-outline" size={18} color={colors.text} />
           </AnimatedButton>
         </View>
-      </View>
-
-      {/* Hero Category Banner */}
-      <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={styles.heroTopRow}>
-          <View style={[styles.heroIconCircle, { backgroundColor: colors.primary + '18' }]}>
-            <Ionicons name={categoryIcon as any} size={24} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-              <Typography variant="h2" style={{ fontSize: 20, fontWeight: '800' }}>
-                {categoryLabel}
-              </Typography>
-              {categoryMeta?.badgeText && (
-                <View style={[styles.heroBadge, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '44' }]}>
-                  <Typography variant="caption" weight="bold" color={colors.primary} style={{ fontSize: 10 }}>
-                    {categoryMeta.badgeText.toUpperCase()}
-                  </Typography>
-                </View>
-              )}
-            </View>
-            <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 2 }}>
-              {items.length} {items.length === 1 ? 'spot' : 'spots'} {cityName ? `in ${cityName}` : 'available'}
-            </Typography>
-          </View>
-        </View>
-
-        {categoryMeta?.description ? (
-          <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 10, lineHeight: 18 }}>
-            {categoryMeta.description}
-          </Typography>
-        ) : null}
       </View>
 
       {/* Search Input */}
@@ -226,6 +224,14 @@ export default function CategoryTaxonomyScreen() {
           )}
         </View>
       </View>
+
+      {/* Linked Service Categories Shelf (Dynamically mapped from Firestore) */}
+      {searchQuery.trim().length === 0 && (
+        <LinkedServiceCategoryShelf
+          categories={linkedServiceCategories}
+          directoryLabel={categoryLabel}
+        />
+      )}
 
       {/* Active Filter Bar (when a specific subcategory is selected) */}
       {!isShelfMode && (

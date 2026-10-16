@@ -23,7 +23,10 @@ const ICON_BY_TYPE: Record<NotificationType, IconSpec> = {
   volunteer_pledged: { icon: 'hand-left', tone: 'primary' },
 };
 
+const DEFAULT_SPEC: IconSpec = { icon: 'notifications', tone: 'primary' };
+
 function buildTitle(n: Notification): string {
+  if ((n as any).title) return (n as any).title;
   const from = n.fromIsAnonymous || !n.fromDisplayName ? 'A neighbour' : n.fromDisplayName;
   switch (n.type) {
     case 'report_verified':
@@ -36,6 +39,8 @@ function buildTitle(n: Notification): string {
       return 'Your report has been marked resolved';
     case 'volunteer_pledged':
       return `${from} volunteered to help fix your issue`;
+    default:
+      return (n as any).body || (n as any).message || 'Community notification';
   }
 }
 
@@ -44,18 +49,35 @@ export const NotificationRow = React.memo(function NotificationRow({
   onPress,
 }: Props) {
   const { colors, radii, spacing } = useTheme();
-  const spec = ICON_BY_TYPE[notification.type];
+  const spec = ICON_BY_TYPE[notification.type] || DEFAULT_SPEC;
 
   const tintMap = {
     primary: { bg: colors.primaryMuted, fg: colors.primary },
     danger: { bg: colors.dangerMuted, fg: colors.danger },
     warning: { bg: colors.warningMuted, fg: colors.warning },
   } as const;
-  const c = tintMap[spec.tone];
+  const c = tintMap[spec.tone] || tintMap.primary;
 
   const title = buildTitle(notification);
-  const sub = notification.type === 'comment_added' ? notification.commentPreview : null;
-  const time = formatDistanceToNow(notification.createdAt.toDate(), { addSuffix: true });
+  const sub =
+    notification.type === 'comment_added'
+      ? notification.commentPreview
+      : (notification as any).body || (notification as any).message || null;
+
+  let time = 'Recently';
+  try {
+    if (notification.createdAt) {
+      const date =
+        typeof (notification.createdAt as any).toDate === 'function'
+          ? notification.createdAt.toDate()
+          : new Date(notification.createdAt as any);
+      if (!isNaN(date.getTime())) {
+        time = formatDistanceToNow(date, { addSuffix: true });
+      }
+    }
+  } catch (e) {
+    // Keep 'Recently' fallback
+  }
 
   return (
     <AnimatedButton

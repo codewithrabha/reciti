@@ -51,6 +51,8 @@ export const Typography = {
     medium: 'PlusJakartaSans_500Medium',
     semiBold: 'PlusJakartaSans_600SemiBold',
     bold: 'PlusJakartaSans_700Bold',
+    display: 'Outfit_700Bold',
+    displaySemiBold: 'Outfit_600SemiBold',
   },
   size: {
     xs: 12,

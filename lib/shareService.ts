@@ -1,5 +1,5 @@
 import { Share } from 'react-native';
-import { BusinessDirectoryItem, CityEvent, Report } from '@/types';
+import { BusinessDirectoryItem, CityEvent, Report, ServiceItem } from '@/types';
 
 // Production Domain
 export const APP_DOMAIN = process.env.EXPO_PUBLIC_APP_DOMAIN || 'https://reciti.in';
@@ -87,3 +87,30 @@ export async function shareEvent(item: CityEvent): Promise<void> {
     console.warn('[shareService] Error sharing event:', err);
   }
 }
+
+/**
+ * Returns a universal web link for a bookable service.
+ */
+export function getServiceShareUrl(serviceId: string): string {
+  return `${APP_DOMAIN}/services/${serviceId}`;
+}
+
+/**
+ * Native sharing for a bookable service item.
+ */
+export async function shareService(item: ServiceItem): Promise<void> {
+  const url = getServiceShareUrl(item.id);
+  const priceDisplay = item.price > 0 ? `₹${item.price.toLocaleString('en-IN')}` : 'Free';
+  const message = `✨ Book "${item.title}" by ${item.providerName} (${priceDisplay}) on ReCiti:\n\n${item.description || ''}\n\nBook appointment: ${url}`;
+
+  try {
+    await Share.share({
+      title: item.title,
+      message,
+      url,
+    });
+  } catch (err) {
+    console.warn('[shareService] Error sharing service:', err);
+  }
+}
+

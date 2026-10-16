@@ -28,7 +28,7 @@ export function OnboardingSlide({
   headline,
   body,
 }: OnboardingSlideProps) {
-  const { colors, spacing } = useTheme();
+  const { colors, typography } = useTheme();
 
   const visualStyle = useAnimatedStyle(() => {
     const progress = scrollX.value / width;
@@ -69,11 +69,11 @@ export function OnboardingSlide({
       <Animated.View style={[styles.visual, visualStyle]}>
         {visual}
       </Animated.View>
-      <Animated.View style={textStyle}>
+      <Animated.View style={[styles.textContainer, textStyle]}>
         <Typography
-          variant="h1"
+          variant="h2"
           align="center"
-          style={{ marginBottom: spacing.md }}
+          style={[styles.headline, { fontFamily: typography.family.display }]}
         >
           {headline}
         </Typography>
@@ -82,6 +82,7 @@ export function OnboardingSlide({
           weight="regular"
           align="center"
           color={colors.textMuted}
+          style={styles.body}
         >
           {body}
         </Typography>
@@ -94,12 +95,27 @@ const styles = StyleSheet.create({
   slide: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 28,
   },
   visual: {
-    height: 240,
+    width: '100%',
+    height: 300,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  textContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  headline: {
+    fontSize: 22,
+    letterSpacing: -0.4,
+    marginBottom: 12,
+  },
+  body: {
+    fontSize: 15,
+    lineHeight: 23,
+    paddingHorizontal: 6,
   },
 });

@@ -599,6 +599,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ─── service_categories ───────────────────────────────────────────────
+    // Public to read for mobile app and web clients. Writable only by administrators.
+    match /service_categories/{categoryId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
     // ─── city_events ──────────────────────────────────────────────────────
     // Public to read. Real users or organizers can create events.
     // Only the organizer or an admin can update or delete the event, or real users sync rating.
@@ -737,6 +744,70 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ─── services ──────────────────────────────────────────────────────────
+    // Standalone catalog of bookable services dynamically linked to categories.
+    // Public to read for discovery. Provider owner or admin can manage.
+    match /services/{serviceId} {
+      allow read:   if true;
+      allow create: if isRealUser() && (request.resource.data.providerUserId == request.auth.uid || isAdmin());
+      allow update, delete: if isRealUser() && (resource.data.providerUserId == request.auth.uid || isAdmin());
+    }
+
+    // ─── bookings ──────────────────────────────────────────────────────────
+    // Customer appointment and service booking records.
+    // Read/updated by the customer who booked it, the assigned provider, or admin.
+    match /bookings/{bookingId} {
+      allow read:   if signedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.providerUserId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.providerUserId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+    // ─── applications ──────────────────────────────────────────────────────
+    // Unified Civic and Commercial Applications Engine (Store sellers, service providers, community leads, etc.)
+    // Real users create applications for themselves. Applicant can read and update while pending.
+    // Admins can read, review, update status, and manage all applications.
+    match /applications/{applicationId} {
+      allow read: if isRealUser() && (
+        resource.data.applicantUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isRealUser() &&
+        request.resource.data.applicantUid == request.auth.uid;
+      allow update: if isRealUser() && (
+        (resource.data.applicantUid == request.auth.uid && resource.data.status == 'pending') ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ─── waitlists ─────────────────────────────────────────────────────────
+    // Unified Feature Early Access & Launch Notifications (Store launch, rideshare, night markets, etc.)
+    // Citizens can subscribe their own UID or anonymous session.
+    // Subscriber can read and cancel their own subscription. Admin can manage all.
+    match /waitlists/{waitlistId} {
+      allow read: if signedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if signedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.userId == null
+      );
+      allow update, delete: if signedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
     // Everything else is denied by default.
   }
 }
+

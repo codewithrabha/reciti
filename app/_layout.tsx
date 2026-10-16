@@ -13,6 +13,10 @@ import {
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
+import {
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+} from '@expo-google-fonts/outfit';
 
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -48,6 +52,8 @@ function RootNavigator() {
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
   });
 
   // Wait for fonts, the persisted onboarding flag, and initial auth state before revealing the app.
@@ -105,6 +111,10 @@ function RootNavigator() {
           <Stack.Screen name="directories/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="directories/category/[slug]" options={{ headerShown: false }} />
           <Stack.Screen name="events/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="services/index" options={{ headerShown: false }} />
+          <Stack.Screen name="services/category/[slug]" options={{ headerShown: false }} />
+          <Stack.Screen name="services/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="bookings" options={{ headerShown: false }} />
 
           {/* Authenticated citizen-only screens */}
           <Stack.Protected guard={isAuthenticated}>

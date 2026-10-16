@@ -79,29 +79,41 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="events"
+        name="services"
         options={{
-          title: "Events",
+          title: "Services",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={26}
-              name={focused ? "sparkles" : "sparkles-outline"}
+              size={27}
+              name={focused ? "rocket" : "rocket-outline"}
               color={color}
             />
           ),
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="store"
         options={{
-          title: "Profile",
+          title: "Store",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={28}
-              name={focused ? "person" : "person-outline"}
+              size={27}
+              name={focused ? "bag-handle" : "bag-handle-outline"}
               color={color}
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="events"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen

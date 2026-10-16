@@ -21,12 +21,31 @@ export const uploadImage = async (localUri: string, path: string): Promise<strin
 
   const publicId = path.replace(/\.[^/.]+$/, '');
 
+  const extMatch = localUri.match(/\.([a-zA-Z0-9]+)(\?.*)?$/);
+  const ext = (extMatch ? extMatch[1] : path.split('.').pop() || 'jpg').toLowerCase();
+
+  let mimeType = 'image/jpeg';
+  let cleanExt = 'jpg';
+  if (ext === 'webp') {
+    mimeType = 'image/webp';
+    cleanExt = 'webp';
+  } else if (ext === 'png') {
+    mimeType = 'image/png';
+    cleanExt = 'png';
+  } else if (ext === 'heic' || ext === 'heif') {
+    mimeType = 'image/heic';
+    cleanExt = 'heic';
+  } else if (ext === 'gif') {
+    mimeType = 'image/gif';
+    cleanExt = 'gif';
+  }
+
   const formData = new FormData();
   // React Native FormData accepts a { uri, type, name } object for file uploads.
   formData.append('file', {
     uri: localUri,
-    type: 'image/jpeg',
-    name: `${publicId.split('/').pop()}.jpg`,
+    type: mimeType,
+    name: `${publicId.split('/').pop()}.${cleanExt}`,
   } as any);
   formData.append('upload_preset', UPLOAD_PRESET);
   formData.append('public_id', publicId);

@@ -136,7 +136,24 @@ export default function PulseScreen() {
               ReCiti
             </Typography>
           </View>
-          <NotificationBell />
+          <View style={styles.headerActions}>
+            <NotificationBell />
+            <AnimatedButton
+              onPress={() => router.push('/profile' as any)}
+              hapticFeedback="light"
+              style={[styles.profileAvatarBtn, { borderColor: colors.primary + '30', backgroundColor: colors.surface }]}
+            >
+              {userDoc?.photoURL || user?.photoURL ? (
+                <Image
+                  source={{ uri: (userDoc?.photoURL || user?.photoURL) ?? undefined }}
+                  style={styles.profileAvatarImg}
+                  contentFit="cover"
+                />
+              ) : (
+                <Ionicons name="person" size={17} color={colors.primary} />
+              )}
+            </AnimatedButton>
+          </View>
         </View>
 
         <View style={{ height: spacing.xs }} />
@@ -425,6 +442,24 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 22,
     letterSpacing: -0.4,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  profileAvatarBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    overflow: "hidden",
+  },
+  profileAvatarImg: {
+    width: "100%",
+    height: "100%",
   },
   locationChip: {
     flexDirection: "row",

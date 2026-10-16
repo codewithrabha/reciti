@@ -15,6 +15,7 @@ export interface User {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
+  phoneNumber?: string | null;
   civicPoints: number;
   tier: Tier;
   pushToken?: string | null;
@@ -133,6 +134,7 @@ export type DirectoryCategory =
   | 'healthcare'
   | 'shopping_retail'
   | 'education'
+  | 'sports_fitness'
   | 'recreation_entertainment'
   | 'public_services'
   | 'other'
@@ -486,7 +488,7 @@ export interface Review {
 
 // ─── Scalable User Bookmarks / Saved ────────────────────────────────────────
 
-export type BookmarkItemType = 'directory' | 'housing' | 'event';
+export type BookmarkItemType = 'directory' | 'housing' | 'event' | 'service';
 
 export interface UserBookmark {
   id: string; // matches targetId for O(1) reads
@@ -532,3 +534,185 @@ export interface BookmarkableItem {
     rating?: number;
   };
 }
+
+// ─── Service Booking & Taxonomy System ────────────────────────────────────────
+
+export interface ServiceSubcategoryRecord {
+  id: string; // e.g. "dentist"
+  label: string; // e.g. "Dentists & Dental Clinics"
+  icon: string; // e.g. "medkit-outline"
+  order: number;
+  isActive: boolean;
+}
+
+export interface ServiceCategoryRecord {
+  id: string; // e.g. "health_wellness"
+  label: string; // e.g. "Health & Clinical Consultations"
+  icon: string; // e.g. "medkit-outline"
+  order: number;
+  isActive: boolean;
+  description?: string;
+  badgeText?: string;
+  subcategories: ServiceSubcategoryRecord[];
+  linkedDirectoryCategoryIds: string[]; // Directory categories this service category maps to
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export type ServicePriceType = 'fixed' | 'starting_at' | 'free' | 'quote';
+
+export interface ServiceItem {
+  id: string;
+  title: string;
+  description: string;
+
+  // Dedicated Service Taxonomy
+  categoryId?: string;                 // Primary service category slug (e.g. 'health_wellness')
+  subcategoryId?: string;              // Specific subcategory slug (e.g. 'dentist')
+
+  // Provider User Linkage
+  providerUserId: string;              // UID of user in `users/{uid}`
+  providerName: string;                // Snapshot for instant card render
+  providerPhone?: string;
+  providerAvatar?: string;
+  directoryId?: string;                // Optional linked directory business listing
+
+  // Legacy / Direct Category Linking (for backward-compatibility)
+  linkedCategoryIds?: string[];        // e.g. ['healthcare', 'sports_fitness']
+  linkedSubcategoryIds?: string[];     // e.g. ['clinics', 'doctors']
+
+  // Pricing & Duration
+  price: number;
+  priceType: ServicePriceType;
+  durationMinutes?: number;
+
+  // Visuals & Merchandising
+  badgeText?: string;                  // e.g. "Instant Booking", "Popular", "20% OFF"
+  imageUrl?: string;
+
+  // Availability & Scheduling
+  availableDays?: string[];            // ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  timeSlots?: string[];                // ['09:00 AM', '10:30 AM', '02:00 PM', '04:30 PM']
+
+  // Location & Sorting
+  city?: string | null;
+  order?: number;
+
+  isActive: boolean;
+  createdAt: any;
+  updatedAt?: any;
+}
+
+export type BookingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'completed'
+  | 'cancelled'
+  | 'rejected';
+
+export interface ServiceBooking {
+  id: string;
+  serviceId: string;
+  serviceTitle: string;
+  categorySlug?: string;
+
+  // Provider
+  providerUserId: string;
+  providerName: string;
+  providerPhone?: string;
+  directoryId?: string;
+
+  // Customer
+  userId: string;
+  userName: string;
+  userPhone: string;
+  userEmail?: string;
+
+  // Appointment Details
+  bookingDate: string;                 // 'YYYY-MM-DD'
+  timeSlot: string;                    // e.g. '10:30 AM'
+  totalPrice: number;
+  notes?: string;
+
+  status: BookingStatus;
+  createdAt: any;
+  updatedAt: any;
+}
+
+// ─── Unified Civic & Commercial Applications Engine ─────────────────────────
+
+export type ApplicationType =
+  | 'store_seller'
+  | 'service_provider'
+  | 'community_lead'
+  | 'event_host'
+  | (string & {});
+
+export type ApplicationStatus =
+  | 'pending'
+  | 'under_review'
+  | 'approved'
+  | 'rejected'
+  | 'withdrawn';
+
+export interface CivicApplication<T = Record<string, any>> {
+  id: string;
+  type: ApplicationType;
+  typeLabel: string;
+  applicantUid: string;
+  applicant: {
+    name: string;
+    email: string;
+    phone: string;
+    photoURL?: string | null;
+  };
+  cityName: string;
+  locality?: string | null;
+  status: ApplicationStatus;
+  data: T;
+  review?: {
+    status: ApplicationStatus;
+    notes?: string;
+    reviewedBy?: string;
+    reviewedAt?: number;
+  };
+  appliedAt: number;
+  updatedAt: number;
+}
+
+export interface StoreSellerPayload {
+  businessName: string;
+  category: string;
+  categoryLabel: string;
+  description: string;
+  catalogRange?: string | null;
+  websiteOrSocial?: string | null;
+  hasPhysicalStore: boolean;
+  businessAddress?: string | null;
+  cityArea?: string | null;
+}
+
+// ─── Unified Feature Waitlist & Notification Engine ─────────────────────────
+
+export type WaitlistFeatureId =
+  | 'store_launch'
+  | 'carpool_rides'
+  | 'night_bazaar'
+  | 'solar_coop'
+  | (string & {});
+
+export interface WaitlistSubscription {
+  id: string;                      // `${featureId}_${userId}`
+  featureId: WaitlistFeatureId;
+  featureLabel: string;
+  userId: string | null;
+  email: string | null;
+  displayName: string | null;
+  cityName: string;
+  status: 'subscribed' | 'invited' | 'notified';
+  metadata?: Record<string, any>;
+  subscribedAt: number;
+  notifiedAt?: number;
+  source: 'mobile_app' | 'web';
+}
+

@@ -287,6 +287,29 @@ export default function ProfileScreen() {
         onShareInvite={handleShareCivicReferral}
       />
 
+      {/* My Bookings Quick Access */}
+      <AnimatedButton
+        onPress={() => router.push('/bookings')}
+        style={[
+          styles.myBookingsRow,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+        hapticFeedback="light"
+      >
+        <View style={[styles.bookingIconCircle, { backgroundColor: colors.primary + '18' }]}>
+          <Ionicons name="calendar" size={18} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Typography variant="body" weight="bold">
+            My Bookings
+          </Typography>
+          <Typography variant="caption" color={colors.textMuted} style={{ marginTop: 1 }}>
+            View appointments & service requests
+          </Typography>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      </AnimatedButton>
+
       {/* Activity Segment Tabs */}
       <ActivitySegmentTabs
         activeTab={activeTab}
@@ -735,5 +758,21 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
+  },
+  myBookingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  bookingIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
