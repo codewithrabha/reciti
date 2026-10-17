@@ -56,7 +56,6 @@ service cloud.firestore {
             && after.displayName == before.displayName
             && after.email == before.email
             && after.photoURL == before.photoURL
-            && (!('completedDailyTrivia' in after) || after.completedDailyTrivia is map)
             && after.civicPoints >= before.civicPoints
             && after.civicPoints <= before.civicPoints + 50;
       }
@@ -507,12 +506,6 @@ service cloud.firestore {
       allow delete: if signedIn() && request.auth.uid == recipientUid;
     }
 
-    // ─── trivia ──────────────────────────────────────────────────────────
-    // Read-only from the app. Seeded out-of-band (see scripts/seed-trivia.js).
-    match /trivia/{triviaId} {
-      allow read:  if true;
-      allow write: if false;
-    }
 
     // ─── deletionRequests ────────────────────────────────────────────────
     // A signed-in user may file (or overwrite) ONLY their own deletion

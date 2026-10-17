@@ -19,7 +19,6 @@ export interface User {
   civicPoints: number;
   tier: Tier;
   pushToken?: string | null;
-  completedDailyTrivia: Record<string, string>;
   createdAt?: any;
   joinedAt?: any;
   provider?: 'google' | 'email' | string;
@@ -86,14 +85,6 @@ export interface Comment {
   helpful?: boolean;
 }
 
-export interface TriviaQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correctIndex: number;
-  category: string;
-  activeDate: string; // 'YYYY-MM-DD'
-}
 
 export type NotificationType =
   | 'report_verified'
@@ -463,6 +454,9 @@ export interface CityNotice {
   actionUrl?: string; // Tel URI, external link, or internal route e.g. '/explore'
   actionType?: 'phone' | 'link' | 'route' | 'modal' | 'none';
   isPinned?: boolean;
+  targetAudience?: 'all' | 'new_users';
+  expiresAt?: string | null;
+  createdAt?: any;
 }
 
 // ─── Global Ratings & Reviews ───────────────────────────────────────────────

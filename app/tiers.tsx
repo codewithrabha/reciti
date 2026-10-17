@@ -54,7 +54,6 @@ const ACTIONS: { icon: keyof typeof Ionicons.glyphMap; label: string; points: nu
   { icon: 'checkmark-circle', label: 'Verify a neighbour’s report', points: 5 },
   { icon: 'construct', label: 'Submit a fix (after photo)', points: 10 },
   { icon: 'checkmark-done', label: 'Confirm a fix is real', points: 5 },
-  { icon: 'sparkles', label: 'Answer the daily trivia', points: 5 },
 ];
 
 export default function TiersScreen() {

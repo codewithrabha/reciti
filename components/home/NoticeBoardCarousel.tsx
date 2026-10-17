@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Dimensions,
+  AppState,
+  AppStateStatus,
   FlatList,
   Linking,
-  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -19,11 +20,10 @@ import { Typography } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_MARGIN = 16;
-const CARD_WIDTH = SCREEN_WIDTH - CARD_MARGIN * 2;
 const FIXED_CARD_HEIGHT = 192;
+const CARD_GAP = 12;
 const AUTO_SLIDE_INTERVAL = 5500; // 5.5 seconds
+const MAX_HERO_NOTICES = 5;
 
 interface NoticeBoardCarouselProps {
   notices: CityNotice[];
@@ -33,32 +33,46 @@ interface NoticeBoardCarouselProps {
 export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselProps) {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
+
+  // Responsive card geometry
+  const cardWidth = Math.min(screenWidth - 32, 440);
+
+  // Cap to top 5 notices on the Home hero
+  const displayNotices = notices.slice(0, MAX_HERO_NOTICES);
+  const count = displayNotices.length;
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const [selectedNotice, setSelectedNotice] = useState<CityNotice | null>(null);
   const [isUserInteracting, setIsUserInteracting] = useState(false);
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
 
   const flatListRef = useRef<FlatList<CityNotice>>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const count = notices.length;
+  // AppState observer: pause auto-slide when app is backgrounded
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      setAppState(nextAppState);
+    });
+    return () => subscription.remove();
+  }, []);
 
-  // Auto-slide effect
+  // Auto-slide controller
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
-    if (count <= 1 || isUserInteracting) return;
+    if (count <= 1 || isUserInteracting || appState !== 'active') return;
 
     timerRef.current = setInterval(() => {
       setActiveIndex((prev) => {
         const next = (prev + 1) % count;
         flatListRef.current?.scrollToOffset({
-          offset: next * (CARD_WIDTH + 12),
+          offset: next * (cardWidth + CARD_GAP),
           animated: true,
         });
         return next;
       });
     }, AUTO_SLIDE_INTERVAL);
-  }, [count, isUserInteracting]);
+  }, [count, isUserInteracting, appState, cardWidth]);
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -70,9 +84,9 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
   useEffect(() => {
     startTimer();
     return () => stopTimer();
-  }, [startTimer, stopTimer, count]);
+  }, [startTimer, stopTimer, count, appState]);
 
-  // Handle user scroll gestures
+  // Handle touch drag
   const handleScrollBeginDrag = () => {
     setIsUserInteracting(true);
     stopTimer();
@@ -80,7 +94,7 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
 
   const handleMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = e.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / (CARD_WIDTH + 12));
+    const index = Math.round(offsetX / (cardWidth + CARD_GAP));
     const clamped = Math.max(0, Math.min(index, count - 1));
     setActiveIndex(clamped);
     setIsUserInteracting(false);
@@ -93,9 +107,8 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
       Linking.openURL(notice.actionUrl);
     } else if (notice.actionType === 'link' && notice.actionUrl) {
       Linking.openURL(notice.actionUrl);
-    } else {
-      setSelectedNotice(notice);
     }
+    // Informational cards without an action will navigate to the dedicated screen once built
   };
 
   if (count === 0) return null;
@@ -151,33 +164,21 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
 
   return (
     <View style={styles.wrapper}>
-      {/* Notice Board Section Label */}
-      <View style={styles.headerRow}>
-        <View style={styles.headerLeft}>
-          <View style={[styles.pulseDot, { backgroundColor: colors.danger }]} />
-          <Typography variant="caption" weight="bold" color={colors.text} style={{ letterSpacing: 0.6 }}>
-            {cityName ? `${cityName} Broadcasts` : 'Official Broadcasts'}
-          </Typography>
-        </View>
-        <Typography variant="caption" color={colors.textMuted}>
-          {activeIndex + 1}/{count}
-        </Typography>
-      </View>
-
+      
       {/* Snap-paging Carousel */}
       <FlatList
         ref={flatListRef}
-        data={notices}
+        data={displayNotices}
         keyExtractor={(item) => item.id}
         horizontal
         showsHorizontalScrollIndicator={false}
-        snapToInterval={CARD_WIDTH + 12}
+        snapToInterval={cardWidth + CARD_GAP}
         decelerationRate="fast"
         contentContainerStyle={styles.listContent}
         onScrollBeginDrag={handleScrollBeginDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
         renderItem={({ item: notice }) => {
-          // ── Case A: Full Image Banner Card (Image Only) ──────────────────
+          // ── Case A: Full Image Banner Card (Image Only, Borderless) ────────
           if (notice.displayType === 'image_banner' && notice.imageUrl) {
             return (
               <AnimatedButton
@@ -185,7 +186,7 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
                 scaleTo={0.99}
                 style={[
                   styles.imageBannerCard,
-                  { width: CARD_WIDTH, borderColor: colors.border },
+                  { width: cardWidth },
                 ]}
               >
                 <Image
@@ -198,24 +199,18 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
             );
           }
 
-          // ── Case B: Standard & App Feature Update Card ─────────────────────
+          // ── Case B: Standard & Feature Card (Borderless Surface + Badges) ─
           const cfg = getCategoryConfig(notice);
 
           return (
             <AnimatedButton
-              onPress={() => setSelectedNotice(notice)}
+              onPress={() => handleAction(notice)}
               scaleTo={0.99}
               style={[
                 styles.noticeCard,
                 {
-                  width: CARD_WIDTH,
+                  width: cardWidth,
                   backgroundColor: colors.surface,
-                  borderColor:
-                    notice.priority === 'urgent'
-                      ? colors.danger
-                      : notice.category === 'app_update'
-                      ? '#8B5CF6'
-                      : colors.border,
                 },
               ]}
             >
@@ -313,10 +308,10 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
         }}
       />
 
-      {/* Pagination Dots */}
+      {/* Pagination Dots (Capped to max 5) */}
       {count > 1 && (
         <View style={styles.paginationRow}>
-          {notices.map((_, idx) => (
+          {displayNotices.map((_, idx) => (
             <View
               key={idx}
               style={[
@@ -330,108 +325,6 @@ export function NoticeBoardCarousel({ notices, cityName }: NoticeBoardCarouselPr
           ))}
         </View>
       )}
-
-      {/* Notice Detail Modal */}
-      <Modal
-        visible={!!selectedNotice}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedNotice(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {selectedNotice && (
-              <>
-                {/* Optional Top Poster Image */}
-                {selectedNotice.imageUrl && (
-                  <View style={styles.modalImageWrapper}>
-                    <Image
-                      source={{ uri: selectedNotice.imageUrl }}
-                      style={styles.modalImage}
-                      contentFit="cover"
-                      transition={200}
-                    />
-                  </View>
-                )}
-
-                <View style={styles.modalHeader}>
-                  <Badge
-                    label={selectedNotice.badgeText}
-                    variant={getCategoryConfig(selectedNotice).badgeVariant}
-                  />
-                  <AnimatedButton onPress={() => setSelectedNotice(null)} style={styles.closeBtn}>
-                    <Ionicons name="close" size={20} color={colors.textMuted} />
-                  </AnimatedButton>
-                </View>
-
-                <Typography variant="h2" style={{ marginTop: 12 }}>
-                  {selectedNotice.title}
-                </Typography>
-
-                <Typography variant="caption" color={colors.primary} style={{ marginTop: 4 }}>
-                  Issued by {selectedNotice.issuedBy} • {selectedNotice.date}
-                </Typography>
-
-                <Typography variant="body" color={colors.text} style={{ marginTop: 14, lineHeight: 22 }}>
-                  {selectedNotice.description}
-                </Typography>
-
-                <View style={[styles.modalActions, { marginTop: 20 }]}>
-                  {selectedNotice.actionLabel && (
-                    <AnimatedButton
-                      onPress={() => {
-                        const notice = selectedNotice;
-                        setSelectedNotice(null);
-                        handleAction(notice);
-                      }}
-                      style={[
-                        styles.modalPrimaryBtn,
-                        {
-                          backgroundColor:
-                            selectedNotice.priority === 'urgent'
-                              ? colors.danger
-                              : selectedNotice.category === 'app_update'
-                              ? '#8B5CF6'
-                              : colors.primary,
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name={
-                          selectedNotice.actionType === 'phone'
-                            ? 'call'
-                            : selectedNotice.actionType === 'route'
-                            ? 'arrow-forward'
-                            : 'open-outline'
-                        }
-                        size={16}
-                        color={colors.white}
-                      />
-                      <Typography
-                        variant="body"
-                        weight="bold"
-                        color={colors.white}
-                        style={{ marginLeft: 6 }}
-                      >
-                        {selectedNotice.actionLabel}
-                      </Typography>
-                    </AnimatedButton>
-                  )}
-
-                  <AnimatedButton
-                    onPress={() => setSelectedNotice(null)}
-                    style={[styles.modalSecondaryBtn, { borderColor: colors.border }]}
-                  >
-                    <Typography variant="body" weight="semiBold" color={colors.text}>
-                      Close
-                    </Typography>
-                  </AnimatedButton>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -458,12 +351,11 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   listContent: {
-    gap: 12,
+    gap: CARD_GAP,
   },
   noticeCard: {
     height: FIXED_CARD_HEIGHT,
     borderRadius: 14,
-    borderWidth: 1.2,
     padding: 12,
     justifyContent: 'space-between',
     elevation: 2,
@@ -475,7 +367,6 @@ const styles = StyleSheet.create({
   imageBannerCard: {
     height: FIXED_CARD_HEIGHT,
     borderRadius: 14,
-    borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
     elevation: 2,
@@ -536,63 +427,5 @@ const styles = StyleSheet.create({
   dot: {
     height: 5,
     borderRadius: 2.5,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-  },
-  modalImageWrapper: {
-    width: '100%',
-    height: 140,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 14,
-  },
-  modalImage: {
-    width: '100%',
-    height: '100%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modalPrimaryBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  modalSecondaryBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

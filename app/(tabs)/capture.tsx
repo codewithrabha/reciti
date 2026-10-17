@@ -300,7 +300,7 @@ export default function CaptureScreen() {
     >
       {/* Header */}
       <View style={{ paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <Typography variant="h1">New report</Typography>
+        <Typography variant="h1">Submit a Report</Typography>
         <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.xs }}>
           Spot a civic win or flag an issue near you.
         </Typography>

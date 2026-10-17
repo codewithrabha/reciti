@@ -9,7 +9,6 @@ ReCiti is organised around five tabs:
 - **Pulse** — a city-health dashboard with honest, real-time aggregate stats (open issues, civic wins, pending verifications, week-over-week trend) plus a verification queue, scoped to an optional radius around you.
 - **Explore** — a real-time feed of reports, filterable by wins, issues, or items needing verification.
 - **Capture** — the center action: take 1–3 photos, tag a vibe (`win` / `fail`) and category (`waste` / `traffic` / `infrastructure`), and submit. Reports are auto-located and reverse-geocoded to a city.
-- **Learn** — a daily civic-trivia question (with a browsable archive of past questions) that rewards correct answers.
 - **Profile** — your civic points, tier, your reports, and the community leaderboard.
 
 ### Report lifecycle
@@ -29,7 +28,7 @@ pending ──(10 verifications)──▶ verified ──(after-photo)──▶ 
 
 ### Engagement & gamification
 
-- **Civic points** — submit a report (+10), verify a report (+5), submit a fix (+10), confirm a fix (+5), correct trivia (+5), a comment marked helpful (+5).
+- **Civic points** — submit a report (+10), verify a report (+5), submit a fix (+10), confirm a fix (+5), a comment marked helpful (+5).
 - **Tiers** — `Tourist → Resident → Advocate → Guardian`, earned at 0 / 1,000 / 5,000 / 10,000 points.
 - **Comments** — threaded discussion on each report, with community flagging / auto-hide, author soft-delete, and a reporter-awarded "helpful" mark.
 - **Notifications** — in-app alerts when your report is verified, commented on, or a fix is submitted/confirmed.
@@ -82,13 +81,7 @@ EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=...
 
 For Android Google Sign-In you also need a `google-services.json` (package `com.reciti.android`) in the project root. It is git-ignored — provision it locally or via CI secrets.
 
-### 3. Seed trivia (optional)
-
-```bash
-npm run seed
-```
-
-### 4. Build & run
+### 3. Build & run
 
 ```bash
 npm run android   # prebuild + build + install the Android dev client
@@ -106,9 +99,9 @@ components/     UI primitives (components/ui) and feature components (report, pu
 lib/            firebase.ts, db.ts (all Firestore access), auth.ts, storage.ts (Cloudinary)
 hooks/          useAuth, useOnboarding, theme/keyboard hooks
 theme/          custom theme system (useTheme)
-types/          shared domain types (User, Report, Comment, TriviaQuestion, Notification)
+types/          shared domain types (User, Report, Comment, Notification)
 store/          Zustand stores
-scripts/        seed-trivia.js, reset-project.js
+scripts/        reset-project.js
 firestore.rules Firestore security rules
 ```
 
@@ -121,7 +114,6 @@ firestore.rules Firestore security rules
 | `npm run ios` | Build and run on iOS |
 | `npm run web` | Run on web |
 | `npm run lint` | Lint with `expo lint` |
-| `npm run seed` | Seed the Firestore `trivia` collection |
 
 ## Architecture notes
 

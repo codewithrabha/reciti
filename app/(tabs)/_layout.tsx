@@ -39,7 +39,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Pulse",
+          title: "Home",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               size={28}
@@ -84,8 +84,8 @@ export default function TabLayout() {
           title: "Services",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              size={27}
-              name={focused ? "rocket" : "rocket-outline"}
+              size={26}
+              name={focused ? "sparkles" : "sparkles-outline"}
               color={color}
             />
           ),
@@ -118,12 +118,6 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="explore"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="learn"
         options={{
           href: null,
         }}

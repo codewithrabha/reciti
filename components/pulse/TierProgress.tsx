@@ -61,7 +61,7 @@ export function TierProgress({ userDoc }: TierProgressProps) {
               </AnimatedButton>
             </View>
             <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.sm }}>
-              Earn Civic Points by submitting reports, verifying neighbours, confirming fixes, and completing the daily trivia.
+              Earn Civic Points by submitting reports, verifying neighbours, and confirming fixes.
             </Typography>
             <Typography variant="body" color={colors.textMuted} style={{ marginTop: spacing.sm }}>
               As your points grow, you climb from Tourist to Guardian. Your tier is a badge of your commitment — neighbours see it next to your reports.

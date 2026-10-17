@@ -489,7 +489,7 @@ export async function shareReferral(
   } else {
     message =
       `🌟 Join me on ReCiti — our official city community app!\n\n` +
-      `Track municipal updates, report street & waste issues, solve daily trivia, and discover local spots:\n` +
+      `Track municipal updates, report street & waste issues, and discover local spots:\n` +
       `${deepLink}\n\n` +
       `Use my referral code: ${referralCode}`;
   }

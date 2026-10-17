@@ -27,7 +27,7 @@ import { useTheme } from "@/theme";
 
 const RADIUS_KM = 30;
 
-export default function PulseScreen() {
+export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const user = useUser();
@@ -72,7 +72,7 @@ export default function PulseScreen() {
       setBusinesses(finalBiz.slice(0, 5));
       setNotices(cityNotices);
     } catch (e) {
-      console.warn("[PulseScreen] Error loading teasers:", e);
+      console.warn("[HomeScreen] Error loading teasers:", e);
     }
   }, []);
 
@@ -184,7 +184,7 @@ export default function PulseScreen() {
         <StateView
           icon="cloud-offline"
           tone="error"
-          title="Couldn’t load your city pulse"
+          title="Couldn’t load home feed"
           message="Something went wrong connecting nearby. Check your connection and try again."
           actionLabel="Retry"
           onAction={retry}

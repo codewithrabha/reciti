@@ -5,65 +5,12 @@ import { CityNotice } from '@/types';
 
 const NOTICES_COL = collection(db, 'city_notices');
 const FIRST_INSTALL_KEY = '@reciti_first_install_time';
-const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000; // 72 hours in milliseconds
-
-// ─── 3 Default Onboarding / Welcome Slides ──────────────────────────────────
-export const WELCOME_NOTICES: CityNotice[] = [
-  {
-    id: 'welcome-slide-1',
-    title: 'Spot, Report & Resolve Civic Issues',
-    description: 'See a pothole, broken streetlight, or garbage hazard? Snap a photo with location to alert your community and watch it get resolved.',
-    category: 'app_update',
-    displayType: 'feature_update',
-    priority: 'urgent',
-    city: 'all',
-    badgeText: 'WELCOME TO RECITI',
-    issuedBy: 'ReCiti Citizen Network',
-    date: 'Getting Started',
-    actionLabel: 'Report Issue',
-    actionUrl: '/(tabs)/capture',
-    actionType: 'route',
-    isPinned: true,
-  },
-  {
-    id: 'welcome-slide-2',
-    title: 'Verify Neighbor Issues & Earn Civic Coins',
-    description: 'Every issue is verified by 3 real neighbors before city escalation. Confirm issues and fixes around you to earn Civic Coins (C-Coins) and unlock citizen rewards.',
-    category: 'app_update',
-    displayType: 'feature_update',
-    priority: 'high',
-    city: 'all',
-    badgeText: 'CIVIC COIN',
-    issuedBy: 'C-Coin Rewards',
-    date: 'Coins & Ranks',
-    actionLabel: 'View Coins',
-    actionUrl: '/(tabs)/profile',
-    actionType: 'route',
-    isPinned: true,
-  },
-  {
-    id: 'welcome-slide-3',
-    title: 'Discover Local Places & Official Notices',
-    description: 'Find verified hospitals, shops, and institutions in Bongaigaon. Stay updated with real-time municipal announcements and alerts.',
-    category: 'app_update',
-    displayType: 'feature_update',
-    priority: 'high',
-    city: 'all',
-    badgeText: 'EXPLORE YOUR CITY',
-    issuedBy: 'City Hub',
-    date: 'Directory & Alerts',
-    actionLabel: 'Explore Places',
-    actionUrl: '/(tabs)/directories',
-    actionType: 'route',
-    isPinned: true,
-  },
-];
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000; // 72 hours
 
 /**
- * Checks if the user is within their first 3 days of installing the app.
- * If so, returns the 3 welcome onboarding slides; otherwise returns an empty array.
+ * Checks whether the current device is within its first 3 days since initial app launch.
  */
-export async function getWelcomeNotices(): Promise<CityNotice[]> {
+export async function isWithinOnboardingWindow(): Promise<boolean> {
   try {
     let installTimeStr = await AsyncStorage.getItem(FIRST_INSTALL_KEY);
     const now = Date.now();
@@ -71,24 +18,22 @@ export async function getWelcomeNotices(): Promise<CityNotice[]> {
     if (!installTimeStr) {
       // First time launch on this installation — record timestamp
       await AsyncStorage.setItem(FIRST_INSTALL_KEY, now.toString());
-      installTimeStr = now.toString();
+      return true;
     }
 
     const installTime = parseInt(installTimeStr, 10);
-    const isWithin3Days = !isNaN(installTime) && now - installTime < THREE_DAYS_MS;
-
-    if (isWithin3Days) {
-      return [...WELCOME_NOTICES];
-    }
+    return !isNaN(installTime) && now - installTime < THREE_DAYS_MS;
   } catch (err) {
     console.warn('[noticeService] Error checking install timestamp:', err);
+    return false;
   }
-  return [];
 }
 
 /**
- * Fetches active city notices from Firestore, combined with the 3 welcome slides
- * if the user is within their 3-day onboarding window.
+ * Fetches active city notices dynamically from Firestore.
+ * - Targets the user's detected city (falling back to 'all' if no city-specific notices exist)
+ * - Dynamically includes 'new_users' onboarding notices if user is in their 3-day welcome window
+ * - Applies priority ranking: pinned notices first, then urgent -> high -> normal
  */
 export async function getCityNotices(city?: string | null): Promise<CityNotice[]> {
   let list: CityNotice[] = [];
@@ -105,27 +50,52 @@ export async function getCityNotices(city?: string | null): Promise<CityNotice[]
     console.warn('[noticeService] Firestore query error:', err);
   }
 
-  // Filter Firestore notices by city if specified
-  if (city && city.trim().length > 0) {
-    const query = city.trim().toLowerCase();
-    list = list.filter(
-      (n) => n.city.toLowerCase() === query || n.city.toLowerCase() === 'all'
-    );
-  }
-
-  // Retrieve 3-day welcome onboarding slides
-  const welcomeSlides = await getWelcomeNotices();
-
-  // Combine welcome slides (pinned at front) with live municipal notices
-  const combined = [...welcomeSlides, ...list];
-
-  // Sort: pinned notices first, then urgent priority, then high, then normal
-  const priorityRank: Record<string, number> = { urgent: 3, high: 2, normal: 1 };
-  combined.sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return (priorityRank[b.priority] ?? 1) - (priorityRank[a.priority] ?? 1);
+  // 1. Expiry Date Filter (filter out past notices; null/empty expiresAt means permanent)
+  const now = Date.now();
+  list = list.filter((n) => {
+    if (!n.expiresAt) return true;
+    const expiryTime = new Date(n.expiresAt).getTime();
+    if (isNaN(expiryTime)) return true;
+    return expiryTime > now;
   });
 
-  return combined;
+  // 2. Dynamic 3-Day Welcome Window Filter
+  const isNewUser = await isWithinOnboardingWindow();
+  if (!isNewUser) {
+    // Mature user: filter out new-user onboarding notices
+    list = list.filter((n) => n.targetAudience !== 'new_users');
+  }
+
+  // 3. City-aware filtering
+  let cityFiltered = list;
+  if (city && city.trim().length > 0) {
+    const query = city.trim().toLowerCase();
+    cityFiltered = list.filter(
+      (n) => n.city.toLowerCase() === query || n.city.toLowerCase() === 'all'
+    );
+
+    // If city has no matching notices, fall back to global notices so hero is not empty
+    if (cityFiltered.length === 0) {
+      cityFiltered = list.filter((n) => n.city.toLowerCase() === 'all');
+    }
+  }
+
+  // 3. Priority Ranking Sort
+  const priorityRank: Record<string, number> = { urgent: 3, high: 2, normal: 1 };
+  cityFiltered.sort((a, b) => {
+    // Pinned notices first
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+
+    // Priority rank: urgent (3) > high (2) > normal (1)
+    const pDiff = (priorityRank[b.priority] ?? 1) - (priorityRank[a.priority] ?? 1);
+    if (pDiff !== 0) return pDiff;
+
+    // Newest first if creation timestamp is available
+    const timeA = a.createdAt?.seconds ?? 0;
+    const timeB = b.createdAt?.seconds ?? 0;
+    return timeB - timeA;
+  });
+
+  return cityFiltered;
 }
