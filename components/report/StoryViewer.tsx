@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0A0A0A',
   },
   scrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.78)',
   },
   scrimLight: {
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tapZones: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
     top: 100,
     bottom: 180,

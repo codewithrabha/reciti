@@ -119,13 +119,13 @@ export function LinkedServiceCategoryShelf({
             >
               <Image
                 source={{ uri: imageUri }}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 contentFit="cover"
                 transition={200}
               />
               <LinearGradient
                 colors={["rgba(0,0,0,0.2)", "rgba(0,0,0,0.76)"]}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
               />
               <View style={styles.cardContentOverlay}>
                 <Typography
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   cardContentOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "flex-end",
     paddingHorizontal: 8,

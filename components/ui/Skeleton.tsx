@@ -66,7 +66,7 @@ export function Skeleton({ width, height, borderRadius, style }: SkeletonProps) 
         <Animated.View
           pointerEvents="none"
           style={[
-            StyleSheet.absoluteFillObject,
+            StyleSheet.absoluteFill,
             { width: boxWidth },
             animatedStyle,
           ]}

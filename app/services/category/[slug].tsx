@@ -220,13 +220,13 @@ export default function ServiceCategoryScreen() {
         <View style={styles.heroCard}>
           <Image
             source={{ uri: categoryMeta.bannerImageUrl }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             contentFit="cover"
             transition={300}
           />
           <LinearGradient
             colors={['rgba(0,0,0,0.15)', 'rgba(0,0,0,0.85)']}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
           <View style={styles.heroContent}>
             {categoryMeta.badgeText ? (
