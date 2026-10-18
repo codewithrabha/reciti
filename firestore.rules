@@ -20,15 +20,13 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
-    // Admin role check: checks custom auth claims OR users/{uid} document.
+    // Admin role check: checks custom auth claims OR users/{uid} document role.
     function isAdmin() {
       return isRealUser() && (
         request.auth.token.role == 'admin' ||
         (
-          exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
-          )
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
         )
       );
     }
@@ -41,13 +39,30 @@ service cloud.firestore {
     // "mark comment helpful" flow, which awards points to the comment author.
     match /users/{userId} {
       allow read:   if signedIn();
-      allow create: if isRealUser() && request.auth.uid == userId;
+      allow create: if isRealUser() && request.auth.uid == userId
+                    && (!('role' in request.resource.data) || request.resource.data.role == 'user');
       allow update: if isRealUser() && (
-        request.auth.uid == userId
-        || isAdmin()
+        isAdmin()
+        || isUserSelfUpdate()
         || isPointAward()
       );
       allow delete: if false;
+
+      function isUserSelfUpdate() {
+        return request.auth.uid == userId
+          // Cannot modify role; must preserve existing role if already set, or default to user
+          && (
+            !('role' in resource.data)
+              ? (!('role' in request.resource.data) || request.resource.data.role == 'user')
+              : (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)
+          )
+          // Cannot modify suspension status
+          && (
+            !('status' in resource.data)
+              ? (!('status' in request.resource.data) || request.resource.data.status == 'active')
+              : (!('status' in request.resource.data) || request.resource.data.status == resource.data.status)
+          );
+      }
 
       function isPointAward() {
         let before = resource.data;
