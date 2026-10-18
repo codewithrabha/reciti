@@ -8,7 +8,7 @@ description: >-
 
 # ReCiti — Android Build & Firebase Native Config
 
-ReCiti is an **Expo SDK 56** app (React Native 0.85, Hermes v1) using **CNG (prebuild)** with a committed
+ReCiti is an **Expo SDK 57** app (React Native 0.86, Hermes v1) using **CNG (prebuild)** with a committed
 `android/` folder, `expo-dev-client`, and `newArchEnabled: true`.
 
 ## Building / running

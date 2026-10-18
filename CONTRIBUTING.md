@@ -42,7 +42,7 @@ pending ──(10 verifications)──▶ verified ──(after-photo)──▶ 
 
 ## Tech stack
 
-- **Expo SDK 56** / React Native 0.85 / React 19 — new architecture enabled, Hermes v1, build-time Kotlin codegen.
+- **Expo SDK 57** / React Native 0.86 / React 19 — new architecture enabled, Hermes v1, build-time Kotlin codegen.
 - **Expo Router** — file-based, typed routes (decoupled `expo-router/react-navigation`).
 - **Firebase JS SDK** — Cloud Firestore (data) + Firebase Auth (anonymous / email / Google) + Remote Config.
 - **Cloudinary** — image hosting via unsigned uploads.

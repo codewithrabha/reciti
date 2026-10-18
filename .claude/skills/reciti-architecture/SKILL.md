@@ -17,7 +17,7 @@ Firebase backend and a Next.js admin console.
 
 | Layer | Technology |
 |---|---|
-| **Runtime** | React Native 0.85, Expo SDK 56 (Hermes v1, New Architecture enabled) |
+| **Runtime** | React Native 0.86, Expo SDK 57 (Hermes v1, New Architecture enabled) |
 | **Routing** | Expo Router (file-based, typed routes, decoupled navigation) |
 | **State** | Zustand 5 (global stores) + React state (local) |
 | **Backend** | Firebase: Firestore, Authentication, Cloud Messaging |
