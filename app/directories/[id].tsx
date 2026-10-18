@@ -366,7 +366,7 @@ export default function DirectoryDetailScreen() {
                     {gallery[3] && (
                       <Image
                         source={{ uri: gallery[3] }}
-                        style={[StyleSheet.absoluteFillObject, { opacity: 0.35 }]}
+                        style={[StyleSheet.absoluteFill, { opacity: 0.35 }]}
                         contentFit="cover"
                       />
                     )}
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   bannerGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   lightboxBadge: {
     position: 'absolute',
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   moreThumbOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalSheet: {
