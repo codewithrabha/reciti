@@ -6,9 +6,9 @@
 
 *An all-in-one civic intelligence, zero-broker community housing, and hyperlocal discovery platform.*
 
-[![Expo SDK 55](https://img.shields.io/badge/Expo-SDK_55-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
-[![React Native](https://img.shields.io/badge/React_Native-0.83-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactnative.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Expo SDK 56](https://img.shields.io/badge/Expo-SDK_56-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
+[![React Native](https://img.shields.io/badge/React_Native-0.85-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactnative.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-Firestore_%26_Auth-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)](LICENSE)
 
@@ -67,40 +67,19 @@
 
 ## 🛠️ Architecture & Tech Stack
 
-```
-ReCiti Workspace
-├── reciti/                 # React Native / Expo Mobile Application
-│   ├── app/                # Expo Router file-based pages & tab navigation
-│   │   ├── (tabs)/         # Bottom tab screens (Pulse, Directories, Capture, Events, Profile)
-│   │   ├── directories/    # Directory item details, photo lightbox, review flows
-│   │   └── events/         # Event detail pages and RSVPs
-│   ├── components/         # Modular, reusable UI component design system
-│   │   ├── directories/    # Directory cards, horizontal strips, category templates
-│   │   ├── housing/        # Zero-broker cards, Stay Intel & unlock modals
-│   │   ├── profile/        # Resident pass cards, VIP modals, karma tiers
-│   │   ├── pulse/          # City broadcast banners, notice board, civic health feeds
-│   │   └── ui/             # Typography, animated buttons, badges, modals
-│   ├── lib/                # Services: Firestore, Auth, Notifications, Cloudinary
-│   ├── theme/              # Centralized tokenized Light/Dark theme engine
-│   └── types/              # Strict TypeScript data models & schemas
-│
-└── admin/                  # Web-Based Civic Administration Console (Next.js)
-    ├── src/app/            # App Router dashboard (Directories, Events, Reports, Broadcasts)
-    └── src/lib/            # Admin Firebase SDK, Cloudinary uploaders & utilities
-```
-
 | Layer | Technologies |
 |---|---|
-| **Mobile Core** | React Native 0.83, Expo SDK 55, Expo Router (Typed routing) |
+| **Mobile Core** | React Native 0.85, Expo SDK 56, Decoupled Expo Router |
+| **JS Engine & Runtime** | Hermes v1 (Bytecode diffing, lower RAM, instant startup) |
+| **Code Optimization** | Android R8 code minification & resource shrinking enabled |
 | **List Virtualization** | `@legendapp/list` (LegendList for 60 FPS carousels and lists) |
-| **State & Navigation** | Zustand, React Navigation v7 |
+| **State Management** | Zustand (Global stores, selective rendering) |
 | **Backend & Realtime** | Firebase Firestore, Firebase Authentication, Cloud Storage |
 | **Geospatial & GPS** | `expo-location`, `geofire-common` |
 | **Push Notifications** | `expo-notifications`, Firebase Cloud Messaging (FCM) |
 | **Media & CDN** | Cloudinary CDN, `expo-image`, `expo-camera`, `expo-image-manipulator` |
 | **Motion & Micro-interactions** | React Native Reanimated 4, `expo-haptics`, `expo-blur` |
-| **Typography & Theme** | Google Fonts Plus Jakarta Sans, Dynamic Light & Dark Mode |
-| **Admin Console** | Next.js 15, TailwindCSS, Cloudinary Upload Dropzone |
+| **Typography & Theme** | Google Fonts Plus Jakarta Sans & Outfit, Dynamic Light & Dark Mode |
 
 ---
 

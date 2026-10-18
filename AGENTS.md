@@ -1,11 +1,11 @@
 # ReCiti — Agent Instructions
 
 ## Project Overview
-ReCiti is an all-in-one civic intelligence, zero-broker community housing, and hyperlocal discovery React Native app built with Expo SDK 55, Firebase, and Zustand.
+ReCiti is an all-in-one civic intelligence, zero-broker community housing, and hyperlocal discovery React Native app built with Expo SDK 56, React Native 0.85, Firebase, and Zustand.
 
 ## Critical Rules
 
-1. **Read the Expo SDK 55 docs** at https://docs.expo.dev/versions/v54.0.0/ before writing any code that uses Expo APIs (routing, camera, location, notifications, etc.).
+1. **Read the Expo SDK 56 docs** at https://docs.expo.dev/ before writing any code that uses Expo APIs (routing, camera, location, notifications, etc.).
 2. **All Firestore access goes through `lib/` service files** — never import `firebase/firestore` directly in screens or components.
 3. **Use `@/theme`** for all styling tokens — never use `constants/theme.ts` or `hooks/use-theme-color.ts`.
 4. **Use Zustand auth selectors** (`useUser()`, `useUserDoc()` from `@/store/authStore`) — the old `useAuth()` context hook in `hooks/useAuth.tsx` is legacy.

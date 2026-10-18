@@ -87,21 +87,22 @@ Feature components are organized by domain in `components/`:
 ### Root Layout (`app/_layout.tsx`)
 - Loads Plus Jakarta Sans fonts
 - Initializes Firebase auth listener (`initAuthListener()`)
-- Wraps app in `OnboardingProvider` → `GestureHandlerRootView` → `ThemeProvider` → `AppUpdateProvider`
+- Wraps app in `OnboardingProvider` → `GestureHandlerRootView` → `ThemeProvider` (from `expo-router/react-navigation`) → `AppUpdateProvider`
 - Uses `Stack.Protected` guards for onboarding and auth-gated routes
 
 ### Tab Navigation (`app/(tabs)/_layout.tsx`)
-5 visible tabs + 2 hidden routes:
+5 visible tabs + 3 accessible tab routes:
 
 | Tab | Screen | Icon | Description |
 |---|---|---|---|
-| Pulse | `index` | earth | City dashboard, stats, notice board, verification queue |
+| Home | `index` | earth | City dashboard, stats, notice board carousel, verification queue |
 | Directories | `directories` | map | Business/housing directory with search, category & subcategory filters |
 | Capture | `capture` | add (floating FAB) | Report submission (1–3 photos, vibe, category, optional description) |
-| Events | `events` | sparkles | Community events with category/subcategory filtering |
-| Profile | `profile` | person | Civic points, tier, reports, leaderboard, bookmarks, referrals |
-| (hidden) | `explore` | — | Full report feed with area filters |
-| (hidden) | `learn` | — | Daily trivia + archive |
+| Services | `services` | sparkles | Hyperlocal civic & urban services directory |
+| Store | `store` | bag-handle | Civic rewards marketplace & community redemption store |
+| (route) | `events` | — | Community events feed with category/subcategory filtering |
+| (route) | `profile` | — | Civic points, tier, reports, leaderboard, bookmarks, referrals |
+| (route) | `explore` | — | Full report feed with area filters |
 
 ### Detail / Modal Routes
 - `app/report/[id].tsx` — Report detail (comments, story slides, resolution)

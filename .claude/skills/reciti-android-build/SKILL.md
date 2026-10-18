@@ -8,18 +8,19 @@ description: >-
 
 # ReCiti — Android Build & Firebase Native Config
 
-ReCiti is an **Expo SDK 54** app using **CNG (prebuild)** with a committed
+ReCiti is an **Expo SDK 56** app (React Native 0.85, Hermes v1) using **CNG (prebuild)** with a committed
 `android/` folder, `expo-dev-client`, and `newArchEnabled: true`.
 
 ## Building / running
 
 - `npx expo run:android` — prebuild + build + install the debug dev client.
 - `./gradlew.bat assembleDebug` (inside `android/`) — build the debug APK directly.
+- `./gradlew.bat assembleRelease` (inside `android/`) — build release APK with R8 code shrinking and resource shrinking enabled.
 - `npx expo start -c` — start Metro with a cleared cache (needed after `.env` changes,
   since `EXPO_PUBLIC_*` vars are inlined at bundle time).
 
 The `android/` folder is generated. Avoid hand-editing it — `expo prebuild --clean`
-regenerates it. Prefer changing `app.json` / config plugins.
+regenerates it. Prefer changing `app.config.js` / `app.json` config plugins. R8 code optimization and ProGuard rules are configured via `expo-build-properties` in `app.config.js`.
 
 ## Debug keystore — the SHA-1 gotcha ⚠️
 
@@ -66,6 +67,7 @@ that App Signing SHA-1 from the Play Console too.
 
 ## Plugins
 
-`app.json` `plugins` includes `@react-native-google-signin/google-signin`,
-`expo-router`, `expo-camera`, `expo-image-picker`, `expo-location`, `expo-splash-screen`.
-Keep each plugin listed **once** — duplicates cause the config plugin to run twice.
+`app.json` and `app.config.js` plugins include `@react-native-google-signin/google-signin`,
+`expo-router`, `expo-camera`, `expo-image-picker`, `expo-location`, `expo-splash-screen`,
+`expo-font`, `expo-image`, `expo-status-bar`, `expo-web-browser`, and `expo-build-properties`
+(configuring R8 code shrinking and ProGuard keep rules). Keep each plugin listed **once** — duplicates cause the config plugin to run twice.

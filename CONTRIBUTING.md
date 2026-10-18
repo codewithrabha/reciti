@@ -4,12 +4,14 @@ This is the **V1 MVP**, built with Expo (React Native) and Firebase.
 
 ## What it does
 
-ReCiti is organised around five tabs:
+ReCiti is organised around bottom navigation tabs:
 
-- **Pulse** — a city-health dashboard with honest, real-time aggregate stats (open issues, civic wins, pending verifications, week-over-week trend) plus a verification queue, scoped to an optional radius around you.
-- **Explore** — a real-time feed of reports, filterable by wins, issues, or items needing verification.
+- **Home** — city-health dashboard with honest, real-time aggregate stats (open issues, civic wins, pending verifications), NoticeBoard alerts carousel, and verification queue.
+- **Directories** — zero-broker community housing, verified local business listings, and resident community directories.
 - **Capture** — the center action: take 1–3 photos, tag a vibe (`win` / `fail`) and category (`waste` / `traffic` / `infrastructure`), and submit. Reports are auto-located and reverse-geocoded to a city.
-- **Profile** — your civic points, tier, your reports, and the community leaderboard.
+- **Services** — verified hyperlocal services and civic utility directory.
+- **Store** — civic rewards marketplace and community redemption store.
+- **Profile & Events** — civic points, tier badges, community leaderboard, and local neighborhood events.
 
 ### Report lifecycle
 
@@ -40,9 +42,9 @@ pending ──(10 verifications)──▶ verified ──(after-photo)──▶ 
 
 ## Tech stack
 
-- **Expo SDK 54** / React Native 0.81 / React 19 — new architecture enabled, React Compiler on.
-- **Expo Router** — file-based, typed routes.
-- **Firebase JS SDK** — Cloud Firestore (data) + Firebase Auth (anonymous / email / Google).
+- **Expo SDK 56** / React Native 0.85 / React 19 — new architecture enabled, Hermes v1, build-time Kotlin codegen.
+- **Expo Router** — file-based, typed routes (decoupled `expo-router/react-navigation`).
+- **Firebase JS SDK** — Cloud Firestore (data) + Firebase Auth (anonymous / email / Google) + Remote Config.
 - **Cloudinary** — image hosting via unsigned uploads.
 - **Reanimated 4**, **Zustand**, **Plus Jakarta Sans**, and a custom theme system (Emerald brand, light/dark aware).
 

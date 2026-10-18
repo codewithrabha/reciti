@@ -17,8 +17,8 @@ Firebase backend and a Next.js admin console.
 
 | Layer | Technology |
 |---|---|
-| **Runtime** | React Native 0.83, Expo SDK 55 (New Architecture enabled) |
-| **Routing** | Expo Router (file-based, typed routes) |
+| **Runtime** | React Native 0.85, Expo SDK 56 (Hermes v1, New Architecture enabled) |
+| **Routing** | Expo Router (file-based, typed routes, decoupled navigation) |
 | **State** | Zustand 5 (global stores) + React state (local) |
 | **Backend** | Firebase: Firestore, Authentication, Cloud Messaging |
 | **Native Firebase** | `@react-native-firebase/app` + `@react-native-firebase/remote-config` |
@@ -32,7 +32,7 @@ Firebase backend and a Next.js admin console.
 | **Animation** | React Native Reanimated 4, `expo-haptics` |
 | **UI Effects** | `expo-blur` (glassmorphism), `expo-linear-gradient` |
 | **Typography** | Plus Jakarta Sans (Google Fonts) |
-| **Admin** | Next.js 15, TailwindCSS (separate `/admin` workspace) |
+| **Admin** | Next.js 16, TailwindCSS (separate `/admin` workspace) |
 
 ## Project Structure
 
@@ -40,15 +40,16 @@ Firebase backend and a Next.js admin console.
 reciti/
 ├── app/                    # Expo Router — all screens & navigation
 │   ├── _layout.tsx         # Root Stack: fonts, auth listener, onboarding guard
-│   ├── (tabs)/             # Bottom tab navigator (5 visible + 2 hidden)
+│   ├── (tabs)/             # Bottom tab navigator (5 visible + routes)
 │   │   ├── _layout.tsx     # Tab config with emerald FAB capture button
-│   │   ├── index.tsx       # Pulse (dashboard, stats, notice board)
+│   │   ├── index.tsx       # Home (Pulse dashboard, stats, notice board)
 │   │   ├── directories.tsx # Directory listing with categories & search
 │   │   ├── capture.tsx     # Civic report submission (1-3 photos)
-│   │   ├── events.tsx      # Community events feed
-│   │   ├── profile.tsx     # User profile, karma, leaderboard, bookmarks
-│   │   ├── explore.tsx     # (hidden) Full report feed
-│   │   └── learn.tsx       # (hidden) Daily trivia + archive
+│   │   ├── services.tsx    # Hyperlocal civic & urban services
+│   │   ├── store.tsx       # Civic rewards & community store
+│   │   ├── events.tsx      # (route) Community events feed
+│   │   ├── profile.tsx     # (route) User profile, karma, leaderboard, bookmarks
+│   │   └── explore.tsx     # (route) Full report feed
 │   ├── auth/               # Login / signup screens
 │   ├── report/             # [id] detail + index
 │   ├── directories/        # [id] detail, category/[slug], contribute
