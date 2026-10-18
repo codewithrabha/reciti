@@ -6,8 +6,8 @@
 
 *An all-in-one civic intelligence, zero-broker community housing, and hyperlocal discovery platform.*
 
-[![Expo SDK 56](https://img.shields.io/badge/Expo-SDK_56-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
-[![React Native](https://img.shields.io/badge/React_Native-0.85-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactnative.dev/)
+[![Expo SDK 57](https://img.shields.io/badge/Expo-SDK_57-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
+[![React Native](https://img.shields.io/badge/React_Native-0.86-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactnative.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-Firestore_%26_Auth-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)](LICENSE)
@@ -69,7 +69,7 @@
 
 | Layer | Technologies |
 |---|---|
-| **Mobile Core** | React Native 0.85, Expo SDK 56, Decoupled Expo Router |
+| **Mobile Core** | React Native 0.86, Expo SDK 57, Decoupled Expo Router |
 | **JS Engine & Runtime** | Hermes v1 (Bytecode diffing, lower RAM, instant startup) |
 | **Code Optimization** | Android R8 code minification & resource shrinking enabled |
 | **List Virtualization** | `@legendapp/list` (LegendList for 60 FPS carousels and lists) |
